@@ -1,0 +1,59 @@
+{
+	"name": "@dedalus/hollywood",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Lights, cameras, Actions!",
+	"bin": {
+		"hollywood": "./dist/cli.js"
+	},
+	"files": [
+		"dist",
+		"README.md",
+		"package.json"
+	],
+	"type": "module",
+	"sideEffects": false,
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./action-runtime": {
+			"types": "./dist/action-runtime.d.ts",
+			"import": "./dist/action-runtime.js"
+		},
+		"./environments": {
+			"types": "./dist/environments.d.ts",
+			"import": "./dist/environments.js"
+		},
+		"./expr": {
+			"types": "./dist/expr.d.ts",
+			"import": "./dist/expr.js"
+		}
+	},
+	"scripts": {
+		"build": "tsdown",
+		"prepack": "npm run build",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@actions/core": "3.0.1",
+		"@actions/exec": "3.0.0",
+		"@actions/expressions": "0.3.57",
+		"@actions/workflow-parser": "0.3.55",
+		"esbuild": "0.27.3",
+		"yaml": "2.8.4"
+	},
+	"devDependencies": {
+		"@commander-js/extra-typings": "14.0.0",
+		"@dedalus/tsconfig": "workspace:*",
+		"@types/node": "^24.12.0",
+		"commander": "14.0.3",
+		"tsdown": "0.22.0",
+		"typescript": "^6.0.3"
+	},
+	"engines": {
+		"node": ">=24"
+	}
+}

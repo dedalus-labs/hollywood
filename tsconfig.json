@@ -1,0 +1,16 @@
+{
+	"extends": "@dedalus/tsconfig/base.json",
+	"compilerOptions": {
+		"lib": ["esnext"],
+		"allowImportingTsExtensions": true,
+		"types": ["node"],
+		"paths": {
+			"@dedalus/hollywood": ["./src/index.ts"],
+			"@dedalus/hollywood/action-runtime": ["./src/action-runtime.ts"],
+			"@dedalus/hollywood/environments": ["./src/environments.ts"],
+			"@dedalus/hollywood/expr": ["./src/expr.ts"]
+		}
+	},
+	"include": ["src/**/*.ts", "examples/**/*.ts"],
+	"exclude": ["node_modules"]
+}
