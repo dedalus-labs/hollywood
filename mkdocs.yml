@@ -1,0 +1,120 @@
+site_name: Hollywood
+site_description: TypeScript scripts for GitHub Actions, without shell-in-YAML.
+site_url: https://dedalus-labs.github.io/hollywood
+repo_url: https://github.com/dedalus-labs/dedalus
+repo_name: dedalus-labs/dedalus
+site_author: Dedalus Labs
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/theme-light-dark
+        name: "Theme: auto"
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/weather-sunny
+        name: "Theme: light"
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/weather-night
+        name: "Theme: dark"
+  features:
+    - navigation.path
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - content.code.copy
+    - content.tabs.link
+    - search.suggest
+    - search.highlight
+    - toc.follow
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+  - git-revision-date-localized:
+      enabled: !ENV [HOLLYWOOD_DOCS_GIT_DATES, false]
+      timezone: UTC
+      fallback_to_build_date: true
+  - llmstxt:
+      full_output: llms-full.txt
+      markdown_description: |
+        Hollywood is a TypeScript scripting library for GitHub Actions.
+        It moves imperative CI/CD logic out of YAML and into testable scripts
+        while generating ordinary action.yml files, workflow YAML, and
+        GitHub-compatible action entrypoints.
+        Key features: typed inputs, typed outputs, execve-shaped command
+        arguments, local script tests, generated GitHub Actions files,
+        upstream GitHub Actions schema validation, MinIO/LocalStack-style
+        service dogfood, and Lima-backed local action runs.
+      sections:
+        Getting Started:
+          - getting-started/installation.md
+          - getting-started/quickstart.md
+        Usage:
+          - usage/scripts.md
+          - usage/github-actions.md
+          - usage/local-testing.md
+          - usage/local-services.md
+        Recipes:
+          - recipes/s3-cache.md
+          - recipes/package-artifact.md
+        Reference:
+          - reference/api.md
+          - reference/generated-files.md
+          - reference/publishing.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.magiclink
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.keys
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - tables
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+      anchorlink: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Overview: getting-started/index.md
+      - Quick Start: getting-started/quickstart.md
+      - Installation: getting-started/installation.md
+  - Usage:
+      - Overview: usage/index.md
+      - Scripts: usage/scripts.md
+      - Generated GitHub Actions: usage/github-actions.md
+      - Local Testing: usage/local-testing.md
+      - Local Services: usage/local-services.md
+  - Recipes:
+      - Overview: recipes/index.md
+      - S3 Cache: recipes/s3-cache.md
+      - Package Artifact: recipes/package-artifact.md
+  - Reference:
+      - Overview: reference/index.md
+      - API Surface: reference/api.md
+      - Generated Files: reference/generated-files.md
+      - Publishing Boundary: reference/publishing.md
+
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
