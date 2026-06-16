@@ -1,23 +1,23 @@
 /* Hollywood docs theme - rose velvet, red carpet, and champagne flashbulbs */
 
 :root {
-  --hollywood-velvet: #24070d;
-  --hollywood-velvet-soft: #3a0b14;
-  --hollywood-burgundy: #7f1022;
-  --hollywood-rose: #c72949;
-  --hollywood-rose-hover: #a51c36;
-  --hollywood-rose-muted: rgba(199, 41, 73, 0.14);
-  --hollywood-champagne: #f6c65b;
-  --hollywood-flash: #fff3b8;
-  --hollywood-champagne-soft: rgba(246, 198, 91, 0.2);
-  --hollywood-ivory: #fffaf1;
-  --hollywood-paper: #fff7f7;
-  --hollywood-ink: #1f0d12;
-  --hollywood-text: #312126;
-  --hollywood-muted: #6f5b61;
-  --hollywood-code: #f7ecee;
-  --hollywood-border: #ead7dc;
-  --hollywood-tuxedo: #130f12;
+  --hollywood-velvet: #3a111b;
+  --hollywood-velvet-soft: #4a1724;
+  --hollywood-burgundy: #8f3344;
+  --hollywood-rose: #b84759;
+  --hollywood-rose-hover: #9d3145;
+  --hollywood-rose-muted: rgba(184, 71, 89, 0.1);
+  --hollywood-champagne: #e9c56f;
+  --hollywood-flash: #fff2bd;
+  --hollywood-champagne-soft: rgba(233, 197, 111, 0.16);
+  --hollywood-ivory: #fffaf4;
+  --hollywood-paper: #fff8f8;
+  --hollywood-ink: #2b171d;
+  --hollywood-text: #34272b;
+  --hollywood-muted: #7b666d;
+  --hollywood-code: #f8f0f2;
+  --hollywood-border: #eadce0;
+  --hollywood-tuxedo: #2d2226;
 }
 
 [data-md-color-scheme="default"] {
@@ -28,7 +28,7 @@
   --md-default-fg-color: var(--hollywood-text);
   --md-default-fg-color--light: #49373d;
   --md-default-fg-color--lighter: var(--hollywood-muted);
-  --md-default-bg-color: #ffffff;
+  --md-default-bg-color: #fffdfb;
   --md-typeset-a-color: var(--hollywood-burgundy);
   --md-code-bg-color: var(--hollywood-code);
   --md-code-fg-color: var(--hollywood-ink);
@@ -52,20 +52,21 @@
 }
 
 .md-header {
-  background: var(--hollywood-velvet);
-  border-bottom: 3px solid var(--hollywood-champagne);
+  background: linear-gradient(90deg, var(--hollywood-velvet), var(--hollywood-velvet-soft));
+  border-bottom: 1px solid rgba(233, 197, 111, 0.45);
+  box-shadow: 0 1px 10px rgba(58, 17, 27, 0.16);
   position: relative;
 }
 
 .md-header::after {
   background-image:
-    radial-gradient(circle, var(--hollywood-flash) 0 38%, transparent 42%),
-    linear-gradient(90deg, var(--hollywood-burgundy), var(--hollywood-rose), var(--hollywood-burgundy));
+    radial-gradient(circle, rgba(255, 242, 189, 0.75) 0 35%, transparent 40%),
+    linear-gradient(90deg, rgba(143, 51, 68, 0.68), rgba(184, 71, 89, 0.72), rgba(143, 51, 68, 0.68));
   background-position: 0 0, 0 0;
-  background-size: 28px 6px, 100% 100%;
-  bottom: -3px;
+  background-size: 32px 4px, 100% 100%;
+  bottom: -4px;
   content: "";
-  height: 6px;
+  height: 4px;
   left: 0;
   position: absolute;
   right: 0;
@@ -78,7 +79,8 @@
 }
 
 .md-search__input {
-  background-color: rgba(255, 250, 241, 0.12);
+  background-color: rgba(255, 250, 244, 0.17);
+  border: 1px solid rgba(255, 250, 244, 0.08);
 }
 
 .md-search__input::placeholder {
@@ -87,7 +89,7 @@
 
 .md-header .md-logo img,
 .md-header .md-logo svg {
-  filter: drop-shadow(0 0 7px rgba(246, 198, 91, 0.45));
+  filter: drop-shadow(0 0 5px rgba(233, 197, 111, 0.34));
 }
 
 .md-tabs {
@@ -125,8 +127,8 @@
 }
 
 .md-typeset table:not([class]) th {
-  background-color: var(--hollywood-tuxedo);
-  border-bottom: 2px solid var(--hollywood-champagne);
+  background-color: var(--hollywood-velvet-soft);
+  border-bottom: 1px solid rgba(233, 197, 111, 0.58);
   color: var(--hollywood-ivory);
 }
 
@@ -146,55 +148,6 @@
   border-color: var(--hollywood-rose-hover);
 }
 
-.hollywood-hero {
-  background:
-    radial-gradient(circle at 88% 18%, rgba(255, 243, 184, 0.9) 0 2px, transparent 3px),
-    radial-gradient(circle at 93% 32%, rgba(255, 243, 184, 0.7) 0 1px, transparent 3px),
-    radial-gradient(circle at 82% 42%, rgba(255, 243, 184, 0.65) 0 1px, transparent 3px),
-    linear-gradient(90deg, rgba(127, 16, 34, 0.12), transparent 30% 70%, rgba(127, 16, 34, 0.12));
-  border-bottom: 1px solid var(--hollywood-border);
-  border-top: 1px solid var(--hollywood-border);
-  margin: 0 0 1.8rem;
-  overflow: hidden;
-  padding: 1.2rem 0 1.4rem;
-  position: relative;
-}
-
-.hollywood-hero::before,
-.hollywood-hero::after {
-  content: "";
-  pointer-events: none;
-  position: absolute;
-}
-
-.hollywood-hero::before {
-  background:
-    linear-gradient(90deg, transparent, rgba(246, 198, 91, 0.35), transparent),
-    repeating-linear-gradient(90deg, transparent 0 18px, rgba(246, 198, 91, 0.35) 19px 21px, transparent 22px 40px);
-  height: 1px;
-  left: 0;
-  right: 0;
-  top: 0.55rem;
-}
-
-.hollywood-hero::after {
-  background:
-    linear-gradient(90deg, transparent, rgba(199, 41, 73, 0.22), transparent),
-    linear-gradient(180deg, rgba(127, 16, 34, 0.08), transparent);
-  border-radius: 999px 999px 0 0;
-  bottom: -18px;
-  height: 44px;
-  left: 12%;
-  right: 12%;
-}
-
-.hollywood-kicker {
-  color: var(--hollywood-rose);
-  font-size: 1.05rem;
-  font-weight: 700;
-  margin: -0.35rem 0 1rem;
-}
-
 .md-typeset h1 {
   color: var(--hollywood-velvet);
   font-weight: 650;
@@ -207,19 +160,6 @@
 
 [data-md-color-scheme="slate"] .md-typeset h1 {
   color: var(--hollywood-ivory);
-}
-
-[data-md-color-scheme="slate"] .hollywood-hero {
-  background:
-    radial-gradient(circle at 88% 18%, rgba(255, 243, 184, 0.65) 0 2px, transparent 3px),
-    radial-gradient(circle at 93% 32%, rgba(255, 243, 184, 0.55) 0 1px, transparent 3px),
-    radial-gradient(circle at 82% 42%, rgba(255, 243, 184, 0.45) 0 1px, transparent 3px),
-    linear-gradient(90deg, rgba(127, 16, 34, 0.45), transparent 32% 68%, rgba(127, 16, 34, 0.45));
-  border-color: rgba(246, 198, 91, 0.2);
-}
-
-[data-md-color-scheme="slate"] .hollywood-kicker {
-  color: var(--hollywood-champagne);
 }
 
 [data-md-color-scheme="slate"] .md-typeset h2 {
@@ -267,6 +207,77 @@
 .md-typeset .tip > .admonition-title::before,
 .md-typeset .tip > summary::before {
   background-color: var(--hollywood-champagne);
+}
+
+/* Copy page button - keep the llms.txt helper inside the content column. */
+.md-content__inner {
+  position: relative;
+}
+
+#llms-copy-button {
+  position: absolute !important;
+  right: 0 !important;
+  top: 2.5rem !important;
+  z-index: 1 !important;
+}
+
+#llms-copy-button button {
+  align-items: center;
+  background: var(--md-default-bg-color) !important;
+  border: 1px solid var(--hollywood-border) !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  color: var(--hollywood-muted) !important;
+  display: flex;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  gap: 8px;
+  padding: 8px 14px !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+#llms-copy-button button::before {
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237b666d' stroke-width='2'%3E%3Crect x='9' y='9' width='13' height='13' rx='2'/%3E%3Cpath d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'/%3E%3C/svg%3E") no-repeat center / contain;
+  content: "";
+  flex-shrink: 0;
+  height: 18px;
+  width: 18px;
+}
+
+#llms-copy-button button:hover {
+  background: var(--hollywood-paper) !important;
+  border-color: var(--hollywood-rose) !important;
+  color: var(--hollywood-burgundy) !important;
+}
+
+#llms-copy-button button:hover::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238f3344' stroke-width='2'%3E%3Crect x='9' y='9' width='13' height='13' rx='2'/%3E%3Cpath d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'/%3E%3C/svg%3E");
+}
+
+[data-md-color-scheme="slate"] #llms-copy-button button {
+  background: var(--hollywood-velvet) !important;
+  border-color: rgba(233, 197, 111, 0.24) !important;
+  color: var(--hollywood-ivory) !important;
+}
+
+[data-md-color-scheme="slate"] #llms-copy-button button::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fffaf4' stroke-width='2'%3E%3Crect x='9' y='9' width='13' height='13' rx='2'/%3E%3Cpath d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'/%3E%3C/svg%3E");
+}
+
+[data-md-color-scheme="slate"] #llms-copy-button button:hover {
+  background: var(--hollywood-velvet-soft) !important;
+  border-color: var(--hollywood-champagne) !important;
+  color: var(--hollywood-champagne) !important;
+}
+
+[data-md-color-scheme="slate"] #llms-copy-button button:hover::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e9c56f' stroke-width='2'%3E%3Crect x='9' y='9' width='13' height='13' rx='2'/%3E%3Cpath d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'/%3E%3C/svg%3E");
+}
+
+@media screen and (max-width: 44.984375em) {
+  #llms-copy-button {
+    display: none !important;
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
