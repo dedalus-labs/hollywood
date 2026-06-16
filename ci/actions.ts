@@ -13,6 +13,9 @@ export const actionlintAction =
 export const githubScriptAction =
 	"actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd"; // v8
 
+export const createGitHubAppTokenAction =
+	"actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1"; // v3.2.0
+
 export const releasePleaseAction =
 	"googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7"; // v5.0.0
 
