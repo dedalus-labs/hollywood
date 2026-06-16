@@ -34,7 +34,7 @@ Use `nodeExec`, `nodeFs`, and `nodeLog` when the script should run on the local
 machine. The CLI path is:
 
 ```bash
-hollywood run gha/containers/publish-image.ts \
+npx hollywood run gha/containers/publish-image.ts \
   --export publishImage \
   --with image=ghcr.io/acme/api \
   --with tag=sha-abc123 \
@@ -61,7 +61,7 @@ This is useful for scripts that call local tools such as `aws`, `tar`, `zstd`,
 Use `--lima <name>` when the script should run commands inside a Linux VM:
 
 ```bash
-hollywood run gha/go/s3-cache.ts \
+npx hollywood run gha/go/s3-cache.ts \
   --export s3Cache \
   --lima kvm \
   --start-vm \

@@ -68,7 +68,7 @@ want to run the command on the local machine.
 The CLI can run the same exported action:
 
 ```bash
-hollywood run gha/containers/publish-image.ts \
+npx hollywood run gha/containers/publish-image.ts \
   --export publishImage \
   --with image=ghcr.io/acme/api \
   --with tag=sha-abc123 \
@@ -78,7 +78,7 @@ hollywood run gha/containers/publish-image.ts \
 For Linux VM execution on macOS, add `--lima <name>`:
 
 ```bash
-hollywood run gha/containers/publish-image.ts \
+npx hollywood run gha/containers/publish-image.ts \
   --export publishImage \
   --lima default \
   --start-vm \
@@ -93,7 +93,7 @@ Point Hollywood at the source files that export actions or workflows. Quote glob
 patterns so your shell does not expand them first.
 
 ```bash
-hollywood generate "gha/**/*.ts" --output .
+npx hollywood generate "gha/**/*.ts" --output .
 ```
 
 The command writes:
