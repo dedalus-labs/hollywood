@@ -7,29 +7,37 @@ node <<'NODE'
 const fs = require("node:fs");
 
 const author = process.env.PR_AUTHOR;
-const repositoryOwner = process.env.REPOSITORY_OWNER;
+const bootstrapMaintainers = process.env.CLA_BOOTSTRAP_MAINTAINERS;
 if (!author) {
 	console.error("PR_AUTHOR is required");
 	process.exit(1);
 }
-if (!repositoryOwner) {
-	console.error("REPOSITORY_OWNER is required");
-	process.exit(1);
+if (!bootstrapMaintainers) {
+  console.error("CLA_BOOTSTRAP_MAINTAINERS is required");
+  process.exit(1);
 }
 
 const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+const authorHandle = author.toLowerCase();
 const authorKey = "github:" + author.toLowerCase();
+const bootstrapMaintainerSet = new Set(
+  bootstrapMaintainers
+    .split(/[,\s]+/)
+    .map((handle) => handle.trim().toLowerCase())
+    .filter(Boolean)
+    .map((handle) => handle.replace(/^@/, "").replace(/^github:/, "")),
+);
 if (!fs.existsSync("VOUCHED.td")) {
-	if (author.toLowerCase() === repositoryOwner.toLowerCase()) {
-		const body = "## CLA bootstrap passed\n\n@" + author + " owns this repository.";
+  if (bootstrapMaintainerSet.has(authorHandle)) {
+    const body = "## CLA bootstrap passed\n\n@" + author + " is a CLA bootstrap maintainer.";
 		if (summaryPath) {
 			fs.appendFileSync(summaryPath, body + "\n");
 		}
-		console.log("@" + author + " owns this repository");
+    console.log("@" + author + " is a CLA bootstrap maintainer");
 		process.exit(0);
 	}
 
-	const body = "## CLA bootstrap blocked\n\nVOUCHED.td is not present on the trusted base commit.";
+  const body = "## CLA bootstrap blocked\n\nVOUCHED.td is not present on the trusted base commit, and @" + author + " is not a CLA bootstrap maintainer.";
 	if (summaryPath) {
 		fs.appendFileSync(summaryPath, body + "\n");
 	}
@@ -129,8 +137,8 @@ export const cla = workflow({
 				{
 					name: "Check contributor",
 					env: {
+						CLA_BOOTSTRAP_MAINTAINERS: "windsornguyen",
 						PR_AUTHOR: "${{ github.event.pull_request.user.login }}",
-						REPOSITORY_OWNER: "${{ github.repository_owner }}",
 					},
 					run: checkVouchedContributor,
 				},
