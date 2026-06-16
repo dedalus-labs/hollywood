@@ -1,5 +1,5 @@
 {
-	"extends": "@dedalus/tsconfig/base.json",
+	"extends": "./tsconfig.base.json",
 	"compilerOptions": {
 		"lib": ["esnext"],
 		"allowImportingTsExtensions": true,
@@ -11,6 +11,6 @@
 			"@dedalus/hollywood/expr": ["./src/expr.ts"]
 		}
 	},
-	"include": ["src/**/*.ts", "examples/**/*.ts"],
+	"include": ["ci/**/*.ts", "src/**/*.ts", "examples/**/*.ts"],
 	"exclude": ["node_modules"]
 }
