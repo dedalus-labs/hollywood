@@ -43,7 +43,7 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 }) : target, mod));
 var __require = /* @__PURE__ */ createRequire(import.meta.url);
 //#endregion
-//#region ../../../node_modules/.pnpm/commander@14.0.3/node_modules/commander/lib/error.js
+//#region node_modules/commander/lib/error.js
 var require_error = /* @__PURE__ */ __commonJSMin(((exports) => {
 	/**
 	* CommanderError class
@@ -82,7 +82,7 @@ var require_error = /* @__PURE__ */ __commonJSMin(((exports) => {
 	exports.InvalidArgumentError = InvalidArgumentError;
 }));
 //#endregion
-//#region ../../../node_modules/.pnpm/commander@14.0.3/node_modules/commander/lib/argument.js
+//#region node_modules/commander/lib/argument.js
 var require_argument = /* @__PURE__ */ __commonJSMin(((exports) => {
 	const { InvalidArgumentError } = require_error();
 	var Argument = class {
@@ -207,7 +207,7 @@ var require_argument = /* @__PURE__ */ __commonJSMin(((exports) => {
 	exports.humanReadableArgName = humanReadableArgName;
 }));
 //#endregion
-//#region ../../../node_modules/.pnpm/commander@14.0.3/node_modules/commander/lib/help.js
+//#region node_modules/commander/lib/help.js
 var require_help = /* @__PURE__ */ __commonJSMin(((exports) => {
 	const { humanReadableArgName } = require_argument();
 	/**
@@ -697,7 +697,7 @@ var require_help = /* @__PURE__ */ __commonJSMin(((exports) => {
 	exports.stripColor = stripColor;
 }));
 //#endregion
-//#region ../../../node_modules/.pnpm/commander@14.0.3/node_modules/commander/lib/option.js
+//#region node_modules/commander/lib/option.js
 var require_option = /* @__PURE__ */ __commonJSMin(((exports) => {
 	const { InvalidArgumentError } = require_error();
 	var Option = class {
@@ -1000,7 +1000,7 @@ var require_option = /* @__PURE__ */ __commonJSMin(((exports) => {
 	exports.DualOptions = DualOptions;
 }));
 //#endregion
-//#region ../../../node_modules/.pnpm/commander@14.0.3/node_modules/commander/lib/suggestSimilar.js
+//#region node_modules/commander/lib/suggestSimilar.js
 var require_suggestSimilar = /* @__PURE__ */ __commonJSMin(((exports) => {
 	const maxDistance = 3;
 	function editDistance(a, b) {
@@ -1055,7 +1055,7 @@ var require_suggestSimilar = /* @__PURE__ */ __commonJSMin(((exports) => {
 	exports.suggestSimilar = suggestSimilar;
 }));
 //#endregion
-//#region ../../../node_modules/.pnpm/commander@14.0.3/node_modules/commander/lib/command.js
+//#region node_modules/commander/lib/command.js
 var require_command = /* @__PURE__ */ __commonJSMin(((exports) => {
 	const EventEmitter = __require("node:events").EventEmitter;
 	const childProcess = __require("node:child_process");
@@ -3033,7 +3033,7 @@ Expecting one of '${allowedValues.join("', '")}'`);
 	exports.useColor = useColor;
 }));
 //#endregion
-//#region ../../../node_modules/.pnpm/commander@14.0.3/node_modules/commander/index.js
+//#region node_modules/commander/index.js
 var require_commander = /* @__PURE__ */ __commonJSMin(((exports) => {
 	const { Argument } = require_argument();
 	const { Command } = require_command();
@@ -3641,8 +3641,9 @@ const silentLog = {
 };
 //#endregion
 //#region src/cli-program.ts
+const hollywoodVersion = "0.0.1-alpha.0";
 const createHollywoodCli = (io = processIo()) => {
-	const program = new Command().name("hollywood").description("Lights, cameras, Actions!").version("0.0.0");
+	const program = new Command().name("hollywood").description("Lights, cameras, Actions!").version(hollywoodVersion);
 	program.command("generate").description("Generate GitHub Actions files").argument("<sources...>", "Source files or glob patterns").option("--actions-dir <dir>", "Generated actions directory", ".github/actions").option("-o, --output <dir>", "Output directory", ".").option("--source-root <dir>", "Workflow source root", "ci").option("--workflows-dir <dir>", "Generated workflows directory", ".github/workflows").action(async (sources, options) => {
 		await generate({
 			sources,

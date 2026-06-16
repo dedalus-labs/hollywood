@@ -129,7 +129,7 @@ Build GitHub expressions through typed helpers when you can. A typo like
 Actions:
 
 ```typescript
-import { format, gh } from "@dedalus/hollywood/expr";
+import { format, gh } from "@dedalus-labs/hollywood/expr";
 
 concurrency: {
 	group: format("{0}-{1}", gh.github.workflow, gh.github.ref),
@@ -141,7 +141,7 @@ Keep environment policy in one typed registry when an action needs account or
 promotion rules:
 
 ```typescript
-import { defineEnvironmentRegistry, resolveEnvironment } from "@dedalus/hollywood/environments";
+import { defineEnvironmentRegistry, resolveEnvironment } from "@dedalus-labs/hollywood/environments";
 
 const dcs = defineEnvironmentRegistry({
 	accounts: {
@@ -280,7 +280,7 @@ to GitHub's official toolkit:
 
 ```typescript
 // .github/actions/dcs/dm/package-artifact/src/index.ts
-import { runGitHubAction } from "@dedalus/hollywood/action-runtime";
+import { runGitHubAction } from "@dedalus-labs/hollywood/action-runtime";
 import { bakeSnapshot } from "./action.ts";
 
 void runGitHubAction(bakeSnapshot);
@@ -367,8 +367,8 @@ import {
 	validateActionMetadataContent,
 	validateWorkflowContent,
 	writeGeneratedFiles,
-} from "@dedalus/hollywood";
-import { defineMatrix, format, gh } from "@dedalus/hollywood/expr";
+} from "@dedalus-labs/hollywood";
+import { defineMatrix, format, gh } from "@dedalus-labs/hollywood/expr";
 
 const bakeSnapshot = action({
 	name: "Package Artifact",

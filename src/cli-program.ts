@@ -26,6 +26,8 @@ import {
 
 type HollywoodModule = Readonly<{ readonly [name: string]: unknown }>;
 
+const hollywoodVersion = "0.0.1-alpha.0"; // x-release-please-version
+
 export type GenerateOptions = Readonly<{
 	actionsDir: string;
 	output: string;
@@ -52,7 +54,7 @@ export const createHollywoodCli = (io: CliIo = processIo()): Command => {
 	const program = new Command()
 		.name("hollywood")
 		.description("Lights, cameras, Actions!")
-		.version("0.0.0");
+		.version(hollywoodVersion);
 
 	program
 		.command("generate")
