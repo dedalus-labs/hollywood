@@ -50,6 +50,10 @@ Do not add yourself to `VOUCHED.td` in your first contribution. The CLA check
 reads that file from the trusted base branch, so normal pull requests cannot
 self-vouch.
 
+For code and docs changes, fork the repository and open a pull request from
+your branch into `dedalus-labs/hollywood:main`. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for the full checklist.
+
 ## Install
 
 ```bash

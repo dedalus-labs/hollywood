@@ -30,6 +30,10 @@ open or comment on a GitHub issue before implementing it. Public API changes,
 generated YAML changes, and new workflow primitives should have issue context
 before a pull request.
 
+External contributors should fork the repository, create a branch in their
+fork, and open a pull request into `dedalus-labs/hollywood:main`. Do not open
+normal contribution PRs against release branches or Release Please branches.
+
 Before opening a code PR:
 
 ```bash
