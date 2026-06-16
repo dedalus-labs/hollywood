@@ -313,6 +313,60 @@ test("check rejects mutable workflow actions", async () => {
 	);
 });
 
+test("check rejects handwritten workflow yaml", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
+	await writeWorkflowSource(root);
+	await writeSource(join(root, ".github/workflows/manual.yml"), [
+		"name: Manual",
+		"on: push",
+		"jobs: {}",
+		"",
+	]);
+
+	await assert.rejects(
+		() =>
+			check(
+				{
+					generated: true,
+					output: root,
+					sourceRoot: "ci",
+					workflowSecurity: false,
+					workflowsDir: ".github/workflows",
+				},
+				{ writeOut: () => {} },
+			),
+		/handwritten GitHub Actions YAML found\n.*\.github\/workflows\/manual\.yml/s,
+	);
+});
+
+test("check rejects handwritten local action metadata", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
+	await writeWorkflowSource(root);
+	await writeSource(join(root, ".github/actions/manual/action.yml"), [
+		"name: Manual",
+		"description: Handwritten local action.",
+		"runs:",
+		"  using: node24",
+		"  main: dist/index.js",
+		"",
+	]);
+
+	await assert.rejects(
+		() =>
+			check(
+				{
+					generated: true,
+					output: root,
+					sourceRoot: "ci",
+					workflowSecurity: false,
+					workflowsDir: ".github/workflows",
+				},
+				{ writeOut: () => {} },
+			),
+		/handwritten GitHub Actions YAML found\n.*\.github\/actions\/manual\/action\.yml/s,
+	);
+});
+
 test("createHollywoodCli parses space-separated check command", async () => {
 	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
 	const output: string[] = [];
@@ -457,6 +511,22 @@ test("generate rejects sources without Hollywood exports", async () => {
 const writeSource = async (path: string, lines: readonly string[]): Promise<void> => {
 	await mkdir(dirname(path), { recursive: true });
 	await writeFile(path, lines.join("\n"), { flag: "w" });
+};
+
+const writeWorkflowSource = async (root: string): Promise<void> => {
+	await writeSource(join(root, "ci/ci.ts"), [
+		"export const ci = {",
+		'  name: "CI",',
+		"  on: { push: {} },",
+		"  jobs: {",
+		"    test: {",
+		'      "runs-on": "ubuntu-latest",',
+		"      steps: [{ run: 'echo ok' }],",
+		"    },",
+		"  },",
+		"};",
+		"",
+	]);
 };
 
 const restoreEnv = (name: string, value: string | undefined): void => {
