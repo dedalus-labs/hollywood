@@ -18,61 +18,17 @@ jobs:
     if: github.repository == 'dedalus-labs/hollywood'
     runs-on: ubuntu-24.04
     steps:
-      - name: Leave flower comment
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
-          github-token: ${{ github.token }}
-          script: |
-            const body = "Here's a flower for all your hard work: 🌸";
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const commits = context.payload.commits ?? [];
-            const shas = new Set(
-            	[context.payload.after, ...commits.map((commit) => commit.id)].filter(Boolean),
-            );
-            const prsByNumber = new Map();
-
-            for (const commit_sha of shas) {
-            	const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
-            		owner,
-            		repo,
-            		commit_sha,
-            	});
-
-            	for (const pr of prs) {
-            		if (pr.merged_at) {
-            			prsByNumber.set(pr.number, pr);
-            		}
-            	}
-            }
-
-            if (prsByNumber.size === 0) {
-            	core.info("No merged PRs associated with this push; skipping");
-            	return;
-            }
-
-            for (const pr of prsByNumber.values()) {
-            	const comments = await github.paginate(github.rest.issues.listComments, {
-            		owner,
-            		repo,
-            		issue_number: pr.number,
-            		per_page: 100,
-            	});
-            	const alreadyLeft = comments.some(
-            		(comment) =>
-            			["github-actions[bot]", "cind-bot[bot]"].includes(comment.user?.login) &&
-            			comment.body?.trim() === body,
-            	);
-
-            	if (alreadyLeft) {
-            		core.info("Flower comment already exists on #" + pr.number + "; skipping");
-            		continue;
-            	}
-
-            	await github.rest.issues.createComment({
-            		owner,
-            		repo,
-            		issue_number: pr.number,
-            		body,
-            	});
-            }
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "24"
+      - name: Install dependencies
+        run: npm ci
+      - name: Build Hollywood
+        run: npm run build
+      - name: Leave flower comment
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node dist/cli.js run gha/flowers.ts --export leaveFlower --with eventPath="$GITHUB_EVENT_PATH" --with repository="$GITHUB_REPOSITORY" --with token="$GITHUB_TOKEN"

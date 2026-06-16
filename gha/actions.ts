@@ -10,9 +10,6 @@ export const setupPythonAction =
 export const actionlintAction =
 	"rhysd/actionlint@a443f344ff32813837fa49f7aa6cbc478d770e62"; // v1.7.9
 
-export const githubScriptAction =
-	"actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd"; // v8
-
 export const createGitHubAppTokenAction =
 	"actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1"; // v3.2.0
 
