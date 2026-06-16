@@ -423,6 +423,10 @@ Future work is tracked in [ROADMAP.md](ROADMAP.md). Concrete tasks should become
 GitHub issues before implementation, especially if they change the public API or
 generated YAML.
 
+## LICENSE
+
+MIT.
+
 ## Development
 
 ```bash
