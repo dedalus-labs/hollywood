@@ -58,7 +58,8 @@ This is useful for scripts that call local tools such as `aws`, `tar`, `zstd`,
 
 ## Lima commands
 
-Use `--lima <name>` when the script should run commands inside a Linux VM:
+Use `--lima <name>` when the script should run commands inside a Linux VM. The
+full command mapping lives in the [Lima backend docs](../backends/lima.md).
 
 ```bash
 npx hollywood run gha/go/s3-cache.ts \

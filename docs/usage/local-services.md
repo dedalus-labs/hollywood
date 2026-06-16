@@ -40,7 +40,8 @@ endpoint and credentials explicitly through typed inputs or environment.
 
 Linux action runs on macOS should use Lima first. Lima gives us a real Linux
 virtual machine (VM), and Hollywood routes each script `exec(file, args)` call
-through `limactl shell`.
+through `limactl shell`. See [Execution Backends](../backends/index.md) for the
+current backend matrix and planned directions.
 
 ```bash
 npx hollywood run gha/cache/s3-cache.ts --export s3Cache --lima default --start-vm
