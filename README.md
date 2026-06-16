@@ -17,6 +17,9 @@ Hollywood moves that imperative logic into TypeScript scripts you can test
 locally. The generated output is still boring GitHub Actions: `action.yml`,
 `uses: ./.github/actions/...`, and JavaScript actions that run through
 GitHub's official `@actions/core` and `@actions/exec` packages.
+This works because GitHub Actions can run JavaScript actions directly: an
+`action.yml` file points at a Node entrypoint, and Hollywood generates that
+thin adapter around your typed script.
 
 The point is not to replace GitHub Actions. The point is to stop writing tiny
 programs inside YAML strings.
