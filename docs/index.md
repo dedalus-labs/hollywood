@@ -37,7 +37,7 @@ no YAML quoting puzzle.
 
 - Write GitHub Actions logic as typed TypeScript scripts.
 - Test scripts locally with fake executors or real executors.
-- Run scripts through Lima when the script needs a Linux VM.
+- Run scripts through [Lima](backends/lima.md) when the script needs a Linux VM.
 - Test scripts against local services such as MinIO, an S3-compatible object
   store, or LocalStack, a local Amazon Web Services emulator.
 - Generate ordinary `.github/actions/**/action.yml` files.
@@ -71,6 +71,7 @@ programs:
 - [Quick Start](getting-started/quickstart.md) - Write and generate your first action.
 - [Scripts](usage/scripts.md) - Author typed scripts with inputs, outputs, and command execution.
 - [Local Testing](usage/local-testing.md) - Run scripts with mocks, real commands, and local services.
+- [Execution Backends](backends/index.md) - See where local script commands can run.
 - [Generated GitHub Actions](usage/github-actions.md) - See exactly what lands in `.github`.
 
 ---

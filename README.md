@@ -290,7 +290,9 @@ limactl shell --tty=false --start default -- <file> <arg>...
 ```
 
 No command is rewritten into shell text. If the VM is stopped and `--start-vm`
-was not passed, the run fails before the action starts.
+was not passed, the run fails before the action starts. See the
+[execution backend docs](docs/backends/index.md) for the supported Lima backend
+and planned backend directions.
 
 ## Generate Actions
 

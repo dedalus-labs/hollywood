@@ -133,7 +133,8 @@ npx hollywood run gha/s3-cache.ts --export s3Cache --lima kvm --start-vm --with 
 
 `--require-containerd` checks `containerd` and `nerdctl` before the action
 starts. `--require-kvm` checks readable and writable `/dev/kvm` before the
-action starts.
+action starts. The exact backend command shape is documented in
+[Lima](../backends/lima.md).
 
 ## Validation
 
