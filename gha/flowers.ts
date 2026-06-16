@@ -2,7 +2,7 @@ import { action, job, pathInput, stringInput, workflow, type ScriptExec } from "
 import { checkoutAction, setupNodeAction } from "./actions";
 
 const flowerBody = "Here's a flower for all your hard work! 🌸";
-const flowerBots = new Set(["github-actions[bot]", "cind-bot[bot]"]);
+const flowerBots = new Set(["github-actions[bot]", "cind-bot[bot]", "cind[bot]"]);
 
 type PushEvent = Readonly<{
 	after?: unknown;
