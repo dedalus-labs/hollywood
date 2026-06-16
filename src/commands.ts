@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { mkdtemp, readdir, readFile, rm, stat, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, extname, isAbsolute, relative, resolve, sep } from "node:path";
@@ -27,7 +28,7 @@ import {
 
 type HollywoodModule = Readonly<{ readonly [name: string]: unknown }>;
 
-const hollywoodVersion = "0.0.1-alpha.0"; // x-release-please-version
+type PackageMetadata = Readonly<{ version?: unknown }>;
 
 export type GenerateOptions = Readonly<{
 	actionsDir: string;
@@ -63,7 +64,7 @@ export const createCli = (io: CliIo = processIo()): Command => {
 	const program = new Command()
 		.name("hollywood")
 		.description("Lights, cameras, Actions!")
-		.version(hollywoodVersion);
+		.version(readHollywoodVersion());
 
 	program
 		.command("generate")
@@ -526,3 +527,13 @@ const processIo = (): CliIo => ({
 		process.stdout.write(message);
 	},
 });
+
+const readHollywoodVersion = (): string => {
+	const metadata = JSON.parse(
+		readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+	) as PackageMetadata;
+	if (typeof metadata.version !== "string") {
+		throw new Error("package.json version must be a string");
+	}
+	return metadata.version;
+};

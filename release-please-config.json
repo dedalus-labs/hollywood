@@ -58,8 +58,5 @@
 			"hidden": true
 		}
 	],
-	"release-type": "node",
-	"extra-files": [
-		"src/commands.ts"
-	]
+	"release-type": "node"
 }
