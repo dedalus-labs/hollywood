@@ -96,48 +96,118 @@ Before Hollywood, a container publish step might look like this:
     echo "image_ref=${IMAGE_REF}" >> "$GITHUB_OUTPUT"
 ```
 
-With Hollywood, the program is normal TypeScript:
+With Hollywood, the program is typed TypeScript instead of text hidden in YAML:
 
 ```typescript
 import {
+	type ActionInputValues,
+	type ActionOutputValues,
 	action,
 	booleanInput,
+	choiceInput,
+	integerInput,
 	pathInput,
 	stringInput,
 	stringOutput,
 } from "@dedalus-labs/hollywood";
 
+const publishInputs = {
+	image: stringInput({ description: "Container image name, including registry." }),
+	tag: stringInput({ description: "Container image tag." }),
+	context: pathInput({ description: "Build context path.", default: "." }),
+	dockerfile: pathInput({ description: "Dockerfile path.", default: "Dockerfile" }),
+	platform: choiceInput({
+		description: "Build target platform.",
+		options: ["linux/amd64", "linux/arm64"] as const,
+		default: "linux/amd64",
+	}),
+	provenance: choiceInput({
+		description: "Build provenance mode.",
+		options: ["false", "min", "max"] as const,
+		default: "false",
+	}),
+	cacheFrom: stringInput({ description: "Optional build cache source.", default: "" }),
+	buildAttempt: integerInput({ description: "CI build attempt number." }),
+	push: booleanInput({ description: "Push instead of loading locally.", default: "true" }),
+} as const;
+
+const publishOutputs = {
+	imageRef: stringOutput({ description: "Published image reference." }),
+} as const;
+
+type PublishImageInput = ActionInputValues<typeof publishInputs>;
+type PublishImageOutput = ActionOutputValues<typeof publishOutputs>;
+
+const imageRef = (input: Pick<PublishImageInput, "image" | "tag">): string =>
+	`${input.image}:${input.tag}`;
+
+const dockerBuildArgs = (input: PublishImageInput, ref: string): readonly string[] => {
+	const args = [
+		"buildx",
+		"build",
+		"--file",
+		input.dockerfile,
+		"--platform",
+		input.platform,
+		"--tag",
+		ref,
+		"--label",
+		`ci.build-attempt=${input.buildAttempt}`,
+		"--provenance",
+		input.provenance,
+	] as string[];
+
+	if (input.cacheFrom.length > 0) {
+		args.push("--cache-from", input.cacheFrom);
+	}
+	args.push(input.push ? "--push" : "--load", input.context);
+	return args;
+};
+
 export const publishImage = action({
 	name: "publish-container-image",
 	description: "Build and publish a container image without embedding shell in workflow YAML.",
-	inputs: {
-		image: stringInput({ description: "Container image name, including registry." }),
-		tag: stringInput({ description: "Container image tag." }),
-		context: pathInput({ description: "Build context path.", default: "." }),
-		dockerfile: pathInput({ description: "Dockerfile path.", default: "Dockerfile" }),
-		provenance: booleanInput({ description: "Emit build provenance.", default: "false" }),
-	},
-	outputs: {
-		imageRef: stringOutput({ description: "Published image reference." }),
-	},
-	run: async ({ exec, input }) => {
-		const imageRef = `${input.image}:${input.tag}`;
-		await exec("docker", [
-			"buildx",
-			"build",
-			"--file",
-			input.dockerfile,
-			"--tag",
-			imageRef,
-			"--push",
-			"--provenance",
-			input.provenance ? "true" : "false",
-			input.context,
-		]);
-		return { imageRef };
+	inputs: publishInputs,
+	outputs: publishOutputs,
+	run: async ({ exec, input }): Promise<PublishImageOutput> => {
+		const ref = imageRef(input);
+		await exec("docker", dockerBuildArgs(input, ref));
+		return { imageRef: ref };
 	},
 });
 ```
+
+Hollywood parses GitHub's string inputs into `PublishImageInput` before `run`
+starts. You can still layer Zod, Effect Schema, or your own parser on top for
+repository-specific policy:
+
+```typescript
+import { z } from "zod";
+
+const publishPolicy = z.object({
+	image: z.string().regex(/^ghcr\.io\/[a-z0-9-]+\/[a-z0-9._/-]+$/),
+	tag: z.string().min(1).max(128).regex(/^[A-Za-z0-9_.-]+$/),
+	context: z.string().refine((path) => !path.includes(".."), "context must stay inside workspace"),
+	push: z.boolean(),
+});
+
+const validatePublishPolicy = (input: PublishImageInput): void => {
+	publishPolicy.parse(input);
+};
+
+export const publishImage = action({
+	// ...
+	run: async ({ exec, input }): Promise<PublishImageOutput> => {
+		validatePublishPolicy(input);
+		const ref = imageRef(input);
+		await exec("docker", dockerBuildArgs(input, ref));
+		return { imageRef: ref };
+	},
+});
+```
+
+Those schema packages live in your workflow repository. Hollywood does not pull
+them into its own runtime dependency graph.
 
 GitHub still sees a normal local action step:
 
@@ -149,22 +219,30 @@ GitHub still sees a normal local action step:
     tag: ${{ github.sha }}
     context: .
     dockerfile: Dockerfile
+    platform: linux/amd64
     provenance: "false"
+    build-attempt: ${{ github.run_attempt }}
+    push: "true"
 ```
 
 The important bit is the command shape:
 
 ```typescript
-await exec("docker", [
+const args = [
 	"buildx",
 	"build",
 	"--file",
 	input.dockerfile,
+	"--platform",
+	input.platform,
 	"--tag",
-	imageRef,
-	"--push",
+	ref,
+	"--label",
+	`ci.build-attempt=${input.buildAttempt}`,
 	input.context,
-]);
+];
+
+await exec("docker", args);
 ```
 
 That is `execve(2)`-shaped: one executable path and one array of arguments.
@@ -181,6 +259,7 @@ hollywood run gha/containers/publish-image.ts \
   --with tag="$(git rev-parse --short HEAD)" \
   --with context=. \
   --with dockerfile=Dockerfile \
+  --with buildAttempt=1 \
   --with provenance=false
 ```
 
