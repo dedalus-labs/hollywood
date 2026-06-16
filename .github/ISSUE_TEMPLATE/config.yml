@@ -1,0 +1,8 @@
+# Copyright (c) 2026 Dedalus Labs, Inc. and its contributors
+# SPDX-License-Identifier: MIT
+---
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/dedalus-labs/hollywood/security/advisories/new
+    about: Report security vulnerabilities privately.
