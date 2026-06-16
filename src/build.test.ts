@@ -36,6 +36,21 @@ test("published package only includes built artifacts", async () => {
 	assert.deepEqual(packageJson.files, ["dist", "README.md", "package.json"]);
 });
 
+test("release please does not rewrite generated cli source", async () => {
+	const releasePleaseConfig = JSON.parse(
+		await readFile(new URL("../release-please-config.json", import.meta.url), "utf8"),
+	) as { readonly "extra-files"?: unknown };
+	const extraFiles = releasePleaseConfig["extra-files"];
+
+	if (extraFiles === undefined) {
+		return;
+	}
+	if (!Array.isArray(extraFiles)) {
+		assert.fail("release-please extra-files must be an array");
+	}
+	assert.equal(extraFiles.includes("src/commands.ts"), false);
+});
+
 const entryPaths = (entry: unknown): readonly string[] => {
 	if (typeof entry === "string") {
 		return [entry];
