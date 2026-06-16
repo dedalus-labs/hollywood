@@ -8,8 +8,6 @@ on:
   workflow_dispatch: {}
 permissions:
   contents: read
-  issues: write
-  pull-requests: read
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 jobs:
@@ -28,7 +26,18 @@ jobs:
         run: npm ci
       - name: Build Hollywood
         run: npm run build
+      - id: cind-token
+        name: Create Cind app token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
+        with:
+          app-id: ${{ secrets.CIND_BOT_APP_ID }}
+          private-key: ${{ secrets.CIND_BOT_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: hollywood
+          permission-issues: write
+          permission-metadata: read
+          permission-pull-requests: read
       - name: Leave flower comment
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ steps.cind-token.outputs.token }}
         run: node dist/cli.js run gha/flowers.ts --export leaveFlower --with eventPath="$GITHUB_EVENT_PATH" --with repository="$GITHUB_REPOSITORY" --with token="$GITHUB_TOKEN"

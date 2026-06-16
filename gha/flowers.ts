@@ -1,8 +1,8 @@
 import { action, job, pathInput, stringInput, workflow, type ScriptExec } from "../src/index";
-import { checkoutAction, setupNodeAction } from "./actions";
+import { checkoutAction, createGitHubAppTokenAction, setupNodeAction } from "./actions";
 
 const flowerBody = "Here's a flower for all your hard work! 🌸";
-const flowerBots = new Set(["github-actions[bot]", "cind-bot[bot]"]);
+const flowerBots = new Set(["github-actions[bot]", "cind-bot[bot]", "cind[bot]"]);
 
 type PushEvent = Readonly<{
 	after?: unknown;
@@ -145,8 +145,6 @@ export const flowers = workflow({
 	},
 	permissions: {
 		contents: "read",
-		issues: "write",
-		"pull-requests": "read",
 	},
 	env: {
 		FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true",
@@ -162,9 +160,23 @@ export const flowers = workflow({
 				{ name: "Install dependencies", run: "npm ci" },
 				{ name: "Build Hollywood", run: "npm run build" },
 				{
+					id: "cind-token",
+					name: "Create Cind app token",
+					uses: createGitHubAppTokenAction,
+					with: {
+						"app-id": "${{ secrets.CIND_BOT_APP_ID }}",
+						"private-key": "${{ secrets.CIND_BOT_APP_PRIVATE_KEY }}",
+						owner: "${{ github.repository_owner }}",
+						repositories: "hollywood",
+						"permission-issues": "write",
+						"permission-metadata": "read",
+						"permission-pull-requests": "read",
+					},
+				},
+				{
 					name: "Leave flower comment",
 					env: {
-						GITHUB_TOKEN: "${{ github.token }}",
+						GITHUB_TOKEN: "${{ steps.cind-token.outputs.token }}",
 					},
 					run: 'node dist/cli.js run gha/flowers.ts --export leaveFlower --with eventPath="$GITHUB_EVENT_PATH" --with repository="$GITHUB_REPOSITORY" --with token="$GITHUB_TOKEN"',
 				},
