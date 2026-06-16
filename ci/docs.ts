@@ -5,6 +5,7 @@ import {
 	setupPythonAction,
 	uploadPagesArtifactAction,
 } from "./actions";
+import { trustedCiRun } from "./guards";
 
 const docsPaths = ["docs/**", "mkdocs.yml", "README.md"] as const;
 
@@ -23,6 +24,7 @@ export const docs = workflow({
 	jobs: {
 		build: job({
 			name: "Build",
+			if: trustedCiRun,
 			"runs-on": "ubuntu-latest",
 			steps: [
 				{ uses: checkoutAction, with: { "persist-credentials": false } },
