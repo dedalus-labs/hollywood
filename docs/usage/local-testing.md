@@ -9,10 +9,11 @@ Use a fake executor when the script's command sequence is the contract:
 ```typescript
 const commands: Command[] = [];
 
-await runAction(bakeSnapshot, {
+await runAction(publishImage, {
 	with: {
-		toolBinary: "/usr/local/bin/artifact-packager",
-		memoryMibMax: "32768",
+		image: "ghcr.io/acme/api",
+		tag: "sha-abc123",
+		provenance: "false",
 	},
 	exec: async (file, args, options) => {
 		commands.push({ file, args, ...options });
@@ -33,10 +34,11 @@ Use `nodeExec`, `nodeFs`, and `nodeLog` when the script should run on the local
 machine. The CLI path is:
 
 ```bash
-hollywood run gha/dcs/dm/package-artifact.ts \
-  --export bakeSnapshot \
-  --with toolBinary=/usr/local/bin/artifact-packager \
-  --with memoryMibMax=32768
+npx hollywood run gha/containers/publish-image.ts \
+  --export publishImage \
+  --with image=ghcr.io/acme/api \
+  --with tag=sha-abc123 \
+  --with provenance=false
 ```
 
 The library path is:
@@ -56,10 +58,11 @@ This is useful for scripts that call local tools such as `aws`, `tar`, `zstd`,
 
 ## Lima commands
 
-Use `--lima <name>` when the script should run commands inside a Linux VM:
+Use `--lima <name>` when the script should run commands inside a Linux VM. The
+full command mapping lives in the [Lima backend docs](../backends/lima.md).
 
 ```bash
-hollywood run gha/go/s3-cache.ts \
+npx hollywood run gha/go/s3-cache.ts \
   --export s3Cache \
   --lima kvm \
   --start-vm \

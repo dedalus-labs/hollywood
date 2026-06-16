@@ -13,10 +13,28 @@ In another repository, install Hollywood as a development dependency:
 npm install --save-dev @dedalus-labs/hollywood
 ```
 
-That installs the `hollywood` binary:
+That installs a local `hollywood` binary at `node_modules/.bin/hollywood`. Run
+it with `npx hollywood ...`:
 
 ```bash
 npx hollywood generate "gha/**/*.ts" --output .
+```
+
+If you prefer npm scripts, wire the local binary once:
+
+```json
+{
+  "scripts": {
+    "actions:generate": "hollywood generate \"gha/**/*.ts\" --output .",
+    "actions:check": "hollywood check"
+  }
+}
+```
+
+Then run:
+
+```bash
+npm run actions:generate
 ```
 
 Run an exported action locally:
@@ -24,6 +42,19 @@ Run an exported action locally:
 ```bash
 npx hollywood run gha/s3-cache.ts --export s3Cache --with mode=restore
 ```
+
+## Node requirements
+
+| Surface                    | Node requirement             |
+| -------------------------- | ---------------------------- |
+| Installed package and CLI  | Node 20 or newer             |
+| Generated GitHub actions   | GitHub's Node 24 action runtime |
+| Building Hollywood locally | Node 22.18+ or Node 24.11+   |
+
+`package.json` is the source of truth for the published package's
+`engines.node` value. `tsdown.config.ts` sets the runtime build target.
+`tsconfig.json` is for typechecking and should not be read as the package's
+runtime support contract.
 
 GitHub JavaScript actions need a bundled entrypoint. Hollywood generates the
 TypeScript entrypoint, but the bundling command is still explicit. Until
@@ -47,6 +78,8 @@ GitHub Actions JavaScript action contract.
 Serve these docs locally with MkDocs:
 
 ```bash
+python3 -m venv .venv
+. .venv/bin/activate
 python -m pip install -r docs/requirements.txt
 python -m mkdocs serve -f mkdocs.yml
 ```
@@ -54,6 +87,8 @@ python -m mkdocs serve -f mkdocs.yml
 Build them with strict link validation:
 
 ```bash
+python3 -m venv .venv
+. .venv/bin/activate
 python -m pip install -r docs/requirements.txt
 python -m mkdocs build --strict -f mkdocs.yml
 ```

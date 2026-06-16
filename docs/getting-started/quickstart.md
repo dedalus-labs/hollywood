@@ -3,28 +3,43 @@
 ## 1. Write a script
 
 ```typescript
-import { action, integerInput, pathInput, stringOutput } from "@dedalus-labs/hollywood";
+import {
+	action,
+	booleanInput,
+	pathInput,
+	stringInput,
+	stringOutput,
+} from "@dedalus-labs/hollywood";
 
-export const bakeSnapshot = action({
-	name: "dcs-package-artifact",
-	description: "Run artifact-pack without embedding shell in workflow YAML.",
+export const publishImage = action({
+	name: "publish-container-image",
+	description: "Build and publish a container image without embedding shell in workflow YAML.",
 	inputs: {
-		toolBinary: pathInput({ description: "Path to artifact-packager." }),
-		memoryMibMax: integerInput({ description: "Maximum guest memory in MiB." }),
+		image: stringInput({ description: "Container image name, including registry." }),
+		tag: stringInput({ description: "Container image tag." }),
+		context: pathInput({ description: "Build context path.", default: "." }),
+		dockerfile: pathInput({ description: "Dockerfile path.", default: "Dockerfile" }),
+		provenance: booleanInput({ description: "Emit build provenance.", default: "false" }),
 	},
 	outputs: {
-		snapshotDir: stringOutput({ description: "Snapshot output directory." }),
+		imageRef: stringOutput({ description: "Published image reference." }),
 	},
 	run: async ({ exec, input }) => {
-		await exec("sudo", [
-			"artifact-pack",
-			"--tool-binary",
-			input.toolBinary,
-			"--memory-mib-max",
-			input.memoryMibMax.toString(),
+		const imageRef = `${input.image}:${input.tag}`;
+		await exec("docker", [
+			"buildx",
+			"build",
+			"--file",
+			input.dockerfile,
+			"--tag",
+			imageRef,
+			"--push",
+			"--provenance",
+			input.provenance ? "true" : "false",
+			input.context,
 		]);
 
-		return { snapshotDir: "/tmp/snapshot" };
+		return { imageRef };
 	},
 });
 ```
@@ -34,10 +49,11 @@ export const bakeSnapshot = action({
 ```typescript
 import { nodeExec, nodeFs, nodeLog, runAction } from "@dedalus-labs/hollywood";
 
-await runAction(bakeSnapshot, {
+await runAction(publishImage, {
 	with: {
-		toolBinary: "/usr/local/bin/artifact-packager",
-		memoryMibMax: "32768",
+		image: "ghcr.io/acme/api",
+		tag: "sha-abc123",
+		provenance: "false",
 	},
 	exec: nodeExec,
 	fs: nodeFs,
@@ -52,21 +68,23 @@ want to run the command on the local machine.
 The CLI can run the same exported action:
 
 ```bash
-hollywood run gha/dcs/dm/package-artifact.ts \
-  --export bakeSnapshot \
-  --with toolBinary=/usr/local/bin/artifact-packager \
-  --with memoryMibMax=32768
+npx hollywood run gha/containers/publish-image.ts \
+  --export publishImage \
+  --with image=ghcr.io/acme/api \
+  --with tag=sha-abc123 \
+  --with provenance=false
 ```
 
 For Linux VM execution on macOS, add `--lima <name>`:
 
 ```bash
-hollywood run gha/dcs/dm/package-artifact.ts \
-  --export bakeSnapshot \
-  --lima kvm \
+npx hollywood run gha/containers/publish-image.ts \
+  --export publishImage \
+  --lima default \
   --start-vm \
-  --with toolBinary=/usr/local/bin/artifact-packager \
-  --with memoryMibMax=32768
+  --with image=ghcr.io/acme/api \
+  --with tag=sha-abc123 \
+  --with provenance=false
 ```
 
 ## 3. Generate action files
@@ -75,14 +93,14 @@ Point Hollywood at the source files that export actions or workflows. Quote glob
 patterns so your shell does not expand them first.
 
 ```bash
-hollywood generate "gha/**/*.ts" --output .
+npx hollywood generate "gha/**/*.ts" --output .
 ```
 
 The command writes:
 
 ```text
-created .github/actions/dcs-package-artifact/action.yml
-created .github/actions/dcs-package-artifact/src/index.ts
+created .github/actions/publish-container-image/action.yml
+created .github/actions/publish-container-image/src/index.ts
 ```
 
 The same flow is available as a library API:
@@ -96,14 +114,14 @@ import {
 
 await writeGeneratedFiles(
 	[
-		generateActionFile(bakeSnapshot, {
-			sourcePath: "gha/dcs/dm/package-artifact.ts",
+		generateActionFile(publishImage, {
+			sourcePath: "gha/containers/publish-image.ts",
 			actionsDir: ".github/actions",
 		}),
-		generateActionEntrypointFile(bakeSnapshot, {
-			sourcePath: "gha/dcs/dm/package-artifact.ts",
+		generateActionEntrypointFile(publishImage, {
+			sourcePath: "gha/containers/publish-image.ts",
 			actionsDir: ".github/actions",
-			exportName: "bakeSnapshot",
+			exportName: "publishImage",
 		}),
 	],
 	{ outputDir: process.cwd() },
@@ -113,23 +131,24 @@ await writeGeneratedFiles(
 This writes:
 
 ```text
-.github/actions/dcs-package-artifact/action.yml
-.github/actions/dcs-package-artifact/src/index.ts
+.github/actions/publish-container-image/action.yml
+.github/actions/publish-container-image/src/index.ts
 ```
 
 ## 4. Call it from workflow YAML
 
 ```yaml
 jobs:
-  bake_snapshot:
-    runs-on: dedalus-kvm
+  publish_image:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-      - name: Bake release artifact
-        uses: ./.github/actions/dcs-package-artifact
+      - name: Publish container image
+        uses: ./.github/actions/publish-container-image
         with:
-          tool-binary: /usr/local/bin/artifact-packager
-          memory-mib-max: ${{ inputs.max_machine_memory_mib }}
+          image: ghcr.io/acme/api
+          tag: ${{ github.sha }}
+          provenance: "false"
 ```
 
 The workflow stays flat and GitHub-compatible. The real logic stays in

@@ -5,6 +5,22 @@ declarations, package metadata, and the README.
 
 It should not contain examples, tests, Vitest config, or TypeScript source.
 
+## Dependency boundary
+
+Hollywood keeps the direct runtime dependency list small:
+
+| Dependency                  | Why it exists                                      |
+| --------------------------- | -------------------------------------------------- |
+| `@actions/core`             | Official GitHub Actions input/output and logging.  |
+| `@actions/exec`             | Official GitHub Actions process execution.         |
+| `@actions/expressions`      | GitHub expression parsing and validation.          |
+| `@actions/workflow-parser`  | GitHub workflow schema parsing and validation.     |
+| `esbuild`                   | Local TypeScript source loading for the CLI.       |
+| `yaml`                      | Rendering generated action and workflow files.     |
+
+Keep new runtime dependencies rare. Every dependency expands the install graph
+that users have to trust when they run CI/CD automation from npm.
+
 ## Desired package boundary
 
 ```json
@@ -40,6 +56,7 @@ With that boundary:
 | `dist/index.d.ts`  | yes        | Public types.                           |
 | `dist/expr.js`     | yes        | Expression helper subpath.              |
 | `README.md`        | yes        | Package landing page.                   |
+| `LICENSE`          | yes        | License file included by npm.           |
 | `examples/*`       | no         | Repository examples, not runtime files. |
 | `src/*.test.ts`    | no         | Tests are not runtime files.            |
 | `vitest.config.ts` | no         | Local test configuration.               |
@@ -49,10 +66,11 @@ uses `prepack` to build `dist/` before the tarball is assembled.
 
 ## Release flow
 
-Hollywood releases from `main` through Release Please. Normal PRs merge into
-`main` first. On each push, Release Please reads the Conventional Commit history
-and opens or updates one release PR with the next version, changelog, and
-package metadata.
+Hollywood releases from `main` through
+[Release Please](https://github.com/googleapis/release-please). Normal PRs
+merge into `main` first. On each push, Release Please reads the Conventional
+Commit history and opens or updates one release PR with the next version,
+changelog, and package metadata.
 
 Merging that release PR into `main` is the release switch. Release Please then
 creates the GitHub release and tag. The npm workflow runs from the published

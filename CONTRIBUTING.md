@@ -25,6 +25,15 @@ maintainer-owned trust state.
 
 ## Pull Requests
 
+For future work, start with [ROADMAP.md](ROADMAP.md). If the idea is concrete,
+open or comment on a GitHub issue before implementing it. Public API changes,
+generated YAML changes, and new workflow primitives should have issue context
+before a pull request.
+
+External contributors should fork the repository, create a branch in their
+fork, and open a pull request into `dedalus-labs/hollywood:main`. Do not open
+normal contribution PRs against release branches or Release Please branches.
+
 Before opening a code PR:
 
 ```bash
@@ -60,8 +69,9 @@ npm run generate
 ## Release Flow
 
 Contributors do not publish releases directly. Merge normal contribution PRs
-into `main`; each push lets Release Please update a single release PR with the
-next version, changelog, and package metadata.
+into `main`; each push lets [Release Please](https://github.com/googleapis/release-please)
+update a single release PR with the next version, changelog, and package
+metadata.
 
 When maintainers are ready to release, they merge the Release Please PR into
 `main`. That merge creates the GitHub release, and the npm publishing workflow

@@ -10,30 +10,25 @@ import { matchPathDependency, pathDependencies } from "./paths";
 
 test("pathDependencies defines trigger paths, detector jobs, and typed guards", () => {
 	const changes = pathDependencies("changes", {
-		terraform: ["apps/cloud/apps/dcs/tf/**", ".github/actions/terraform/**"],
-		rootfsBuilder: [
-			"apps/cloud/apps/dcs/src/runtime/guest-image/**",
-			"!apps/cloud/apps/dcs/src/runtime/guest-image/docs/**",
-		],
+		terraform: ["infra/terraform/**", ".github/actions/terraform/**"],
+		web: ["apps/web/**", "packages/ui/**", "!apps/web/docs/**"],
 	});
 
 	assert.deepEqual(changes.workflowPaths, [
-		"apps/cloud/apps/dcs/tf/**",
+		"infra/terraform/**",
 		".github/actions/terraform/**",
-		"apps/cloud/apps/dcs/src/runtime/guest-image/**",
+		"apps/web/**",
+		"packages/ui/**",
 	]);
 	assert.equal(changes.terraform.changed, "${{ needs.changes.outputs.terraform == 'true' }}");
-	assert.equal(
-		changes.rootfsBuilder.changed,
-		"${{ needs.changes.outputs.rootfsBuilder == 'true' }}",
-	);
+	assert.equal(changes.web.changed, "${{ needs.changes.outputs.web == 'true' }}");
 
 	const detector = changes.job();
 	assert.equal(detector.name, "Detect changed paths");
 	assert.equal(detector["runs-on"], "ubuntu-24.04");
 	assert.deepEqual(detector.outputs, {
 		terraform: "${{ steps.detect.outputs.terraform }}",
-		rootfsBuilder: "${{ steps.detect.outputs.rootfsBuilder }}",
+		web: "${{ steps.detect.outputs.web }}",
 	});
 	assert.deepEqual(detector.steps[0], {
 		uses: "actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10",
@@ -54,16 +49,16 @@ test("pathDependencies defines trigger paths, detector jobs, and typed guards", 
 
 test("pathDependencies render valid workflow YAML with guarded jobs", () => {
 	const changes = pathDependencies("changes", {
-		terraform: ["apps/cloud/apps/dcs/tf/**", ".github/actions/terraform/**"],
+		terraform: ["infra/terraform/**", ".github/actions/terraform/**"],
 	});
 
 	const content = renderWorkflowFile(
 		generateWorkflowFile({
-			sourcePath: "ci/dcs/static-validation.ts",
+			sourcePath: "ci/platform/static-validation.ts",
 			sourceRoot: "ci",
 			workflowsDir: ".github/workflows",
 			workflow: workflow({
-				name: "DCS Static Validation",
+				name: "Platform Static Validation",
 				on: {
 					pull_request: { paths: changes.workflowPaths },
 				},
@@ -81,31 +76,25 @@ test("pathDependencies render valid workflow YAML with guarded jobs", () => {
 		}),
 	);
 
-	assert.match(content, /paths:\n\s+- apps\/cloud\/apps\/dcs\/tf\/\*\*/);
+	assert.match(content, /paths:\n\s+- infra\/terraform\/\*\*/);
 	assert.match(content, /outputs:\n\s+terraform: \$\{\{ steps\.detect\.outputs\.terraform \}\}/);
 	assert.match(content, /if: \$\{\{ needs\.changes\.outputs\.terraform == 'true' \}\}/);
 });
 
 test("matchPathDependency follows positive and negative path patterns", () => {
 	const changes = pathDependencies("changes", {
-		terraform: ["apps/cloud/apps/dcs/tf/**", "!apps/cloud/apps/dcs/tf/docs/**"],
+		terraform: ["infra/terraform/**", "!infra/terraform/docs/**"],
 	});
 
-	assert.equal(matchPathDependency("apps/cloud/apps/dcs/tf/main.tf", changes.terraform), true);
-	assert.equal(
-		matchPathDependency("apps/cloud/apps/dcs/tf/docs/readme.md", changes.terraform),
-		false,
-	);
-	assert.equal(matchPathDependency("apps/cloud/apps/dcs/src/main.go", changes.terraform), false);
+	assert.equal(matchPathDependency("infra/terraform/main.tf", changes.terraform), true);
+	assert.equal(matchPathDependency("infra/terraform/docs/readme.md", changes.terraform), false);
+	assert.equal(matchPathDependency("apps/web/src/main.ts", changes.terraform), false);
 });
 
 test("generated detector script evaluates changed paths in git", async () => {
 	const changes = pathDependencies("changes", {
-		terraform: ["apps/cloud/apps/dcs/tf/**"],
-		rootfsBuilder: [
-			"apps/cloud/apps/dcs/src/runtime/guest-image/**",
-			"!apps/cloud/apps/dcs/src/runtime/guest-image/docs/**",
-		],
+		terraform: ["infra/terraform/**"],
+		web: ["apps/web/**", "!apps/web/docs/**"],
 	});
 	const directory = await mkdtemp(join(tmpdir(), "hollywood-paths-"));
 	execGit(directory, ["init"]);
@@ -116,15 +105,10 @@ test("generated detector script evaluates changed paths in git", async () => {
 	execGit(directory, ["commit", "-m", "initial"]);
 	const base = execGit(directory, ["rev-parse", "HEAD"]);
 
-	await mkdir(join(directory, "apps/cloud/apps/dcs/tf"), { recursive: true });
-	await mkdir(join(directory, "apps/cloud/apps/dcs/src/runtime/guest-image/docs"), {
-		recursive: true,
-	});
-	await writeFile(join(directory, "apps/cloud/apps/dcs/tf/main.tf"), "resource {}\n");
-	await writeFile(
-		join(directory, "apps/cloud/apps/dcs/src/runtime/guest-image/docs/readme.md"),
-		"docs\n",
-	);
+	await mkdir(join(directory, "infra/terraform"), { recursive: true });
+	await mkdir(join(directory, "apps/web/docs"), { recursive: true });
+	await writeFile(join(directory, "infra/terraform/main.tf"), "resource {}\n");
+	await writeFile(join(directory, "apps/web/docs/readme.md"), "docs\n");
 	execGit(directory, ["add", "."]);
 	execGit(directory, ["commit", "-m", "change"]);
 	const head = execGit(directory, ["rev-parse", "HEAD"]);
@@ -139,7 +123,7 @@ test("generated detector script evaluates changed paths in git", async () => {
 		env: { ...process.env, BASE_SHA: base, GITHUB_OUTPUT: output, HEAD_SHA: head },
 	});
 
-	assert.equal(await readFile(output, "utf8"), "terraform=true\nrootfsBuilder=false\n");
+	assert.equal(await readFile(output, "utf8"), "terraform=true\nweb=false\n");
 });
 
 test("pathDependencies reject invalid detector contracts", () => {
@@ -167,7 +151,7 @@ const execGit = (cwd: string, args: readonly string[]): string =>
 test("pathDependencies expose dependency names as compile-time properties", () => {
 	if (process.env["HOLLYWOOD_TYPE_TESTS"] === "1") {
 		const changes = pathDependencies("changes", {
-			terraform: ["apps/cloud/apps/dcs/tf/**"],
+			terraform: ["infra/terraform/**"],
 		});
 		void changes.terraform.changed;
 		// @ts-expect-error Unknown path dependency names should fail at compile time.

@@ -33,33 +33,31 @@ Generated workflow usage:
     contents-path: /tmp/go-cache
 ```
 
-## Package Artifact
+## Publish Container Image
 
-[package-artifact.ts](package-artifact.ts) wraps the artifact packaging
-`artifact-pack` command. This is the privileged infrastructure case: the script
-needs `sudo`, Linux Kernel-based Virtual Machine (KVM) support, root filesystem
-inputs, and generated artifacts.
+[publish-container-image.ts](publish-container-image.ts) wraps a Docker buildx
+publish step. This is the common DevOps case: build a container image, tag it
+with the GitHub commit, push it to a registry, and pass the published reference
+to downstream deploy jobs.
 
 It demonstrates:
 
-- typed path and integer inputs
+- typed string, path, and boolean inputs
 - grouped logs
-- privileged command execution without shell-in-YAML
-- generated outputs for downstream workflow steps
+- command execution without shell-in-YAML
+- a generated image reference output for downstream workflow steps
 
 Generated workflow usage:
 
 ```yaml
-- name: Bake release artifact
-  uses: ./.github/actions/dcs-package-artifact
+- name: Publish container image
+  uses: ./.github/actions/publish-container-image
   with:
-    tool-binary: /usr/local/bin/artifact-packager
-    kernel: /tmp/vmlinux
-    rootfs: /tmp/rootfs.raw
-    output: /tmp/snapshot
-    memory-mib-max: ${{ inputs.max_machine_memory_mib }}
-    max-vcpus: ${{ inputs.max_machine_burst_vcpus }}
-    image-version: noble@2026.05.14
+    image: ghcr.io/acme/api
+    tag: ${{ github.sha }}
+    context: .
+    dockerfile: Dockerfile
+    provenance: "true"
 ```
 
 ## GitHub Promotion API

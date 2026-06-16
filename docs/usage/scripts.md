@@ -15,12 +15,48 @@ const mode = choiceInput({
 
 const bucket = stringInput({ description: "S3 bucket name." });
 const archivePath = pathInput({ description: "Temporary archive path." });
-const memoryMibMax = integerInput({ description: "Maximum guest memory in MiB." });
+const buildAttempt = integerInput({ description: "CI build attempt number." });
 const dryRun = booleanInput({ description: "Skip mutating commands.", default: "false" });
 ```
 
 The runtime parses GitHub string inputs into typed script values. Invalid input
 fails before `run` starts.
+
+## Runtime Validation
+
+Hollywood gives your script typed inputs. Use Zod, Effect Schema, or the schema
+library your repository already trusts when you also need domain policy that
+TypeScript cannot prove:
+
+```typescript
+import { action, choiceInput, pathInput, stringInput } from "@dedalus-labs/hollywood";
+import { z } from "zod";
+
+const promotionPolicy = z.object({
+	environment: z.enum(["staging", "production"]),
+	imageRef: z.string().regex(/^ghcr\.io\/[a-z0-9-]+\/[a-z0-9._/-]+:[A-Za-z0-9_.-]+$/),
+	manifestPath: z.string().refine((path) => path.startsWith("deploy/")),
+});
+
+export const promoteManifest = action({
+	name: "promote-manifest",
+	description: "Promote a generated manifest after policy validation.",
+	inputs: {
+		environment: choiceInput({
+			description: "Deployment environment.",
+			options: ["staging", "production"] as const,
+		}),
+		imageRef: stringInput({ description: "Published image reference." }),
+		manifestPath: pathInput({ description: "Manifest path under deploy/." }),
+	},
+	outputs: {},
+	run: async ({ exec, input }) => {
+		promotionPolicy.parse(input);
+		await exec("git", ["add", input.manifestPath]);
+		return {};
+	},
+});
+```
 
 ## Commands
 
@@ -69,8 +105,8 @@ inside one action process; workflow `strategy.max-parallel`, `needs`, and
 Scripts receive a small logger:
 
 ```typescript
-await log.group("Bake release artifact", async () => {
-	await exec("sudo", ["artifact-pack", "--output", input.output]);
+await log.group("Publish container image", async () => {
+	await exec("docker", ["buildx", "build", "--tag", input.imageRef, "--push", input.context]);
 });
 
 log.warning("Cache upload failed");

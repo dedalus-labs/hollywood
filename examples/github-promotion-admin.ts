@@ -112,7 +112,7 @@ export const previewToMainPromotionRequest = (
 	allowUncertified: input.allowUncertified ?? false,
 	createAuditTag: input.createAuditTag ?? true,
 	reason: nonempty("reason", input.reason),
-	repo: repositoryName(input.repo ?? "dedalus-labs/dedalus"),
+	repo: repositoryName(input.repo ?? "acme/widgets"),
 	sha: promotionSha(input.sha ?? ""),
 });
 
