@@ -52,7 +52,7 @@ want to run the command on the local machine.
 The CLI can run the same exported action:
 
 ```bash
-hollywood run ci/dcs/dm/bake-vm-snapshot.ts \
+hollywood run gha/dcs/dm/bake-vm-snapshot.ts \
   --export bakeSnapshot \
   --with dhvBinary=/usr/local/bin/dedalus-hypervisor \
   --with memoryMibMax=32768
@@ -61,7 +61,7 @@ hollywood run ci/dcs/dm/bake-vm-snapshot.ts \
 For Linux VM execution on macOS, add `--lima <name>`:
 
 ```bash
-hollywood run ci/dcs/dm/bake-vm-snapshot.ts \
+hollywood run gha/dcs/dm/bake-vm-snapshot.ts \
   --export bakeSnapshot \
   --lima kvm \
   --start-vm \
@@ -75,7 +75,7 @@ Point Hollywood at the source files that export actions or workflows. Quote glob
 patterns so your shell does not expand them first.
 
 ```bash
-hollywood generate "ci/**/*.ts" --output .
+hollywood generate "gha/**/*.ts" --output .
 ```
 
 The command writes:
@@ -97,11 +97,11 @@ import {
 await writeGeneratedFiles(
 	[
 		generateActionFile(bakeSnapshot, {
-			sourcePath: "ci/dcs/dm/bake-vm-snapshot.ts",
+			sourcePath: "gha/dcs/dm/bake-vm-snapshot.ts",
 			actionsDir: ".github/actions",
 		}),
 		generateActionEntrypointFile(bakeSnapshot, {
-			sourcePath: "ci/dcs/dm/bake-vm-snapshot.ts",
+			sourcePath: "gha/dcs/dm/bake-vm-snapshot.ts",
 			actionsDir: ".github/actions",
 			exportName: "bakeSnapshot",
 		}),

@@ -51,7 +51,7 @@ docs: clarify generated workflow output
 do not drive a release by themselves.
 
 Generated workflow YAML is committed, but it is not handwritten. Edit files in
-`ci/`, then run:
+`gha/`, then run:
 
 ```bash
 npm run generate
