@@ -44,6 +44,7 @@
 	"scripts": {
 		"build": "tsdown",
 		"check:generated": "npm run build && npm run generate && git diff --exit-code dist .github/workflows",
+		"check:workflow-security": "node scripts/check-workflow-security.mjs",
 		"generate": "node dist/cli.js generate \"ci/**/*.ts\" --output .",
 		"pack:check": "npm pack --dry-run",
 		"prepack": "npm run build",

@@ -1,4 +1,4 @@
-import { job, uses, workflow } from "@dedalus/hollywood";
+import { job, uses, workflow } from "@dedalus-labs/hollywood";
 
 import { previewPromotionGate } from "./github-promotion-gate";
 

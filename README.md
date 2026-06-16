@@ -21,6 +21,9 @@ GitHub's official `@actions/core` and `@actions/exec` packages.
 The point is not to replace GitHub Actions. The point is to stop writing tiny
 programs inside YAML strings.
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the CLA/Vouch contribution flow and
+[SECURITY.md](SECURITY.md) for the GitHub Actions hardening policy.
+
 ## Before / After
 
 Before Hollywood, deployment logic tends to become shell-in-YAML soup:

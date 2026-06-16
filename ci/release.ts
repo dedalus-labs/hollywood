@@ -1,4 +1,5 @@
 import { job, workflow } from "../src/index";
+import { checkoutAction, releasePleaseAction } from "./actions";
 
 export const release = workflow({
 	name: "Release",
@@ -20,11 +21,11 @@ export const release = workflow({
 				version: "${{ steps.release.outputs.version }}",
 			},
 			steps: [
-				{ uses: "actions/checkout@v6", with: { "persist-credentials": false } },
+				{ uses: checkoutAction, with: { "persist-credentials": false } },
 				{
 					id: "release",
 					name: "Run release-please",
-					uses: "googleapis/release-please-action@v5",
+					uses: releasePleaseAction,
 					with: {
 						token: "${{ secrets.GITHUB_TOKEN }}",
 						"config-file": "release-please-config.json",

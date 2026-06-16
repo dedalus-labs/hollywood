@@ -44,7 +44,7 @@ generateActionEntrypointFile(bakeSnapshot, {
 This produces:
 
 ```typescript
-import { runGitHubAction } from "@dedalus/hollywood/action-runtime";
+import { runGitHubAction } from "@dedalus-labs/hollywood/action-runtime";
 import { bakeSnapshot } from "./action.ts";
 
 void runGitHubAction(bakeSnapshot);
@@ -86,8 +86,8 @@ Then `uses(action, ...)` derives `./.github/actions/<path>` and preserves the
 action's typed inputs.
 
 ```typescript
-import { generateWorkflowFile, job, uses, workflow } from "@dedalus/hollywood";
-import { defineMatrix, format, gh } from "@dedalus/hollywood/expr";
+import { generateWorkflowFile, job, uses, workflow } from "@dedalus-labs/hollywood";
+import { defineMatrix, format, gh } from "@dedalus-labs/hollywood/expr";
 
 const build = defineMatrix({
 	runner: ["dedalus-kvm"],
@@ -151,7 +151,7 @@ import {
 	job,
 	pathDependencies,
 	workflow,
-} from "@dedalus/hollywood";
+} from "@dedalus-labs/hollywood";
 
 const changes = pathDependencies("changes", {
 	terraform: [

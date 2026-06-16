@@ -1,4 +1,5 @@
 import { job, workflow } from "../src/index";
+import { checkoutAction, setupNodeAction } from "./actions";
 
 export const publishNpm = workflow({
 	name: "Publish NPM",
@@ -22,18 +23,17 @@ export const publishNpm = workflow({
 			},
 			steps: [
 				{
-					uses: "actions/checkout@v6",
+					uses: checkoutAction,
 					with: {
 						ref: "${{ github.event.release.tag_name || github.ref }}",
 						"persist-credentials": false,
 					},
 				},
 				{
-					uses: "actions/setup-node@v6",
+					uses: setupNodeAction,
 					with: {
 						"node-version": "24",
 						"registry-url": "https://registry.npmjs.org",
-						cache: "npm",
 					},
 				},
 				{ name: "Install dependencies", run: "npm ci" },

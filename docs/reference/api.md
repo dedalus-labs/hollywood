@@ -42,7 +42,7 @@ intentionally small.
 | `defineMatrix`                    | Keep matrix values and typed matrix refs together.   |
 | Status helpers                    | `always`, `cancelled`, `failure`, `success`.         |
 
-Expression helpers are also exported from `@dedalus/hollywood/expr` so workflow
+Expression helpers are also exported from `@dedalus-labs/hollywood/expr` so workflow
 authoring can keep orchestration imports separate from script/action imports.
 
 ## Runtime adapters
@@ -62,7 +62,7 @@ authoring can keep orchestration imports separate from script/action imports.
 GitHub JavaScript actions should import the smaller action runtime surface:
 
 ```typescript
-import { action, runGitHubAction } from "@dedalus/hollywood/action-runtime";
+import { action, runGitHubAction } from "@dedalus-labs/hollywood/action-runtime";
 ```
 
 This subpath exports script authoring primitives and the GitHub adapter without

@@ -1,0 +1,43 @@
+# Copyright (c) 2026 Dedalus Labs, Inc. and its contributors
+# SPDX-License-Identifier: MIT
+---
+name: Vouch Request
+description: Ask to be added to the vouched contributor list
+title: "[Vouch]: "
+labels: ["vouch", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Hollywood accepts external contributions from vouched contributors. Being vouched means a maintainer has verified your GitHub account and recorded your CLA acceptance in `VOUCHED.td`.
+
+  - type: input
+    id: handle
+    attributes:
+      label: GitHub handle
+      description: Use the account you plan to contribute from.
+      placeholder: "@octocat"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: cla
+    attributes:
+      label: CLA
+      options:
+        - label: I have read `CLA.md` and agree to the Contributor License Agreement for my contributions.
+          required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Public context
+      description: Link public GitHub work, a project website, or another public identity that helps maintainers recognize you.
+    validations:
+      required: true
+
+  - type: textarea
+    id: sponsor
+    attributes:
+      label: Sponsor
+      description: If an existing vouched contributor or maintainer knows you, mention them here.

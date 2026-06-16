@@ -1,10 +1,10 @@
 import { job, workflow } from "../src/index";
+import { actionlintAction, checkoutAction, setupNodeAction } from "./actions";
 
 const setupNode = {
-	uses: "actions/setup-node@v6",
+	uses: setupNodeAction,
 	with: {
 		"node-version": "24",
-		cache: "npm",
 	},
 } as const;
 
@@ -20,13 +20,14 @@ export const ci = workflow({
 			name: "Test",
 			"runs-on": "ubuntu-latest",
 			steps: [
-				{ uses: "actions/checkout@v6", with: { "persist-credentials": false } },
+				{ uses: checkoutAction, with: { "persist-credentials": false } },
 				setupNode,
 				{ name: "Install dependencies", run: "npm ci" },
 				{ name: "Typecheck", run: "npm run typecheck" },
 				{ name: "Test", run: "npm test" },
 				{ name: "Build", run: "npm run build" },
 				{ name: "Check package contents", run: "npm run pack:check" },
+				{ name: "Check workflow security", run: "npm run check:workflow-security" },
 				{ name: "Check generated workflows", run: "npm run check:generated" },
 			],
 		}),
@@ -34,8 +35,8 @@ export const ci = workflow({
 			name: "Actionlint",
 			"runs-on": "ubuntu-latest",
 			steps: [
-				{ uses: "actions/checkout@v6", with: { "persist-credentials": false } },
-				{ uses: "rhysd/actionlint@v1.7.9" },
+				{ uses: checkoutAction, with: { "persist-credentials": false } },
+				{ uses: actionlintAction },
 			],
 		}),
 	},

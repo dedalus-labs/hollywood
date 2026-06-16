@@ -36,7 +36,7 @@ test("pathDependencies defines trigger paths, detector jobs, and typed guards", 
 		rootfsBuilder: "${{ steps.detect.outputs.rootfsBuilder }}",
 	});
 	assert.deepEqual(detector.steps[0], {
-		uses: "actions/checkout@v6",
+		uses: "actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10",
 		with: { "fetch-depth": "0" },
 	});
 	assert.deepEqual(detector.steps[1], {

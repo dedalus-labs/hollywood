@@ -19,6 +19,7 @@
 
 <!-- List the exact commands you ran. Include manual verification for generated workflow output. -->
 
+- [ ] CLA/Vouch check passes, or this PR only updates `VOUCHED.td`
 - [ ] `npm run typecheck`
 - [ ] `npm test`
 - [ ] `npm run build`

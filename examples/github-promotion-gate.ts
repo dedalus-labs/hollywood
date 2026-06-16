@@ -1,4 +1,4 @@
-import { action, stringInput, stringOutput } from "@dedalus/hollywood";
+import { action, stringInput, stringOutput } from "@dedalus-labs/hollywood";
 
 const inputs = {
 	githubToken: stringInput({
