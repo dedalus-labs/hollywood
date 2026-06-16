@@ -77,10 +77,7 @@ local S3 test is gated because it needs a local service:
 
 ```bash
 HOLLYWOOD_RUN_LOCAL_S3=1 HOLLYWOOD_RUN_MINIO=1 \
-  pnpm exec vitest run \
-  --root packages/typescript/hollywood \
-  --config vitest.config.ts \
-  packages/typescript/hollywood/src/script.test.ts
+  npm test -- src/script.test.ts
 ```
 
 This tests the ethos directly: run the script locally against a real service,

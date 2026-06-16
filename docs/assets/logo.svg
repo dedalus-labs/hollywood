@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title desc">
+  <title id="title">Hollywood</title>
+  <desc id="desc">A clapperboard mark for Hollywood.</desc>
+  <rect width="100" height="100" rx="12" fill="#111827"/>
+  <path d="M14 28h72v52H14z" fill="#f9fafb"/>
+  <path d="M14 20h72v18H14z" fill="#1f6feb"/>
+  <path d="M22 20h10l-8 18H14zM44 20h10l-8 18H36zM66 20h10l-8 18H58z" fill="#facc15"/>
+  <path d="M24 52h52M24 64h34" stroke="#111827" stroke-width="6" stroke-linecap="round"/>
+</svg>
