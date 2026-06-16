@@ -8,6 +8,7 @@ const fs = require("node:fs");
 
 const author = process.env.PR_AUTHOR;
 const bootstrapMaintainers = process.env.CLA_BOOTSTRAP_MAINTAINERS;
+const trustedAutomationAuthors = process.env.CLA_TRUSTED_AUTOMATION_AUTHORS || "";
 if (!author) {
 	console.error("PR_AUTHOR is required");
 	process.exit(1);
@@ -18,15 +19,29 @@ if (!bootstrapMaintainers) {
 }
 
 const summaryPath = process.env.GITHUB_STEP_SUMMARY;
-const authorHandle = author.toLowerCase();
-const authorKey = "github:" + author.toLowerCase();
+const normalizeHandle = (handle) => handle.trim().toLowerCase().replace(/^@/, "").replace(/^github:/, "");
+const authorHandle = normalizeHandle(author);
+const authorKey = "github:" + authorHandle;
 const bootstrapMaintainerSet = new Set(
   bootstrapMaintainers
     .split(/[,\s]+/)
-    .map((handle) => handle.trim().toLowerCase())
+    .map(normalizeHandle)
     .filter(Boolean)
-    .map((handle) => handle.replace(/^@/, "").replace(/^github:/, "")),
 );
+const trustedAutomationSet = new Set(
+  trustedAutomationAuthors
+    .split(/[,\s]+/)
+    .map(normalizeHandle)
+    .filter(Boolean),
+);
+if (trustedAutomationSet.has(authorHandle)) {
+  const body = "## CLA automation passed\n\n@" + author + " is a trusted repository automation author.";
+  if (summaryPath) {
+    fs.appendFileSync(summaryPath, body + "\n");
+  }
+  console.log("@" + author + " is a trusted repository automation author");
+  process.exit(0);
+}
 if (!fs.existsSync("VOUCHED.td")) {
   if (bootstrapMaintainerSet.has(authorHandle)) {
     const body = "## CLA bootstrap passed\n\n@" + author + " is a CLA bootstrap maintainer.";
@@ -138,6 +153,7 @@ export const cla = workflow({
 					name: "Check contributor",
 					env: {
 						CLA_BOOTSTRAP_MAINTAINERS: "windsornguyen",
+						CLA_TRUSTED_AUTOMATION_AUTHORS: "cind-bot[bot] cind[bot]",
 						PR_AUTHOR: "${{ github.event.pull_request.user.login }}",
 					},
 					run: checkVouchedContributor,
