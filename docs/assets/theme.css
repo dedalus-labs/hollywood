@@ -1,83 +1,99 @@
-/* Hollywood docs theme */
+/* Hollywood docs theme - rose velvet and champagne */
 
 :root {
-  --hollywood-blue: #1f6feb;
-  --hollywood-blue-hover: #1a5fd0;
-  --hollywood-blue-muted: rgba(31, 111, 235, 0.14);
-  --hollywood-gold: #facc15;
-  --hollywood-ink: #111827;
-  --hollywood-text: #1f2937;
-  --hollywood-muted: #6b7280;
-  --hollywood-surface: #f8fafc;
-  --hollywood-code: #f3f4f6;
-  --hollywood-border: #e5e7eb;
+  --hollywood-velvet: #24070d;
+  --hollywood-velvet-soft: #3a0b14;
+  --hollywood-burgundy: #7f1022;
+  --hollywood-rose: #c72949;
+  --hollywood-rose-hover: #a51c36;
+  --hollywood-rose-muted: rgba(199, 41, 73, 0.14);
+  --hollywood-champagne: #f6c65b;
+  --hollywood-champagne-soft: rgba(246, 198, 91, 0.2);
+  --hollywood-ivory: #fffaf1;
+  --hollywood-paper: #fff7f7;
+  --hollywood-ink: #1f0d12;
+  --hollywood-text: #312126;
+  --hollywood-muted: #6f5b61;
+  --hollywood-code: #f7ecee;
+  --hollywood-border: #ead7dc;
 }
 
 [data-md-color-scheme="default"] {
-  --md-primary-fg-color: var(--hollywood-ink);
-  --md-accent-fg-color: var(--hollywood-blue);
+  --md-primary-fg-color: var(--hollywood-velvet);
+  --md-primary-bg-color: var(--hollywood-ivory);
+  --md-accent-fg-color: var(--hollywood-rose);
+  --md-accent-bg-color: var(--hollywood-rose-muted);
   --md-default-fg-color: var(--hollywood-text);
-  --md-default-fg-color--light: #374151;
+  --md-default-fg-color--light: #49373d;
   --md-default-fg-color--lighter: var(--hollywood-muted);
-  --md-typeset-a-color: var(--hollywood-blue);
+  --md-default-bg-color: #ffffff;
+  --md-typeset-a-color: var(--hollywood-burgundy);
   --md-code-bg-color: var(--hollywood-code);
   --md-code-fg-color: var(--hollywood-ink);
-  --md-admonition-bg-color: var(--hollywood-surface);
+  --md-admonition-bg-color: var(--hollywood-paper);
 }
 
 [data-md-color-scheme="slate"] {
-  --md-primary-fg-color: #0b1220;
-  --md-accent-fg-color: #58a6ff;
-  --md-default-fg-color: #f9fafb;
-  --md-default-fg-color--light: #d1d5db;
-  --md-default-fg-color--lighter: #9ca3af;
-  --md-default-bg-color: #0b1220;
-  --md-typeset-a-color: #58a6ff;
-  --md-code-bg-color: #111827;
-  --md-code-fg-color: #f9fafb;
-  --md-footer-bg-color: #111827;
-  --md-footer-bg-color--dark: #0b1220;
+  --md-primary-fg-color: var(--hollywood-velvet);
+  --md-primary-bg-color: var(--hollywood-ivory);
+  --md-accent-fg-color: var(--hollywood-champagne);
+  --md-accent-bg-color: var(--hollywood-champagne-soft);
+  --md-default-fg-color: #fffaf1;
+  --md-default-fg-color--light: #ead7dc;
+  --md-default-fg-color--lighter: #c8aeb6;
+  --md-default-bg-color: #150508;
+  --md-typeset-a-color: var(--hollywood-champagne);
+  --md-code-bg-color: #24070d;
+  --md-code-fg-color: #fffaf1;
+  --md-footer-bg-color: #24070d;
+  --md-footer-bg-color--dark: #150508;
 }
 
 .md-header {
-  background: var(--hollywood-ink);
-  border-bottom: 3px solid var(--hollywood-gold);
+  background: var(--hollywood-velvet);
+  border-bottom: 3px solid var(--hollywood-champagne);
 }
 
 .md-header,
 .md-header a,
 .md-header__button {
-  color: white;
+  color: var(--hollywood-ivory);
 }
 
 .md-search__input {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 250, 241, 0.12);
 }
 
 .md-search__input::placeholder {
-  color: rgba(255, 255, 255, 0.65);
+  color: rgba(255, 250, 241, 0.65);
+}
+
+.md-tabs {
+  background-color: var(--hollywood-paper);
+  border-bottom: 1px solid var(--hollywood-border);
+}
+
+[data-md-color-scheme="slate"] .md-tabs {
+  background-color: var(--hollywood-velvet-soft);
+  border-bottom-color: rgba(246, 198, 91, 0.2);
 }
 
 .md-nav__title,
 .md-nav__link--active,
 .md-nav__link:hover {
-  color: var(--hollywood-blue);
+  color: var(--hollywood-rose);
 }
 
-.md-tabs {
-  background-color: var(--hollywood-surface);
-  border-bottom: 1px solid var(--hollywood-border);
-}
-
-[data-md-color-scheme="slate"] .md-tabs {
-  background-color: #111827;
-  border-bottom-color: #1f2937;
+[data-md-color-scheme="slate"] .md-nav__title,
+[data-md-color-scheme="slate"] .md-nav__link--active,
+[data-md-color-scheme="slate"] .md-nav__link:hover {
+  color: var(--hollywood-champagne);
 }
 
 .md-typeset code {
-  background-color: var(--hollywood-blue-muted);
+  background-color: var(--hollywood-rose-muted);
   border-radius: 4px;
-  color: var(--hollywood-blue);
+  color: var(--hollywood-burgundy);
   padding: 0.1em 0.35em;
 }
 
@@ -86,37 +102,79 @@
   color: var(--md-code-fg-color);
 }
 
+[data-md-color-scheme="slate"] .md-typeset code {
+  background-color: rgba(246, 198, 91, 0.12);
+  color: var(--hollywood-champagne);
+}
+
 .md-button--primary {
-  background-color: var(--hollywood-blue);
-  border-color: var(--hollywood-blue);
+  background-color: var(--hollywood-rose);
+  border-color: var(--hollywood-rose);
   color: white;
 }
 
 .md-button--primary:hover {
-  background-color: var(--hollywood-blue-hover);
-  border-color: var(--hollywood-blue-hover);
+  background-color: var(--hollywood-rose-hover);
+  border-color: var(--hollywood-rose-hover);
 }
 
 .md-typeset h1 {
-  color: var(--hollywood-ink);
+  color: var(--hollywood-velvet);
   font-weight: 650;
 }
 
 .md-typeset h2 {
-  border-bottom: 2px solid var(--hollywood-blue-muted);
+  border-bottom: 2px solid var(--hollywood-rose-muted);
   padding-bottom: 0.3em;
 }
 
 [data-md-color-scheme="slate"] .md-typeset h1 {
-  color: #f9fafb;
+  color: var(--hollywood-ivory);
+}
+
+[data-md-color-scheme="slate"] .md-typeset h2 {
+  border-bottom-color: rgba(246, 198, 91, 0.24);
+}
+
+::selection {
+  background-color: var(--hollywood-champagne-soft);
+  color: var(--hollywood-ink);
+}
+
+[data-md-color-scheme="slate"] ::selection {
+  background-color: rgba(246, 198, 91, 0.3);
+  color: var(--hollywood-ivory);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--hollywood-paper);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #d8c0c7;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--hollywood-rose);
 }
 
 .md-typeset .admonition.tip,
 .md-typeset details.tip {
-  border-color: var(--hollywood-gold);
+  border-color: var(--hollywood-champagne);
 }
 
 .md-typeset .tip > .admonition-title,
 .md-typeset .tip > summary {
-  background-color: rgba(250, 204, 21, 0.15);
+  background-color: var(--hollywood-champagne-soft);
+}
+
+.md-typeset .tip > .admonition-title::before,
+.md-typeset .tip > summary::before {
+  background-color: var(--hollywood-champagne);
 }
