@@ -38,6 +38,19 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the CLA/Vouch contribution flow and
 [ROADMAP.md](ROADMAP.md) for planned contribution areas. See
 [SECURITY.md](SECURITY.md) for the GitHub Actions hardening policy.
 
+## Docs
+
+Published docs live at <https://oss.dedaluslabs.ai/hollywood>.
+
+Build them locally:
+
+```bash
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -r docs/requirements.txt
+python -m mkdocs serve -f mkdocs.yml
+```
+
 ## Contributions
 
 Hollywood accepts external code from vouched contributors. Due to the increased
@@ -394,19 +407,6 @@ payloads, runner labels, secrets, permissions, and job scheduling.
 Future work is tracked in [ROADMAP.md](ROADMAP.md). Concrete tasks should become
 GitHub issues before implementation, especially if they change the public API or
 generated YAML.
-
-## Docs
-
-Published docs live at <https://oss.dedaluslabs.ai/hollywood>.
-
-Build them locally:
-
-```bash
-python3 -m venv .venv
-. .venv/bin/activate
-python -m pip install -r docs/requirements.txt
-python -m mkdocs serve -f mkdocs.yml
-```
 
 ## Development
 
