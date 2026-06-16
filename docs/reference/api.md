@@ -42,7 +42,7 @@ intentionally small.
 | `defineMatrix`                    | Keep matrix values and typed matrix refs together.   |
 | Status helpers                    | `always`, `cancelled`, `failure`, `success`.         |
 
-Expression helpers are also exported from `@dedalus/hollywood/expr` so workflow
+Expression helpers are also exported from `@dedalus-labs/hollywood/expr` so workflow
 authoring can keep orchestration imports separate from script/action imports.
 
 ## Runtime adapters
@@ -62,7 +62,7 @@ authoring can keep orchestration imports separate from script/action imports.
 GitHub JavaScript actions should import the smaller action runtime surface:
 
 ```typescript
-import { action, runGitHubAction } from "@dedalus/hollywood/action-runtime";
+import { action, runGitHubAction } from "@dedalus-labs/hollywood/action-runtime";
 ```
 
 This subpath exports script authoring primitives and the GitHub adapter without
@@ -104,7 +104,7 @@ typed `needs.<job>.outputs.<name> == 'true'` expressions.
 The command accepts explicit source files or glob patterns:
 
 ```bash
-hollywood generate "ci/**/*.ts" --output .
+hollywood generate "gha/**/*.ts" --output .
 ```
 
 Supported flags:
@@ -114,18 +114,21 @@ Supported flags:
 | `--output`        | `.`                 | Repository root where files are written.   |
 | `--actions-dir`   | `.github/actions`   | Destination for generated local actions.   |
 | `--workflows-dir` | `.github/workflows` | Destination for generated workflows.       |
-| `--source-root`   | `ci`                | Prefix removed before workflow flattening. |
+| `--source-root`   | `gha`                | Prefix removed before workflow flattening. |
+
+The source root and generated output directories are CLI options, not
+hardcoded paths.
 
 Run an action on the host:
 
 ```bash
-hollywood run ci/s3-cache.ts --export s3Cache --with mode=restore
+hollywood run gha/s3-cache.ts --export s3Cache --with mode=restore
 ```
 
 Run the same action with command execution routed through Lima:
 
 ```bash
-hollywood run ci/s3-cache.ts --export s3Cache --lima kvm --start-vm --with mode=restore
+hollywood run gha/s3-cache.ts --export s3Cache --lima kvm --start-vm --with mode=restore
 ```
 
 `--require-containerd` checks `containerd` and `nerdctl` before the action

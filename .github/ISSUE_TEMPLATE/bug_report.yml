@@ -29,8 +29,8 @@ body:
       label: Reproduction
       description: List the smallest commands, source snippet, or repository state needed to reproduce the issue.
       placeholder: |
-        1. Create `ci/example.ts` with...
-        2. Run `npx @dedalus-labs/hollywood generate "ci/**/*.ts" --output .`
+        1. Create `gha/example.ts` with...
+        2. Run `npx @dedalus-labs/hollywood generate "gha/**/*.ts" --output .`
         3. Open `.github/workflows/example.yml`
     validations:
       required: true

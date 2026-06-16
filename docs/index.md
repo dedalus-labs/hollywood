@@ -2,9 +2,15 @@
 description: TypeScript scripts for GitHub Actions, without shell-in-YAML.
 ---
 
+<div class="hollywood-hero" markdown="1">
+
 # Hollywood
 
+<p class="hollywood-kicker">Lights, cameras, Actions!</p>
+
 TypeScript scripts for GitHub Actions, without shell-in-YAML.
+
+</div>
 
 Hollywood keeps GitHub Actions as the orchestration layer. GitHub still decides
 when jobs run, which runner label they need, which secrets exist, and how jobs
@@ -72,8 +78,6 @@ The first Dedalus use cases are intentionally annoying:
 **Viewing locally:**
 
 ```bash
-uvx --with mkdocs-material \
-  --with mkdocs-git-revision-date-localized-plugin \
-  --with mkdocs-llmstxt \
-  mkdocs serve -f packages/typescript/hollywood/mkdocs.yml
+python -m pip install -r docs/requirements.txt
+python -m mkdocs serve -f mkdocs.yml
 ```

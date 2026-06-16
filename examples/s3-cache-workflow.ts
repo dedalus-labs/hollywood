@@ -1,5 +1,5 @@
-import { job, uses, workflow } from "@dedalus/hollywood";
-import { defineMatrix, format, gh, hashFiles } from "@dedalus/hollywood/expr";
+import { job, uses, workflow } from "@dedalus-labs/hollywood";
+import { defineMatrix, format, gh, hashFiles } from "@dedalus-labs/hollywood/expr";
 
 import { s3Cache } from "./s3-cache";
 
