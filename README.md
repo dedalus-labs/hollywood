@@ -54,7 +54,10 @@ self-vouch.
 npm install --save-dev @dedalus-labs/hollywood
 ```
 
-Hollywood targets Node 24.
+Hollywood's published package targets Node 20 and newer. Generated JavaScript
+actions target GitHub's Node 24 action runtime by default. The repository
+toolchain uses newer TypeScript build tools, so contributors should use Node
+22.18+ or Node 24.11+ when building Hollywood from source.
 
 ## Small Dependency Surface
 

@@ -1,10 +1,11 @@
-import { glob, mkdtemp, readdir, readFile, rm, stat, symlink } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, stat, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, extname, isAbsolute, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { Command } from "@commander-js/extra-typings";
 import { build } from "esbuild";
+import { glob } from "tinyglobby";
 
 import {
 	generateActionEntrypointFile,
@@ -351,13 +352,8 @@ const resolveSourceFiles = async (sources: readonly string[]): Promise<readonly 
 const isTestSourceFile = (sourceFile: string): boolean =>
 	sourceFile.endsWith(".test.ts") || sourceFile.endsWith(".spec.ts");
 
-const globMatches = async (source: string): Promise<readonly string[]> => {
-	const matches: string[] = [];
-	for await (const match of glob(source)) {
-		matches.push(match);
-	}
-	return matches;
-};
+const globMatches = (source: string): Promise<readonly string[]> =>
+	glob(source, { absolute: isAbsolute(source) });
 
 const discoverGeneratedFiles = async (
 	sourceFiles: readonly string[],
