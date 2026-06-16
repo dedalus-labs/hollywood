@@ -1,10 +1,27 @@
-# Security
+# Security Policy
 
 ## Reporting Vulnerabilities
 
-Report security vulnerabilities privately through GitHub Security Advisories:
+Do not open public issues for security vulnerabilities.
 
-https://github.com/dedalus-labs/hollywood/security/advisories/new
+Email security reports to [security@dedaluslabs.ai](mailto:security@dedaluslabs.ai).
+
+Include:
+
+- Description of the vulnerability
+- Steps to reproduce
+- Potential impact
+- Suggested fix, if any
+
+We will acknowledge your report within 48 hours and provide a detailed response
+within 7 days.
+
+## Supported Versions
+
+| Version | Supported |
+| ------- | --------- |
+| main | Active development |
+| < 1.0 | Pre-release, best-effort |
 
 ## GitHub Actions Policy
 
@@ -30,11 +47,16 @@ trusted base commit, reads `VOUCHED.td` from that base commit, and emits a
 status result. It does not write comments, use secrets, or evaluate pull
 request code.
 
-## Background
+## Disclosure Policy
 
-These rules follow the same threat model described by Astral's public CI/CD
-security guidance and GitHub's Actions hardening guidance: privileged PR
-triggers and mutable action tags are supply-chain footguns. The Mini
-Shai-Hulud/TanStack compromise showed why this matters for npm publishers:
-attacker-controlled pull request code poisoned CI state and later hijacked a
-legitimate release pipeline.
+We follow coordinated disclosure:
+
+1. Reporter submits vulnerability privately.
+2. We acknowledge within 48 hours.
+3. We investigate and develop a fix.
+4. We release the fix and credit the reporter, unless anonymity is requested.
+5. Public disclosure happens after 90 days or when the fix is deployed.
+
+## Contact
+
+- Security issues: [security@dedaluslabs.ai](mailto:security@dedaluslabs.ai)
