@@ -10,6 +10,9 @@ export const setupPythonAction =
 export const actionlintAction =
 	"rhysd/actionlint@a443f344ff32813837fa49f7aa6cbc478d770e62"; // v1.7.9
 
+export const githubScriptAction =
+	"actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd"; // v8
+
 export const releasePleaseAction =
 	"googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7"; // v5.0.0
 
