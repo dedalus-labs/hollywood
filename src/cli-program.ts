@@ -1,6 +1,6 @@
-import { glob, mkdtemp, rm, stat, symlink } from "node:fs/promises";
+import { glob, mkdtemp, readdir, readFile, rm, stat, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
+import { dirname, extname, isAbsolute, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { Command } from "@commander-js/extra-typings";
@@ -46,6 +46,14 @@ export type RunOptions = Readonly<{
 	startVm: boolean;
 }>;
 
+export type CheckOptions = Readonly<{
+	generated: boolean;
+	output: string;
+	sourceRoot: string;
+	workflowSecurity: boolean;
+	workflowsDir: string;
+}>;
+
 export type CliIo = Readonly<{
 	writeOut: (message: string) => void;
 }>;
@@ -66,6 +74,28 @@ export const createHollywoodCli = (io: CliIo = processIo()): Command => {
 		.option("--workflows-dir <dir>", "Generated workflows directory", ".github/workflows")
 		.action(async (sources, options) => {
 			await generate({ sources, ...options }, io);
+		});
+
+	program
+		.command("check")
+		.description("Run Hollywood repository checks")
+		.option("--generated", "Check generated files are current", false)
+		.option("--workflow-security", "Check workflow security policy", false)
+		.option("-o, --output <dir>", "Repository root", ".")
+		.option("--source-root <dir>", "Workflow source root", "ci")
+		.option("--workflows-dir <dir>", "Generated workflows directory", ".github/workflows")
+		.action(async (options) => {
+			const selected = options.generated || options.workflowSecurity;
+			await check(
+				{
+					generated: selected ? options.generated : true,
+					output: options.output,
+					sourceRoot: options.sourceRoot,
+					workflowSecurity: selected ? options.workflowSecurity : true,
+					workflowsDir: options.workflowsDir,
+				},
+				io,
+			);
 		});
 
 	program
@@ -130,6 +160,115 @@ export const run = async (options: RunOptions, io: CliIo): Promise<void> => {
 	}
 	for (const [name, value] of entries) {
 		io.writeOut(`output\t${name}=${value}\n`);
+	}
+};
+
+export const check = async (options: CheckOptions, io: CliIo): Promise<void> => {
+	if (options.workflowSecurity) {
+		await checkWorkflowSecurity(options, io);
+	}
+	if (options.generated) {
+		await checkGeneratedFiles(options, io);
+	}
+};
+
+const checkGeneratedFiles = async (options: CheckOptions, io: CliIo): Promise<void> => {
+	await generate(
+		{
+			actionsDir: ".github/actions",
+			output: options.output,
+			sourceRoot: options.sourceRoot,
+			sources: [`${options.sourceRoot}/**/*.ts`],
+			workflowsDir: options.workflowsDir,
+		},
+		io,
+	);
+	await nodeExec("git", ["diff", "--exit-code", "dist", options.workflowsDir], {
+		cwd: options.output,
+	});
+	io.writeOut("ok\tgenerated files\n");
+};
+
+type WorkflowSecurityCheck = Readonly<{
+	name: string;
+	pattern: RegExp;
+}>;
+
+const workflowSecurityChecks: readonly WorkflowSecurityCheck[] = [
+	{
+		name: "privileged pull request triggers",
+		pattern: /\b(?:pull_request_target|workflow_run)\b/g,
+	},
+	{
+		name: "workflow cache sharing",
+		pattern: /\bactions\/cache@|^\s*cache:\s*["']?npm["']?/gm,
+	},
+	{
+		name: "mutable action references",
+		pattern: /uses:\s+[^#\n]*@(?![0-9a-f]{40}(?:\s|$))[^#\n\s]+/g,
+	},
+];
+
+const workflowSecurityExtensions = new Set([".ts", ".yaml", ".yml"]);
+
+const checkWorkflowSecurity = async (options: CheckOptions, io: CliIo): Promise<void> => {
+	const outputDir = resolve(options.output);
+	const findings: string[] = [];
+	for await (const file of scanWorkflowSecurityFiles([
+		resolve(outputDir, options.workflowsDir),
+		resolve(outputDir, options.sourceRoot),
+	])) {
+		const content = await readFile(file, "utf8");
+		for (const check of workflowSecurityChecks) {
+			for (const match of content.matchAll(check.pattern)) {
+				const index = match.index;
+				if (index === undefined) {
+					continue;
+				}
+				const line = content.slice(0, index).split("\n").length;
+				const path = relative(outputDir, file).split(sep).join("/");
+				findings.push(`${path}:${line}: ${check.name}: ${match[0].trim()}`);
+			}
+		}
+	}
+	if (findings.length > 0) {
+		throw new Error(`workflow security check failed\n${findings.join("\n")}`);
+	}
+	io.writeOut("ok\tworkflow security\n");
+};
+
+async function* scanWorkflowSecurityFiles(paths: readonly string[]): AsyncGenerator<string> {
+	for (const path of paths) {
+		if (!(await pathExists(path))) {
+			continue;
+		}
+		for await (const file of walk(path)) {
+			if (workflowSecurityExtensions.has(extname(file))) {
+				yield file;
+			}
+		}
+	}
+}
+
+async function* walk(path: string): AsyncGenerator<string> {
+	for (const entry of await readdir(path, { withFileTypes: true })) {
+		const child = resolve(path, entry.name);
+		if (entry.isDirectory()) {
+			yield* walk(child);
+			continue;
+		}
+		if (entry.isFile()) {
+			yield child;
+		}
+	}
+}
+
+const pathExists = async (path: string): Promise<boolean> => {
+	try {
+		await stat(path);
+		return true;
+	} catch {
+		return false;
 	}
 };
 

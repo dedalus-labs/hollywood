@@ -33,8 +33,8 @@ npm run lint
 npm run typecheck
 npm test
 npm run build
-npm run check:generated
-npm pack --dry-run
+npm run check
+npm run package
 ```
 
 Generated workflow YAML is committed, but it is not handwritten. Edit files in

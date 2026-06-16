@@ -41,6 +41,7 @@ export const publishNpm = workflow({
 				{ name: "Typecheck", run: "npm run typecheck" },
 				{ name: "Test", run: "npm test" },
 				{ name: "Build", run: "npm run build" },
+				{ name: "Check Hollywood state", run: "node dist/cli.js check" },
 				{ name: "Publish to npm", run: "npm publish --access public --tag alpha --provenance" },
 			],
 		}),

@@ -27,9 +27,8 @@ export const ci = workflow({
 				{ name: "Typecheck", run: "npm run typecheck" },
 				{ name: "Test", run: "npm test" },
 				{ name: "Build", run: "npm run build" },
-				{ name: "Check package contents", run: "npm run pack:check" },
-				{ name: "Check workflow security", run: "npm run check:workflow-security" },
-				{ name: "Check generated workflows", run: "npm run check:generated" },
+				{ name: "Check package contents", run: "npm run package" },
+				{ name: "Check Hollywood state", run: "node dist/cli.js check" },
 			],
 		}),
 		actionlint: job({

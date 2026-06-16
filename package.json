@@ -43,11 +43,10 @@
 	},
 	"scripts": {
 		"build": "tsdown",
-		"check:generated": "npm run build && npm run generate && git diff --exit-code dist .github/workflows",
-		"check:workflow-security": "node scripts/check-workflow-security.mjs",
+		"check": "npm run build && node dist/cli.js check",
 		"generate": "node dist/cli.js generate \"ci/**/*.ts\" --output .",
 		"lint": "oxlint --vitest-plugin --import-plugin --deny-warnings . --ignore-pattern dist --ignore-pattern node_modules --ignore-pattern .github",
-		"pack:check": "npm pack --dry-run",
+		"package": "npm pack --dry-run",
 		"prepack": "npm run build",
 		"test": "vitest run --config vitest.config.ts",
 		"typecheck": "tsgo --noEmit"
