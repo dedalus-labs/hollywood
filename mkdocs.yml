@@ -57,7 +57,7 @@ plugins:
   - llmstxt:
       full_output: llms-full.txt
       markdown_description: |
-        Hollywood is a TypeScript scripting library for GitHub Actions.
+        Hollywood is an AI-native TypeScript scripting library for GitHub Actions.
         It moves imperative CI/CD logic out of YAML and into testable scripts
         while generating ordinary action.yml files, workflow YAML, and
         GitHub-compatible action entrypoints.
@@ -74,9 +74,16 @@ plugins:
           - usage/github-actions.md
           - usage/local-testing.md
           - usage/local-services.md
+        Backends:
+          - backends/index.md
+          - backends/lima.md
+          - backends/container.md
+          - backends/docker.md
+          - backends/smolmachines.md
+          - backends/pacman.md
         Recipes:
           - recipes/s3-cache.md
-          - recipes/bake-vm-snapshot.md
+          - recipes/publish-container-image.md
         Reference:
           - reference/api.md
           - reference/generated-files.md
@@ -92,14 +99,14 @@ plugins:
         right: "20px"
         z_index: "2000"
       copy_button_style:
-        background: "#c72949"
-        color: "white"
-        border: "none"
+        background: "#fffdfb"
+        color: "#7b666d"
+        border: "1px solid #eadce0"
         padding: "8px 16px"
         border_radius: "8px"
         font_size: "13px"
-        font_weight: "500"
-        box_shadow: "0 2px 8px rgba(199, 41, 73, 0.3)"
+        font_weight: "400"
+        box_shadow: "none"
       sections:
         All:
           - "*.md"
@@ -138,10 +145,17 @@ nav:
       - Generated GitHub Actions: usage/github-actions.md
       - Local Testing: usage/local-testing.md
       - Local Services: usage/local-services.md
+  - Backends:
+      - Overview: backends/index.md
+      - Lima: backends/lima.md
+      - Apple Container: backends/container.md
+      - Docker: backends/docker.md
+      - smolmachines: backends/smolmachines.md
+      - Arch / pacman: backends/pacman.md
   - Recipes:
       - Overview: recipes/index.md
       - S3 Cache: recipes/s3-cache.md
-      - Bake VM Snapshot: recipes/bake-vm-snapshot.md
+      - Publish Container Image: recipes/publish-container-image.md
   - Reference:
       - Overview: reference/index.md
       - API Surface: reference/api.md

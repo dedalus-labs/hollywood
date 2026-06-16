@@ -9,7 +9,7 @@ Use MinIO, an Amazon Simple Storage Service (S3)-compatible object store, for
 S3-specific tests when persistence and speed matter more than full Amazon Web
 Services (AWS) behavior.
 
-Good fit:
+Use cases:
 
 - direct S3 cache restore/save scripts
 - object upload and download
@@ -27,7 +27,7 @@ Not a fit:
 Use LocalStack, a local AWS emulator, when the script or workflow depends on
 AWS-shaped behavior across multiple services.
 
-Good fit:
+Use cases:
 
 - Terraform tests that need S3, DynamoDB, IAM, or STS endpoints
 - service containers in GitHub Actions
@@ -40,10 +40,11 @@ endpoint and credentials explicitly through typed inputs or environment.
 
 Linux action runs on macOS should use Lima first. Lima gives us a real Linux
 virtual machine (VM), and Hollywood routes each script `exec(file, args)` call
-through `limactl shell`.
+through `limactl shell`. See [Execution Backends](../backends/index.md) for the
+current backend matrix and planned directions.
 
 ```bash
-hollywood run gha/go/s3-cache.ts --export s3Cache --lima kvm --start-vm
+npx hollywood run gha/cache/s3-cache.ts --export s3Cache --lima default --start-vm
 ```
 
 Hollywood's current VM support is action-level, not whole-workflow emulation.
@@ -52,10 +53,11 @@ runner worker protocol in the package.
 
 ## Rejection is a feature
 
-Some jobs cannot run on a developer laptop. The Dedalus Machines bake requires
-Linux Kernel-based Virtual Machine (KVM) access and nested virtualization. A
-Mac running Lima can provide a Linux VM, but it cannot provide x86 KVM inside
-that VM.
+Some jobs cannot run on a developer laptop. A container publish action might
+require Docker BuildKit, registry credentials, and a Linux-only toolchain. A
+Terraform apply action might require cloud credentials that should never exist
+on a random machine.
 
-Hollywood should reject that local run before starting. A local green run that
-did not provide the runner contract would be worse than no local run.
+Hollywood should reject that local run before starting when the declared
+contract is missing. A local green run that did not provide the runner contract
+would be worse than no local run.

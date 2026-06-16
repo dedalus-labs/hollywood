@@ -27,42 +27,25 @@ import {
 	type WorkflowInputValues,
 } from "./script";
 
-const bakeSnapshot = action({
-	name: "dcs-bake-vm-snapshot",
-	description: "Run dm-bake without embedding shell in workflow YAML.",
+const publishImage = action({
+	name: "publish-container-image",
+	description: "Build and publish a container image without embedding shell in workflow YAML.",
 	inputs: {
-		dhvBinary: pathInput({ description: "Path to dedalus-hypervisor." }),
-		kernel: pathInput({ description: "Path to guest vmlinux." }),
-		rootfs: pathInput({ description: "Path to mutable rootfs.raw." }),
-		output: pathInput({ description: "Snapshot output directory." }),
-		memoryMibMax: integerInput({ description: "Maximum guest memory in MiB." }),
-		maxVcpus: integerInput({ description: "Maximum vCPU count." }),
-		imageName: stringInput({ description: "Guest image name.", default: "noble" }),
-		rootfsVersionFile: pathInput({
-			description: "File containing the guest rootfs version.",
-			default: "/tmp/guest/rootfs-version",
-		}),
-		epoch0Dir: pathInput({ description: "Epoch0 output directory.", default: "/tmp/epoch0" }),
-		lsvdBlkBinary: pathInput({
-			description: "Path to dm-lsvd-blk.",
-			default: "/usr/local/bin/dm-lsvd-blk",
-		}),
+		image: stringInput({ description: "Container image name, including registry." }),
+		tag: stringInput({ description: "Container image tag." }),
+		context: pathInput({ description: "Build context path.", default: "." }),
+		dockerfile: pathInput({ description: "Dockerfile path.", default: "Dockerfile" }),
+		buildAttempt: integerInput({ description: "CI build attempt number." }),
 	},
 	outputs: {
-		snapshotDir: stringOutput({ description: "Snapshot output directory." }),
-		templatesDir: stringOutput({ description: "Upper template output directory." }),
-		epoch0Dir: stringOutput({ description: "Epoch0 output directory." }),
+		imageRef: stringOutput({ description: "Published image reference." }),
 	},
-	run: async () => ({
-		snapshotDir: "/tmp/snapshot",
-		templatesDir: "/tmp/templates",
-		epoch0Dir: "/tmp/epoch0",
-	}),
+	run: async () => ({ imageRef: "ghcr.io/acme/api:sha-abc123" }),
 });
 
-const pathfulBakeSnapshot = action({
-	...bakeSnapshot,
-	localActionPath: "dcs/dm/bake-vm-snapshot",
+const pathfulPublishImage = action({
+	...publishImage,
+	localActionPath: "containers/publish-image",
 });
 
 const terraformPlan = localAction({
@@ -83,37 +66,18 @@ const installKubectl = localAction({
 });
 
 test("generateActionMetadata emits a GitHub JavaScript action contract", () => {
-	assert.deepEqual(generateActionMetadata(bakeSnapshot), {
-		name: "dcs-bake-vm-snapshot",
-		description: "Run dm-bake without embedding shell in workflow YAML.",
+	assert.deepEqual(generateActionMetadata(publishImage), {
+		name: "publish-container-image",
+		description: "Build and publish a container image without embedding shell in workflow YAML.",
 		inputs: {
-			"dhv-binary": { description: "Path to dedalus-hypervisor.", required: true },
-			kernel: { description: "Path to guest vmlinux.", required: true },
-			rootfs: { description: "Path to mutable rootfs.raw.", required: true },
-			output: { description: "Snapshot output directory.", required: true },
-			"memory-mib-max": { description: "Maximum guest memory in MiB.", required: true },
-			"max-vcpus": { description: "Maximum vCPU count.", required: true },
-			"image-name": { description: "Guest image name.", required: false, default: "noble" },
-			"rootfs-version-file": {
-				description: "File containing the guest rootfs version.",
-				required: false,
-				default: "/tmp/guest/rootfs-version",
-			},
-			"epoch0-dir": {
-				description: "Epoch0 output directory.",
-				required: false,
-				default: "/tmp/epoch0",
-			},
-			"lsvd-blk-binary": {
-				description: "Path to dm-lsvd-blk.",
-				required: false,
-				default: "/usr/local/bin/dm-lsvd-blk",
-			},
+			image: { description: "Container image name, including registry.", required: true },
+			tag: { description: "Container image tag.", required: true },
+			context: { description: "Build context path.", required: false, default: "." },
+			dockerfile: { description: "Dockerfile path.", required: false, default: "Dockerfile" },
+			"build-attempt": { description: "CI build attempt number.", required: true },
 		},
 		outputs: {
-			"snapshot-dir": { description: "Snapshot output directory." },
-			"templates-dir": { description: "Upper template output directory." },
-			"epoch0-dir": { description: "Epoch0 output directory." },
+			"image-ref": { description: "Published image reference." },
 		},
 		runs: { using: "node24", main: "dist/index.js" },
 	});
@@ -143,15 +107,15 @@ test("generateActionMetadata rejects duplicate GitHub output names", () => {
 		description: "Reject ambiguous generated output names.",
 		inputs: {},
 		outputs: {
-			snapshotDir: stringOutput({ description: "Camel case output." }),
-			"snapshot-dir": stringOutput({ description: "Already kebab output." }),
+			imageRef: stringOutput({ description: "Camel case output." }),
+			"image-ref": stringOutput({ description: "Already kebab output." }),
 		},
-		run: async () => ({ snapshotDir: "", "snapshot-dir": "" }),
+		run: async () => ({ imageRef: "", "image-ref": "" }),
 	});
 
 	assert.throws(
 		() => generateActionMetadata(duplicateOutputs),
-		/duplicate GitHub output name: snapshot-dir/,
+		/duplicate GitHub output name: image-ref/,
 	);
 });
 
@@ -180,30 +144,24 @@ test("generateUsesStep rejects duplicate GitHub input names", () => {
 
 test("generateUsesStep emits a workflow action step without run shell", () => {
 	const withInputs = {
-		dhvBinary: "/usr/local/bin/dedalus-hypervisor",
-		kernel: "/tmp/vmlinux",
-		rootfs: "/tmp/rootfs.raw",
-		output: "/tmp/snapshot",
-		memoryMibMax: "${{ inputs.max_machine_memory_mib }}",
-		maxVcpus: "${{ inputs.max_machine_burst_vcpus }}",
-	} satisfies WorkflowInputValues<typeof bakeSnapshot.inputs>;
+		image: "ghcr.io/acme/api",
+		tag: "${{ github.sha }}",
+		buildAttempt: "${{ github.run_attempt }}",
+	} satisfies WorkflowInputValues<typeof publishImage.inputs>;
 
 	assert.deepEqual(
-		generateUsesStep(bakeSnapshot, {
-			name: "Bake VM snapshot",
-			uses: "./.github/actions/dcs-bake-vm-snapshot",
+		generateUsesStep(publishImage, {
+			name: "Publish container image",
+			uses: "./.github/actions/publish-container-image",
 			with: withInputs,
 		}),
 		{
-			name: "Bake VM snapshot",
-			uses: "./.github/actions/dcs-bake-vm-snapshot",
+			name: "Publish container image",
+			uses: "./.github/actions/publish-container-image",
 			with: {
-				"dhv-binary": "/usr/local/bin/dedalus-hypervisor",
-				kernel: "/tmp/vmlinux",
-				rootfs: "/tmp/rootfs.raw",
-				output: "/tmp/snapshot",
-				"memory-mib-max": "${{ inputs.max_machine_memory_mib }}",
-				"max-vcpus": "${{ inputs.max_machine_burst_vcpus }}",
+				image: "ghcr.io/acme/api",
+				tag: "${{ github.sha }}",
+				"build-attempt": "${{ github.run_attempt }}",
 			},
 		},
 	);
@@ -211,29 +169,23 @@ test("generateUsesStep emits a workflow action step without run shell", () => {
 
 test("uses derives a local workflow step from a Hollywood action path", () => {
 	assert.deepEqual(
-		uses(pathfulBakeSnapshot, {
-			id: "bake",
-			name: "Bake VM snapshot",
+		uses(pathfulPublishImage, {
+			id: "publish",
+			name: "Publish container image",
 			with: {
-				dhvBinary: "/usr/local/bin/dedalus-hypervisor",
-				kernel: "/tmp/vmlinux",
-				rootfs: "/tmp/rootfs.raw",
-				output: "/tmp/snapshot",
-				memoryMibMax: "${{ inputs.max_machine_memory_mib }}",
-				maxVcpus: "${{ inputs.max_machine_burst_vcpus }}",
+				image: "ghcr.io/acme/api",
+				tag: "${{ github.sha }}",
+				buildAttempt: "${{ github.run_attempt }}",
 			},
 		}),
 		{
-			id: "bake",
-			name: "Bake VM snapshot",
-			uses: "./.github/actions/dcs/dm/bake-vm-snapshot",
+			id: "publish",
+			name: "Publish container image",
+			uses: "./.github/actions/containers/publish-image",
 			with: {
-				"dhv-binary": "/usr/local/bin/dedalus-hypervisor",
-				kernel: "/tmp/vmlinux",
-				rootfs: "/tmp/rootfs.raw",
-				output: "/tmp/snapshot",
-				"memory-mib-max": "${{ inputs.max_machine_memory_mib }}",
-				"max-vcpus": "${{ inputs.max_machine_burst_vcpus }}",
+				image: "ghcr.io/acme/api",
+				tag: "${{ github.sha }}",
+				"build-attempt": "${{ github.run_attempt }}",
 			},
 		},
 	);
@@ -245,11 +197,10 @@ test("uses derives a typed step from an existing local action descriptor", () =>
 			id: "plan",
 			name: "Terraform Plan",
 			with: {
-				tfDir: "apps/cloud/apps/github/arc-ci/tf",
-				varFile: "${{ steps.aws.outputs.environment }}.tfvars",
-				extraArgs:
-					"-var=karpenter_experimental_controller_tag=${{ steps.karpenter_experimental_meta.outputs.image_tag }}",
-				artifactName: "github-arc-ci-tfplan-${{ steps.aws.outputs.environment }}",
+				tfDir: "infra/terraform",
+				varFile: "environments/${{ inputs.environment }}.tfvars",
+				extraArgs: "-var=image_tag=${{ needs.build.outputs.image_tag }}",
+				artifactName: "terraform-plan-${{ inputs.environment }}",
 			},
 		}),
 		{
@@ -257,11 +208,10 @@ test("uses derives a typed step from an existing local action descriptor", () =>
 			name: "Terraform Plan",
 			uses: "./.github/actions/terraform/plan",
 			with: {
-				"tf-dir": "apps/cloud/apps/github/arc-ci/tf",
-				"var-file": "${{ steps.aws.outputs.environment }}.tfvars",
-				"extra-args":
-					"-var=karpenter_experimental_controller_tag=${{ steps.karpenter_experimental_meta.outputs.image_tag }}",
-				"artifact-name": "github-arc-ci-tfplan-${{ steps.aws.outputs.environment }}",
+				"tf-dir": "infra/terraform",
+				"var-file": "environments/${{ inputs.environment }}.tfvars",
+				"extra-args": "-var=image_tag=${{ needs.build.outputs.image_tag }}",
+				"artifact-name": "terraform-plan-${{ inputs.environment }}",
 			},
 		},
 	);
@@ -284,7 +234,7 @@ test("uses keeps existing local action descriptors typed at workflow call sites"
 		uses(terraformPlan, {
 			name: "Terraform Plan",
 			// @ts-expect-error Missing required local action inputs should fail at compile time.
-			with: { tfDir: "apps/cloud/apps/github/arc-ci/tf" },
+			with: { tfDir: "infra/terraform" },
 		});
 	}
 	assert.ok(true);
@@ -293,15 +243,12 @@ test("uses keeps existing local action descriptors typed at workflow call sites"
 test("uses rejects actions without a local action path", () => {
 	assert.throws(
 		() =>
-			uses(bakeSnapshot, {
-				name: "Bake VM snapshot",
+			uses(publishImage, {
+				name: "Publish container image",
 				with: {
-					dhvBinary: "/usr/local/bin/dedalus-hypervisor",
-					kernel: "/tmp/vmlinux",
-					rootfs: "/tmp/rootfs.raw",
-					output: "/tmp/snapshot",
-					memoryMibMax: "${{ inputs.max_machine_memory_mib }}",
-					maxVcpus: "${{ inputs.max_machine_burst_vcpus }}",
+					image: "ghcr.io/acme/api",
+					tag: "${{ github.sha }}",
+					buildAttempt: "${{ github.run_attempt }}",
 				},
 			}),
 		/localActionPath is required/,
@@ -310,24 +257,24 @@ test("uses rejects actions without a local action path", () => {
 
 test("uses keeps action inputs typed at workflow call sites", () => {
 	if (process.env["HOLLYWOOD_TYPE_TESTS"] === "1") {
-		uses(pathfulBakeSnapshot, {
-			name: "Bake VM snapshot",
+		uses(pathfulPublishImage, {
+			name: "Publish container image",
 			// @ts-expect-error Missing required action inputs should fail at compile time.
-			with: { dhvBinary: "/usr/local/bin/dedalus-hypervisor" },
+			with: { image: "ghcr.io/acme/api" },
 		});
 	}
 	assert.ok(true);
 });
 
 test("generateActionFile flattens nested script sources into .github actions", () => {
-	const actionFile = generateActionFile(bakeSnapshot, {
-		sourcePath: "ci/dcs/dm/bake-vm-snapshot.ts",
+	const actionFile = generateActionFile(publishImage, {
+		sourcePath: "ci/containers/publish-image.ts",
 		actionsDir: ".github/actions",
 		generatedAt: new Date("2026-05-14T00:00:00.000Z"),
 	});
 
-	assert.equal(actionFile.sourcePath, "ci/dcs/dm/bake-vm-snapshot.ts");
-	assert.equal(actionFile.path, ".github/actions/dcs-bake-vm-snapshot/action.yml");
+	assert.equal(actionFile.sourcePath, "ci/containers/publish-image.ts");
+	assert.equal(actionFile.path, ".github/actions/publish-container-image/action.yml");
 	assert.equal(
 		actionFile.header,
 		"# @generated by Hollywood at 2026-05-14T00:00:00.000Z. Do not edit by hand.",
@@ -337,23 +284,23 @@ test("generateActionFile flattens nested script sources into .github actions", (
 });
 
 test("generateActionFile uses explicit local action paths", () => {
-	const actionFile = generateActionFile(pathfulBakeSnapshot, {
-		sourcePath: "ci/dcs/dm/bake-vm-snapshot.ts",
+	const actionFile = generateActionFile(pathfulPublishImage, {
+		sourcePath: "ci/containers/publish-image.ts",
 		actionsDir: ".github/actions",
 	});
 
-	assert.equal(actionFile.path, ".github/actions/dcs/dm/bake-vm-snapshot/action.yml");
+	assert.equal(actionFile.path, ".github/actions/containers/publish-image/action.yml");
 });
 
 test("generateActionFile uses stable generated headers by default", () => {
-	const actionFile = generateActionFile(bakeSnapshot, {
-		sourcePath: "ci/dcs/dm/bake-vm-snapshot.ts",
+	const actionFile = generateActionFile(publishImage, {
+		sourcePath: "ci/containers/publish-image.ts",
 		actionsDir: ".github/actions",
 	});
-	const entrypoint = generateActionEntrypointFile(bakeSnapshot, {
-		sourcePath: "ci/dcs/dm/bake-vm-snapshot.ts",
+	const entrypoint = generateActionEntrypointFile(publishImage, {
+		sourcePath: "ci/containers/publish-image.ts",
 		actionsDir: ".github/actions",
-		exportName: "bakeSnapshot",
+		exportName: "publishImage",
 	});
 
 	assert.equal(actionFile.header, "# @generated by Hollywood. Do not edit by hand.");
@@ -361,94 +308,94 @@ test("generateActionFile uses stable generated headers by default", () => {
 });
 
 test("generateActionFile preserves colocated action source directories", () => {
-	const actionFile = generateActionFile(bakeSnapshot, {
-		sourcePath: ".github/actions/dcs/dm/bake-vm-snapshot/src/action.ts",
+	const actionFile = generateActionFile(publishImage, {
+		sourcePath: ".github/actions/containers/publish-image/src/action.ts",
 		actionsDir: ".github/actions",
 		generatedAt: new Date("2026-05-14T00:00:00.000Z"),
 	});
 
-	assert.equal(actionFile.path, ".github/actions/dcs/dm/bake-vm-snapshot/action.yml");
-	assert.equal(actionFile.metadata.name, "dcs-bake-vm-snapshot");
+	assert.equal(actionFile.path, ".github/actions/containers/publish-image/action.yml");
+	assert.equal(actionFile.metadata.name, "publish-container-image");
 });
 
 test("generateActionEntrypointFile preserves colocated action source directories", () => {
-	const entrypoint = generateActionEntrypointFile(bakeSnapshot, {
-		sourcePath: ".github/actions/dcs/dm/bake-vm-snapshot/src/action.ts",
+	const entrypoint = generateActionEntrypointFile(publishImage, {
+		sourcePath: ".github/actions/containers/publish-image/src/action.ts",
 		actionsDir: ".github/actions",
-		exportName: "bakeSnapshot",
+		exportName: "publishImage",
 		generatedAt: new Date("2026-05-14T00:00:00.000Z"),
 	});
 
-	assert.equal(entrypoint.path, ".github/actions/dcs/dm/bake-vm-snapshot/src/index.ts");
-	assert.match(entrypoint.content, /import \{ bakeSnapshot \} from "\.\/action\.ts";/);
+	assert.equal(entrypoint.path, ".github/actions/containers/publish-image/src/index.ts");
+	assert.match(entrypoint.content, /import \{ publishImage \} from "\.\/action\.ts";/);
 });
 
 test("generateActionFile rejects mismatched explicit and colocated action paths", () => {
-	const movedBakeSnapshot = action({
-		...bakeSnapshot,
-		localActionPath: "dcs/moved-bake-vm-snapshot",
+	const movedPublishImage = action({
+		...publishImage,
+		localActionPath: "containers/moved-publish-image",
 	});
 
 	assert.throws(
 		() =>
-			generateActionFile(movedBakeSnapshot, {
-				sourcePath: ".github/actions/dcs/dm/bake-vm-snapshot/src/action.ts",
+			generateActionFile(movedPublishImage, {
+				sourcePath: ".github/actions/containers/publish-image/src/action.ts",
 				actionsDir: ".github/actions",
 			}),
-		/localActionPath dcs\/moved-bake-vm-snapshot does not match colocated action directory dcs\/dm\/bake-vm-snapshot/,
+		/localActionPath containers\/moved-publish-image does not match colocated action directory containers\/publish-image/,
 	);
 });
 
 test("generateActionFile rejects escaping explicit local action paths", () => {
-	const escapingBakeSnapshot = action({
-		...bakeSnapshot,
-		localActionPath: "../bake-vm-snapshot",
+	const escapingPublishImage = action({
+		...publishImage,
+		localActionPath: "../publish-container-image",
 	});
 
 	assert.throws(
 		() =>
-			generateActionFile(escapingBakeSnapshot, {
-				sourcePath: "ci/dcs/dm/bake-vm-snapshot.ts",
+			generateActionFile(escapingPublishImage, {
+				sourcePath: "ci/containers/publish-image.ts",
 				actionsDir: ".github/actions",
 			}),
-		/invalid action directory: \.\.\/bake-vm-snapshot/,
+		/invalid action directory: \.\.\/publish-container-image/,
 	);
 });
 
 test("generateActionFile rejects escaping generated action directories", () => {
 	assert.throws(
 		() =>
-			generateActionFile(bakeSnapshot, {
-				sourcePath: ".github/actions/../bake-vm-snapshot/src/action.ts",
+			generateActionFile(publishImage, {
+				sourcePath: ".github/actions/../publish-container-image/src/action.ts",
 				actionsDir: ".github/actions",
 			}),
-		/invalid action directory: \.\.\/bake-vm-snapshot/,
+		/invalid action directory: \.\.\/publish-container-image/,
 	);
 });
 
 test("generateActionEntrypointFile wires a typed script to GitHub actions", () => {
-	const entrypoint = generateActionEntrypointFile(bakeSnapshot, {
-		sourcePath: "ci/dcs/dm/bake-vm-snapshot.ts",
+	const entrypoint = generateActionEntrypointFile(publishImage, {
+		sourcePath: "ci/containers/publish-image.ts",
 		actionsDir: ".github/actions",
-		exportName: "bakeSnapshot",
+		exportName: "publishImage",
 		generatedAt: new Date("2026-05-14T00:00:00.000Z"),
 	});
 
-	assert.equal(entrypoint.sourcePath, "ci/dcs/dm/bake-vm-snapshot.ts");
-	assert.equal(entrypoint.path, ".github/actions/dcs-bake-vm-snapshot/src/index.ts");
+	assert.equal(entrypoint.sourcePath, "ci/containers/publish-image.ts");
+	assert.equal(entrypoint.path, ".github/actions/publish-container-image/src/index.ts");
 	assert.equal(
 		entrypoint.header,
 		"// @generated by Hollywood at 2026-05-14T00:00:00.000Z. Do not edit by hand.",
 	);
 	assert.equal(
 		entrypoint.content,
-		'// @generated by Hollywood at 2026-05-14T00:00:00.000Z. Do not edit by hand.\n\nimport { runGitHubAction } from "@dedalus-labs/hollywood/action-runtime";\nimport { bakeSnapshot } from "../../../../ci/dcs/dm/bake-vm-snapshot.ts";\n\nvoid runGitHubAction(bakeSnapshot);\n',
+		'// @generated by Hollywood at 2026-05-14T00:00:00.000Z. Do not edit by hand.\n\nimport { runGitHubAction } from "@dedalus-labs/hollywood/action-runtime";\nimport { publishImage } from "../../../../ci/containers/publish-image.ts";\n\nvoid runGitHubAction(publishImage);\n',
 	);
 });
 
 test("generateActionEntrypointFile supports default action exports", () => {
-	const entrypoint = generateActionEntrypointFile(bakeSnapshot, {
-		sourcePath: "ci/dcs/dm/bake-vm-snapshot.ts",
+	const entrypoint = generateActionEntrypointFile(publishImage, {
+		sourcePath: "ci/containers/publish-image.ts",
 		actionsDir: ".github/actions",
 		exportName: "default",
 		generatedAt: new Date("2026-05-14T00:00:00.000Z"),
@@ -461,18 +408,18 @@ test("generateActionEntrypointFile supports default action exports", () => {
 test("generateActionEntrypointFile rejects invalid TypeScript export names", () => {
 	assert.throws(
 		() =>
-			generateActionEntrypointFile(bakeSnapshot, {
-				sourcePath: "ci/dcs/dm/bake-vm-snapshot.ts",
+			generateActionEntrypointFile(publishImage, {
+				sourcePath: "ci/containers/publish-image.ts",
 				actionsDir: ".github/actions",
-				exportName: "bake-snapshot",
+				exportName: "publish-image",
 			}),
-		/invalid TypeScript export name: bake-snapshot/,
+		/invalid TypeScript export name: publish-image/,
 	);
 });
 
 test("renderActionFile validates action metadata before returning YAML", () => {
-	const actionFile = generateActionFile(bakeSnapshot, {
-		sourcePath: "ci/dcs/dm/bake-vm-snapshot.ts",
+	const actionFile = generateActionFile(publishImage, {
+		sourcePath: "ci/containers/publish-image.ts",
 		actionsDir: ".github/actions",
 		generatedAt: new Date("2026-05-14T00:00:00.000Z"),
 	});
@@ -487,8 +434,8 @@ test("renderActionFile validates action metadata before returning YAML", () => {
 });
 
 test("renderActionFile rejects invalid generated action metadata", () => {
-	const actionFile = generateActionFile(bakeSnapshot, {
-		sourcePath: "ci/dcs/dm/bake-vm-snapshot.ts",
+	const actionFile = generateActionFile(publishImage, {
+		sourcePath: "ci/containers/publish-image.ts",
 		actionsDir: ".github/actions",
 	});
 
@@ -510,61 +457,58 @@ test("generateActionFiles rejects duplicate flat action paths", () => {
 		() =>
 			generateActionFiles([
 				{
-					action: bakeSnapshot,
-					sourcePath: "ci/dcs/dm/bake-vm-snapshot.ts",
+					action: publishImage,
+					sourcePath: "ci/containers/publish-image.ts",
 					actionsDir: ".github/actions",
 				},
 				{
-					action: bakeSnapshot,
-					sourcePath: "ci/other/bake-vm-snapshot.ts",
+					action: publishImage,
+					sourcePath: "ci/other/publish-image.ts",
 					actionsDir: ".github/actions",
 				},
 			]),
-		/duplicate generated action path: .github\/actions\/dcs-bake-vm-snapshot\/action.yml/,
+		/duplicate generated action path: .github\/actions\/publish-container-image\/action.yml/,
 	);
 });
 
 test("generateWorkflowFile flattens nested workflow sources into .github workflows", () => {
-	const usesStep = generateUsesStep(bakeSnapshot, {
-		name: "Bake VM snapshot",
-		uses: "./.github/actions/dcs-bake-vm-snapshot",
+	const usesStep = generateUsesStep(publishImage, {
+		name: "Publish container image",
+		uses: "./.github/actions/publish-container-image",
 		with: {
-			dhvBinary: "/usr/local/bin/dedalus-hypervisor",
-			kernel: "/tmp/vmlinux",
-			rootfs: "/tmp/rootfs.raw",
-			output: "/tmp/snapshot",
-			memoryMibMax: "${{ inputs.max_machine_memory_mib }}",
-			maxVcpus: "${{ inputs.max_machine_burst_vcpus }}",
+			image: "ghcr.io/acme/api",
+			tag: "${{ github.sha }}",
+			buildAttempt: "${{ github.run_attempt }}",
 		},
 	});
 
 	assert.deepEqual(
 		generateWorkflowFile({
-			sourcePath: "ci/dcs/guest-artifacts.ts",
+			sourcePath: "ci/containers/release.ts",
 			sourceRoot: "ci",
 			workflowsDir: ".github/workflows",
 			generatedAt: new Date("2026-05-14T00:00:00.000Z"),
 			workflow: {
-				name: "DCS Guest Artifacts",
+				name: "Container Release",
 				on: { workflow_dispatch: {} },
 				jobs: {
-					bake_snapshot: {
-						"runs-on": "dedalus-kvm",
+					publish_image: {
+						"runs-on": "ubuntu-latest",
 						steps: [usesStep],
 					},
 				},
 			},
 		}),
 		{
-			sourcePath: "ci/dcs/guest-artifacts.ts",
-			path: ".github/workflows/dcs-guest-artifacts.yml",
+			sourcePath: "ci/containers/release.ts",
+			path: ".github/workflows/containers-release.yml",
 			header: "# @generated by Hollywood at 2026-05-14T00:00:00.000Z. Do not edit by hand.",
 			workflow: {
-				name: "DCS Guest Artifacts",
+				name: "Container Release",
 				on: { workflow_dispatch: {} },
 				jobs: {
-					bake_snapshot: {
-						"runs-on": "dedalus-kvm",
+					publish_image: {
+						"runs-on": "ubuntu-latest",
 						steps: [usesStep],
 					},
 				},
@@ -574,30 +518,27 @@ test("generateWorkflowFile flattens nested workflow sources into .github workflo
 });
 
 test("renderWorkflowFile validates workflow before returning YAML", () => {
-	const usesStep = generateUsesStep(bakeSnapshot, {
-		name: "Bake VM snapshot",
-		uses: "./.github/actions/dcs-bake-vm-snapshot",
+	const usesStep = generateUsesStep(publishImage, {
+		name: "Publish container image",
+		uses: "./.github/actions/publish-container-image",
 		with: {
-			dhvBinary: "/usr/local/bin/dedalus-hypervisor",
-			kernel: "/tmp/vmlinux",
-			rootfs: "/tmp/rootfs.raw",
-			output: "/tmp/snapshot",
-			memoryMibMax: "${{ inputs.max_machine_memory_mib }}",
-			maxVcpus: "${{ inputs.max_machine_burst_vcpus }}",
+			image: "ghcr.io/acme/api",
+			tag: "${{ github.sha }}",
+			buildAttempt: "${{ github.run_attempt }}",
 		},
 	});
 
 	const workflowFile = generateWorkflowFile({
-		sourcePath: "ci/dcs/guest-artifacts.ts",
+		sourcePath: "ci/containers/release.ts",
 		sourceRoot: "ci",
 		workflowsDir: ".github/workflows",
 		generatedAt: new Date("2026-05-14T00:00:00.000Z"),
 		workflow: {
-			name: "DCS Guest Artifacts",
+			name: "Container Release",
 			on: { workflow_dispatch: {} },
 			jobs: {
-				bake_snapshot: {
-					"runs-on": "dedalus-kvm",
+				publish_image: {
+					"runs-on": "ubuntu-latest",
 					steps: [usesStep],
 				},
 			},
@@ -610,7 +551,7 @@ test("renderWorkflowFile validates workflow before returning YAML", () => {
 		content,
 		/^# @generated by Hollywood at 2026-05-14T00:00:00.000Z\. Do not edit by hand\.\n\n/,
 	);
-	assert.match(content, /uses: \.\/\.github\/actions\/dcs-bake-vm-snapshot/);
+	assert.match(content, /uses: \.\/\.github\/actions\/publish-container-image/);
 });
 
 test("renderWorkflowFile supports common GitHub orchestration fields", () => {
@@ -691,18 +632,18 @@ test("renderWorkflowFile supports common GitHub orchestration fields", () => {
 
 test("renderWorkflowFile supports reusable workflow jobs", () => {
 	const workflowFile = generateWorkflowFile({
-		sourcePath: "ci/dcs/controlplane-cd.ts",
+		sourcePath: "ci/deploy/production.ts",
 		sourceRoot: "ci",
 		workflowsDir: ".github/workflows",
 		generatedAt: new Date("2026-05-14T00:00:00.000Z"),
 		workflow: workflow({
-			name: "DCS Controlplane CD",
+			name: "Production Deploy",
 			on: { workflow_dispatch: {} },
 			jobs: {
 				deploy: {
 					if: "${{ github.event_name != 'pull_request' }}",
 					needs: ["detect"],
-					uses: "./.github/workflows/dcs-terraform-flux-cd.yml",
+					uses: "./.github/workflows/terraform-flux-cd.yml",
 					secrets: "inherit",
 					with: {
 						environment: "${{ needs.detect.outputs.environment }}",
@@ -715,7 +656,7 @@ test("renderWorkflowFile supports reusable workflow jobs", () => {
 
 	const content = renderWorkflowFile(workflowFile);
 
-	assert.match(content, /uses: \.\/\.github\/workflows\/dcs-terraform-flux-cd\.yml/);
+	assert.match(content, /uses: \.\/\.github\/workflows\/terraform-flux-cd\.yml/);
 	assert.match(content, /secrets: inherit/);
 	assert.match(content, /apply_enabled: true/);
 });
@@ -757,16 +698,16 @@ test("workflow steps cannot be both run and uses steps", () => {
 
 test("renderWorkflowFile rejects invalid generated workflow states", () => {
 	const workflowFile = generateWorkflowFile({
-		sourcePath: "ci/dcs/guest-artifacts.ts",
+		sourcePath: "ci/containers/release.ts",
 		sourceRoot: "ci",
 		workflowsDir: ".github/workflows",
 		workflow: {
-			name: "DCS Guest Artifacts",
+			name: "Container Release",
 			on: { workflow_dispatch: {} },
 			jobs: {
-				bake_snapshot: {
+				publish_image: {
 					steps: [
-						{ name: "Bake VM snapshot", uses: "./.github/actions/dcs-bake-vm-snapshot", with: {} },
+						{ name: "Publish container image", uses: "./.github/actions/publish-container-image", with: {} },
 					],
 				} as never,
 			},

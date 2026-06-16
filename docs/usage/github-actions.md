@@ -6,8 +6,8 @@ inside the workflow YAML.
 ## Action metadata
 
 ```typescript
-generateActionFile(bakeSnapshot, {
-	sourcePath: ".github/actions/dcs/dm/bake-vm-snapshot/src/action.ts",
+generateActionFile(publishImage, {
+	sourcePath: ".github/actions/containers/publish-image/src/action.ts",
 	actionsDir: ".github/actions",
 });
 ```
@@ -15,7 +15,7 @@ generateActionFile(bakeSnapshot, {
 This produces:
 
 ```text
-.github/actions/dcs/dm/bake-vm-snapshot/action.yml
+.github/actions/containers/publish-image/action.yml
 ```
 
 When the source already lives under `.github/actions/<name>/src`, Hollywood
@@ -24,8 +24,8 @@ keeps the generated files in that action directory.
 The file contains a normal JavaScript action contract:
 
 ```yaml
-name: Bake VM Snapshot
-description: Run dm-bake without embedding shell in workflow YAML.
+name: publish-container-image
+description: Build and publish a container image without embedding shell in workflow YAML.
 runs:
   using: node24
   main: dist/index.js
@@ -34,10 +34,10 @@ runs:
 ## Entrypoint
 
 ```typescript
-generateActionEntrypointFile(bakeSnapshot, {
-	sourcePath: ".github/actions/dcs/dm/bake-vm-snapshot/src/action.ts",
+generateActionEntrypointFile(publishImage, {
+	sourcePath: ".github/actions/containers/publish-image/src/action.ts",
 	actionsDir: ".github/actions",
-	exportName: "bakeSnapshot",
+	exportName: "publishImage",
 });
 ```
 
@@ -45,9 +45,9 @@ This produces:
 
 ```typescript
 import { runGitHubAction } from "@dedalus-labs/hollywood/action-runtime";
-import { bakeSnapshot } from "./action.ts";
+import { publishImage } from "./action.ts";
 
-void runGitHubAction(bakeSnapshot);
+void runGitHubAction(publishImage);
 ```
 
 `runGitHubAction` uses GitHub's official TypeScript packages. Inputs and
@@ -69,7 +69,7 @@ export const release = action({
 			version: input.version,
 		});
 		const metadata = await call(readBuildMetadata, {
-			uri: artifacts.build_metadata_uri,
+			uri: artifacts.buildMetadataUri,
 		});
 		return assembleRelease(input, artifacts, metadata);
 	},
@@ -90,30 +90,31 @@ import { generateWorkflowFile, job, uses, workflow } from "@dedalus-labs/hollywo
 import { defineMatrix, format, gh } from "@dedalus-labs/hollywood/expr";
 
 const build = defineMatrix({
-	runner: ["dedalus-kvm"],
+	runner: ["ubuntu-latest"],
 } as const);
 
 generateWorkflowFile({
-	sourcePath: "gha/dcs/guest-artifacts.ts",
+	sourcePath: "gha/containers/release.ts",
 	sourceRoot: "gha",
 	workflowsDir: ".github/workflows",
 	workflow: workflow({
-		name: "DCS Guest Artifacts",
+		name: "Container Release",
 		on: { workflow_dispatch: {} },
 		concurrency: {
 			group: format("{0}-{1}", gh.github.workflow, gh.github.ref),
 			queue: "max",
 		},
 		jobs: {
-			bake_snapshot: job({
+			publish_image: job({
 				"runs-on": build.runner,
 				strategy: { matrix: build, "max-parallel": 2 },
 				steps: [
-					uses(bakeSnapshot, {
-						name: "Bake VM snapshot",
+					uses(publishImage, {
+						name: "Publish container image",
 						with: {
-							dhvBinary: "/usr/local/bin/dedalus-hypervisor",
-							memoryMibMax: "${{ inputs.max_machine_memory_mib }}",
+							image: "ghcr.io/acme/api",
+							tag: gh.github.sha,
+							provenance: "false",
 						},
 					}),
 				],
@@ -126,13 +127,13 @@ generateWorkflowFile({
 The source path is flattened:
 
 ```text
-gha/dcs/guest-artifacts.ts
+gha/containers/release.ts
 ```
 
 becomes:
 
 ```text
-.github/workflows/dcs-guest-artifacts.yml
+.github/workflows/containers-release.yml
 ```
 
 GitHub gets the flat shape it requires. The source tree keeps the nested shape
@@ -155,21 +156,22 @@ import {
 
 const changes = pathDependencies("changes", {
 	terraform: [
-		"apps/cloud/apps/dcs/tf/**",
+		"infra/terraform/**",
 		".github/actions/terraform/**",
 	],
-	rootfsBuilder: [
-		"apps/cloud/apps/dcs/src/runtime/guest-image/**",
-		"!apps/cloud/apps/dcs/src/runtime/guest-image/docs/**",
+	web: [
+		"apps/web/**",
+		"packages/ui/**",
+		"!apps/web/docs/**",
 	],
 });
 
 generateWorkflowFile({
-	sourcePath: "gha/dcs/static-validation.ts",
+	sourcePath: "gha/platform/static-validation.ts",
 	sourceRoot: "gha",
 	workflowsDir: ".github/workflows",
 	workflow: workflow({
-		name: "DCS Static Validation",
+		name: "Platform Static Validation",
 		on: {
 			pull_request: { paths: changes.workflowPaths },
 		},
@@ -181,6 +183,13 @@ generateWorkflowFile({
 				if: changes.terraform.changed,
 				"runs-on": "ubuntu-24.04",
 				steps: [{ uses: "./.github/actions/terraform/infracost" }],
+			}),
+			web_checks: job({
+				name: "Web checks",
+				needs: changes.jobId,
+				if: changes.web.changed,
+				"runs-on": "ubuntu-24.04",
+				steps: [{ run: "npm test" }],
 			}),
 		},
 	}),
@@ -202,15 +211,15 @@ closed.
 Point the CLI at source files that export Hollywood actions or workflows:
 
 ```bash
-hollywood generate "gha/**/*.ts" --output .
+npx hollywood generate "gha/**/*.ts" --output .
 ```
 
 Hollywood discovers exports by shape:
 
-| Export shape                   | Generated files                                      |
-| ------------------------------ | ---------------------------------------------------- |
-| `action({ name: "s3-cache" })` | `.github/actions/s3-cache/action.yml` and entrypoint |
-| `GitHubWorkflow` object        | `.github/workflows/<flattened-source-path>.yml`      |
+| Export shape                               | Generated files                                      |
+| ------------------------------------------ | ---------------------------------------------------- |
+| `action({ name: "s3-cache" })`             | `.github/actions/s3-cache/action.yml` and entrypoint |
+| `workflow({ name: "Container Release" })`  | `.github/workflows/<flattened-source-path>.yml`      |
 
 For example, this source tree:
 
@@ -240,7 +249,7 @@ run it. The workflow YAML can be committed as-is.
 The CLI prints one line per generated file:
 
 ```text
-created .github/actions/dcs/dm/bake-vm-snapshot/action.yml
-updated .github/actions/dcs/dm/bake-vm-snapshot/src/index.ts
-created .github/workflows/dcs-guest-artifacts.yml
+created .github/actions/publish-container-image/action.yml
+updated .github/actions/publish-container-image/src/index.ts
+created .github/workflows/containers-release.yml
 ```

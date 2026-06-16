@@ -49,12 +49,12 @@ test("generate discovers exported actions from source files", async () => {
 
 test("generate discovers exported workflows from globbed source files", async () => {
 	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
-	const sourcePath = join(root, "ci/dcs/guest-artifacts.ts");
+	const sourcePath = join(root, "ci/containers/release.ts");
 	const output: string[] = [];
 
 	await writeSource(sourcePath, [
-		"export const guestArtifacts = {",
-		'  name: "Guest Artifacts",',
+		"export const containerRelease = {",
+		'  name: "Container Release",',
 		"  on: { workflow_dispatch: {} },",
 		"  jobs: {",
 		"    test: {",
@@ -77,22 +77,22 @@ test("generate discovers exported workflows from globbed source files", async ()
 		{ writeOut: (message) => output.push(message) },
 	);
 
-	assert.deepEqual(output, ["created\t.github/workflows/dcs-guest-artifacts.yml\n"]);
+	assert.deepEqual(output, ["created\t.github/workflows/containers-release.yml\n"]);
 	assert.match(
-		await readFile(join(root, ".github/workflows/dcs-guest-artifacts.yml"), "utf8"),
-		/name: Guest Artifacts/,
+		await readFile(join(root, ".github/workflows/containers-release.yml"), "utf8"),
+		/name: Container Release/,
 	);
 });
 
 test("generate ignores test sources matched by workflow globs", async () => {
 	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
-	const sourcePath = join(root, "ci/dcs/guest-artifacts.ts");
-	const testPath = join(root, "ci/dcs/conditions.test.ts");
+	const sourcePath = join(root, "ci/containers/release.ts");
+	const testPath = join(root, "ci/containers/conditions.test.ts");
 	const output: string[] = [];
 
 	await writeSource(sourcePath, [
-		"export const guestArtifacts = {",
-		'  name: "Guest Artifacts",',
+		"export const containerRelease = {",
+		'  name: "Container Release",',
 		"  on: { workflow_dispatch: {} },",
 		"  jobs: {",
 		"    test: {",
@@ -120,7 +120,7 @@ test("generate ignores test sources matched by workflow globs", async () => {
 		{ writeOut: (message) => output.push(message) },
 	);
 
-	assert.deepEqual(output, ["created\t.github/workflows/dcs-guest-artifacts.yml\n"]);
+	assert.deepEqual(output, ["created\t.github/workflows/containers-release.yml\n"]);
 });
 
 test("createCli parses space-separated generate command", async () => {

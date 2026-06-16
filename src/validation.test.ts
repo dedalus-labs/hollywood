@@ -53,10 +53,10 @@ test("assertValidWorkflowContent fails closed on invalid workflow YAML", () => {
 
 test("validateActionMetadataContent accepts GitHub action metadata YAML", () => {
 	const result = validateActionMetadataContent({
-		name: ".github/actions/dcs-bake-vm-snapshot/action.yml",
+		name: ".github/actions/publish-container-image/action.yml",
 		content: `
-name: dcs-bake-vm-snapshot
-description: Bake a Dedalus Machine snapshot.
+name: publish-container-image
+description: Build and publish a container image.
 runs:
   using: node24
   main: dist/index.js
@@ -68,10 +68,10 @@ runs:
 
 test("validateActionMetadataContent rejects invalid action metadata YAML", () => {
 	const result = validateActionMetadataContent({
-		name: ".github/actions/dcs-bake-vm-snapshot/action.yml",
+		name: ".github/actions/publish-container-image/action.yml",
 		content: `
-name: dcs-bake-vm-snapshot
-description: Bake a Dedalus Machine snapshot.
+name: publish-container-image
+description: Build and publish a container image.
 runs:
   using: node99
   main: dist/index.js
@@ -86,7 +86,7 @@ test("assertValidActionMetadataContent fails closed on invalid action metadata Y
 	assert.throws(
 		() =>
 			assertValidActionMetadataContent({
-				name: ".github/actions/dcs-bake-vm-snapshot/action.yml",
+				name: ".github/actions/publish-container-image/action.yml",
 				content: "name: missing-runs\ndescription: Missing runs.",
 			}),
 		/GitHub action metadata YAML is invalid/,

@@ -52,8 +52,8 @@ test("typed context helpers generate expressions without stringly property acces
 	assert.equal(github.token, "${{ github.token }}");
 	assert.equal(eq(github.eventName, "push"), "${{ github.event_name == 'push' }}");
 	assert.equal(
-		ne(github.repository, "dedalus-labs/dedalus-sandbox"),
-		"${{ github.repository != 'dedalus-labs/dedalus-sandbox' }}",
+		ne(github.repository, "acme/widgets-sandbox"),
+		"${{ github.repository != 'acme/widgets-sandbox' }}",
 	);
 	assert.equal(and(success(), eq(runner.os, "Linux")), "${{ success() && runner.os == 'Linux' }}");
 	assert.equal(

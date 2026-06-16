@@ -31,6 +31,14 @@
 
 <!-- If this changes workflow generation, paste or link the relevant generated YAML diff. Otherwise write "N/A". -->
 
+## Repro / Showcase
+
+<!--
+For frontend or documentation rendering changes, attach desktop and mobile screenshots showing the page renders well.
+For behavior changes, include a short repro, logs, or generated output that demonstrates the change.
+Write "N/A" only when there is no user-visible, generated, or rendered output.
+-->
+
 ## Release Impact
 
 - [ ] Runtime/library behavior changed
