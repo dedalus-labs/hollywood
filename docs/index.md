@@ -28,9 +28,10 @@ await exec("docker", [
 ]);
 ```
 
-That command is an `execve(2)`-shaped value. `execve(2)` is the Unix system call
-shape where a process receives an executable path plus an array of arguments.
-There is no shell interpolation and no YAML quoting puzzle.
+That command is an [`execve(2)`](https://man7.org/linux/man-pages/man2/execve.2.html)-shaped
+value. `execve(2)` is the Unix system call shape where a process receives an
+executable path plus an array of arguments. There is no shell interpolation and
+no YAML quoting puzzle.
 
 ## What Hollywood does
 
