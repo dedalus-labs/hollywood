@@ -84,6 +84,8 @@ programs:
 **Viewing locally:**
 
 ```bash
+python3 -m venv .venv
+. .venv/bin/activate
 python -m pip install -r docs/requirements.txt
 python -m mkdocs serve -f mkdocs.yml
 ```

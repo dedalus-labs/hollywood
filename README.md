@@ -394,8 +394,8 @@ Build them locally:
 ```bash
 python3 -m venv .venv
 . .venv/bin/activate
-pip install -r docs/requirements.txt
-mkdocs serve
+python -m pip install -r docs/requirements.txt
+python -m mkdocs serve -f mkdocs.yml
 ```
 
 ## Development
@@ -404,5 +404,8 @@ mkdocs serve
 npm ci
 npm test
 npm run build
-python -m mkdocs build -f mkdocs.yml
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -r docs/requirements.txt
+python -m mkdocs build --strict -f mkdocs.yml
 ```
