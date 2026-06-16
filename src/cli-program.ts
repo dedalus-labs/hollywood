@@ -350,6 +350,7 @@ const loadHollywoodModule = async (sourceFile: string): Promise<HollywoodModule>
 		}
 		await build({
 			bundle: true,
+			define: { "import.meta.vitest": "undefined" },
 			entryPoints: [resolve(sourceFile)],
 			format: "esm",
 			outfile,
