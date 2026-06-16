@@ -369,7 +369,7 @@ export const generateActionEntrypointFile = <
 		header,
 		content: [
 			header,
-			'import { runGitHubAction } from "@dedalus/hollywood/action-runtime";',
+			'import { runGitHubAction } from "@dedalus-labs/hollywood/action-runtime";',
 			importStatement,
 			"",
 			`void runGitHubAction(${bindingName});`,

@@ -3,14 +3,14 @@
 Hollywood currently lives inside the Dedalus monorepo:
 
 ```bash
-pnpm --filter @dedalus/hollywood typecheck
+pnpm --filter @dedalus-labs/hollywood typecheck
 pnpm exec vitest run --root packages/typescript/hollywood --config vitest.config.ts
 ```
 
 When the package is published, install it as a development dependency:
 
 ```bash
-pnpm add -D @dedalus/hollywood
+pnpm add -D @dedalus-labs/hollywood
 ```
 
 That installs the `hollywood` binary:

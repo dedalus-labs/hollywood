@@ -1,7 +1,7 @@
 import * as assert from "node:assert/strict";
 import { test } from "vitest";
 
-import { gh as subpathGh } from "@dedalus/hollywood/expr";
+import { gh as subpathGh } from "@dedalus-labs/hollywood/expr";
 
 import {
 	always,

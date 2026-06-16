@@ -42,6 +42,7 @@ type GitHubPathDependencyRef<Name extends string> = Readonly<{
 }>;
 
 const reservedPathDependencyNames = new Set(["job", "jobId", "workflowPaths"]);
+const defaultCheckoutAction = "actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10";
 
 export const pathDependencies = <
 	const JobId extends string,
@@ -85,7 +86,7 @@ const pathDependencyJob = (
 	),
 	steps: [
 		{
-			uses: options.checkoutUses ?? "actions/checkout@v6",
+			uses: options.checkoutUses ?? defaultCheckoutAction,
 			with: { "fetch-depth": "0" },
 		},
 		{

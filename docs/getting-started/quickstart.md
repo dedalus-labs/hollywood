@@ -3,7 +3,7 @@
 ## 1. Write a script
 
 ```typescript
-import { action, integerInput, pathInput, stringOutput } from "@dedalus/hollywood";
+import { action, integerInput, pathInput, stringOutput } from "@dedalus-labs/hollywood";
 
 export const bakeSnapshot = action({
 	name: "dcs-bake-vm-snapshot",
@@ -32,7 +32,7 @@ export const bakeSnapshot = action({
 ## 2. Test it locally
 
 ```typescript
-import { nodeExec, nodeFs, nodeLog, runAction } from "@dedalus/hollywood";
+import { nodeExec, nodeFs, nodeLog, runAction } from "@dedalus-labs/hollywood";
 
 await runAction(bakeSnapshot, {
 	with: {
@@ -92,7 +92,7 @@ import {
 	generateActionEntrypointFile,
 	generateActionFile,
 	writeGeneratedFiles,
-} from "@dedalus/hollywood";
+} from "@dedalus-labs/hollywood";
 
 await writeGeneratedFiles(
 	[
@@ -124,7 +124,7 @@ jobs:
   bake_snapshot:
     runs-on: dedalus-kvm
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - name: Bake VM snapshot
         uses: ./.github/actions/dcs-bake-vm-snapshot
         with:

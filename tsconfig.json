@@ -5,10 +5,10 @@
 		"allowImportingTsExtensions": true,
 		"types": ["node"],
 		"paths": {
-			"@dedalus/hollywood": ["./src/index.ts"],
-			"@dedalus/hollywood/action-runtime": ["./src/action-runtime.ts"],
-			"@dedalus/hollywood/environments": ["./src/environments.ts"],
-			"@dedalus/hollywood/expr": ["./src/expr.ts"]
+			"@dedalus-labs/hollywood": ["./src/index.ts"],
+			"@dedalus-labs/hollywood/action-runtime": ["./src/action-runtime.ts"],
+			"@dedalus-labs/hollywood/environments": ["./src/environments.ts"],
+			"@dedalus-labs/hollywood/expr": ["./src/expr.ts"]
 		}
 	},
 	"include": ["ci/**/*.ts", "src/**/*.ts", "examples/**/*.ts"],

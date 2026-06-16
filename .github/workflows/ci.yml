@@ -14,13 +14,12 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
           node-version: "24"
-          cache: npm
       - name: Install dependencies
         run: npm ci
       - name: Typecheck
@@ -31,13 +30,15 @@ jobs:
         run: npm run build
       - name: Check package contents
         run: npm run pack:check
+      - name: Check workflow security
+        run: npm run check:workflow-security
       - name: Check generated workflows
         run: npm run check:generated
   actionlint:
     name: Actionlint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
-      - uses: rhysd/actionlint@v1.7.9
+      - uses: rhysd/actionlint@a443f344ff32813837fa49f7aa6cbc478d770e62

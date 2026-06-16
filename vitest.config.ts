@@ -6,15 +6,15 @@ export default defineConfig({
 	resolve: {
 		alias: [
 			{
-				find: "@dedalus/hollywood/action-runtime",
+				find: "@dedalus-labs/hollywood/action-runtime",
 				replacement: fileURLToPath(new URL("./src/action-runtime.ts", import.meta.url)),
 			},
 			{
-				find: "@dedalus/hollywood/expr",
+				find: "@dedalus-labs/hollywood/expr",
 				replacement: fileURLToPath(new URL("./src/expr.ts", import.meta.url)),
 			},
 			{
-				find: "@dedalus/hollywood",
+				find: "@dedalus-labs/hollywood",
 				replacement: fileURLToPath(new URL("./src/index.ts", import.meta.url)),
 			},
 		],

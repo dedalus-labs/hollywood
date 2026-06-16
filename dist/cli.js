@@ -3075,7 +3075,7 @@ const { program, createCommand, createArgument, createOption, CommanderError, In
 })))(), 1)).default;
 //#endregion
 //#region src/expressions.ts
-const typedMatrixSymbol = Symbol.for("@dedalus/hollywood.typed-matrix");
+const typedMatrixSymbol = Symbol.for("@dedalus-labs/hollywood.typed-matrix");
 const expr = (body) => {
 	const trimmed = body.trim();
 	if (trimmed === "") throw new Error("GitHub expression body is required");
@@ -3240,7 +3240,7 @@ const generateActionEntrypointFile = (action, options) => {
 		header,
 		content: [
 			header,
-			"import { runGitHubAction } from \"@dedalus/hollywood/action-runtime\";",
+			"import { runGitHubAction } from \"@dedalus-labs/hollywood/action-runtime\";",
 			importStatement,
 			"",
 			`void runGitHubAction(${bindingName});`,
