@@ -1,5 +1,6 @@
 import { job, workflow } from "../src/index";
 import { actionlintAction, checkoutAction, setupNodeAction } from "./actions";
+import { trustedCiRun } from "./guards";
 
 const setupNode = {
 	uses: setupNodeAction,
@@ -18,6 +19,7 @@ export const ci = workflow({
 	jobs: {
 		test: job({
 			name: "Test",
+			if: trustedCiRun,
 			"runs-on": "ubuntu-latest",
 			steps: [
 				{ uses: checkoutAction, with: { "persist-credentials": false } },
@@ -33,6 +35,7 @@ export const ci = workflow({
 		}),
 		actionlint: job({
 			name: "Actionlint",
+			if: trustedCiRun,
 			"runs-on": "ubuntu-latest",
 			steps: [
 				{ uses: checkoutAction, with: { "persist-credentials": false } },
