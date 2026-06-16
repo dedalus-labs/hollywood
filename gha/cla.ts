@@ -7,13 +7,36 @@ node <<'NODE'
 const fs = require("node:fs");
 
 const author = process.env.PR_AUTHOR;
+const repositoryOwner = process.env.REPOSITORY_OWNER;
 if (!author) {
 	console.error("PR_AUTHOR is required");
+	process.exit(1);
+}
+if (!repositoryOwner) {
+	console.error("REPOSITORY_OWNER is required");
 	process.exit(1);
 }
 
 const summaryPath = process.env.GITHUB_STEP_SUMMARY;
 const authorKey = "github:" + author.toLowerCase();
+if (!fs.existsSync("VOUCHED.td")) {
+	if (author.toLowerCase() === repositoryOwner.toLowerCase()) {
+		const body = "## CLA bootstrap passed\n\n@" + author + " owns this repository.";
+		if (summaryPath) {
+			fs.appendFileSync(summaryPath, body + "\n");
+		}
+		console.log("@" + author + " owns this repository");
+		process.exit(0);
+	}
+
+	const body = "## CLA bootstrap blocked\n\nVOUCHED.td is not present on the trusted base commit.";
+	if (summaryPath) {
+		fs.appendFileSync(summaryPath, body + "\n");
+	}
+	console.error("VOUCHED.td is not present on the trusted base commit");
+	process.exit(1);
+}
+
 const lines = fs.readFileSync("VOUCHED.td", "utf8").split("\n");
 
 let vouched = false;
@@ -107,6 +130,7 @@ export const cla = workflow({
 					name: "Check contributor",
 					env: {
 						PR_AUTHOR: "${{ github.event.pull_request.user.login }}",
+						REPOSITORY_OWNER: "${{ github.repository_owner }}",
 					},
 					run: checkVouchedContributor,
 				},
