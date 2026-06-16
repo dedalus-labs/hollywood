@@ -11,80 +11,48 @@ import {
 	runAction,
 } from "./script";
 
-const bakeSnapshot = action({
-	name: "dcs-bake-vm-snapshot",
-	description: "Run dm-bake without embedding shell in workflow YAML.",
+const publishImage = action({
+	name: "publish-container-image",
+	description: "Build and publish a container image without embedding shell in workflow YAML.",
 	inputs: {
-		dhvBinary: pathInput({ description: "Path to dedalus-hypervisor." }),
-		kernel: pathInput({ description: "Path to guest vmlinux." }),
-		rootfs: pathInput({ description: "Path to mutable rootfs.raw." }),
-		output: pathInput({ description: "Snapshot output directory." }),
-		memoryMibMax: integerInput({ description: "Maximum guest memory in MiB." }),
-		maxVcpus: integerInput({ description: "Maximum vCPU count." }),
-		imageName: stringInput({ description: "Guest image name.", default: "noble" }),
-		rootfsVersionFile: pathInput({
-			description: "File containing the guest rootfs version.",
-			default: "/tmp/guest/rootfs-version",
-		}),
-		epoch0Dir: pathInput({ description: "Epoch0 output directory.", default: "/tmp/epoch0" }),
+		image: stringInput({ description: "Container image name, including registry." }),
+		tag: stringInput({ description: "Container image tag." }),
+		context: pathInput({ description: "Build context path.", default: "." }),
+		dockerfile: pathInput({ description: "Dockerfile path.", default: "Dockerfile" }),
+		buildAttempt: integerInput({ description: "CI build attempt number." }),
 	},
 	outputs: {
-		snapshotDir: stringOutput({ description: "Snapshot output directory." }),
-		templatesDir: stringOutput({ description: "Upper template output directory." }),
-		epoch0Dir: stringOutput({ description: "Epoch0 output directory." }),
+		imageRef: stringOutput({ description: "Published image reference." }),
 	},
-	run: async ({ exec, fs, input, runner }) => {
-		const rootfsVersion = (await fs.readText(input.rootfsVersionFile)).trim();
-		await exec("sudo", [
-			"dm-bake",
-			"--dhv-binary",
-			input.dhvBinary,
-			"--kernel",
-			input.kernel,
-			"--rootfs",
-			input.rootfs,
-			"--memory-mib-max",
-			input.memoryMibMax.toString(),
-			"--max-vcpus",
-			input.maxVcpus.toString(),
-			"--image-version",
-			`${input.imageName}@${rootfsVersion}`,
-			"--epoch0-dir",
-			input.epoch0Dir,
-			"--output",
-			input.output,
+	run: async ({ exec, input }) => {
+		const imageRef = `${input.image}:${input.tag}`;
+		await exec("docker", [
+			"buildx",
+			"build",
+			"--file",
+			input.dockerfile,
+			"--tag",
+			imageRef,
+			"--label",
+			`ci.build-attempt=${input.buildAttempt}`,
+			"--push",
+			input.context,
 		]);
-		await exec("sudo", [
-			"chown",
-			"-R",
-			runner.uidGid,
-			input.output,
-			"/tmp/templates",
-			input.epoch0Dir,
-		]);
-		return {
-			snapshotDir: input.output,
-			templatesDir: "/tmp/templates",
-			epoch0Dir: input.epoch0Dir,
-		};
+		return { imageRef };
 	},
 });
 
 test("action run emits execve-shaped commands", async () => {
 	const commands: unknown[] = [];
-	const outputs = await bakeSnapshot.run({
+	const outputs = await publishImage.run({
 		input: {
-			dhvBinary: "/usr/local/bin/dedalus-hypervisor",
-			kernel: "/tmp/vmlinux",
-			rootfs: "/tmp/rootfs.raw",
-			output: "/tmp/snapshot",
-			memoryMibMax: 32768,
-			maxVcpus: 16,
-			imageName: "noble",
-			rootfsVersionFile: "/tmp/guest/rootfs-version",
-			epoch0Dir: "/tmp/epoch0",
+			image: "ghcr.io/acme/api",
+			tag: "sha-abc123",
+			context: ".",
+			dockerfile: "Dockerfile",
+			buildAttempt: 3,
 		},
-		fs: { readText: async () => "2026.05.14\n" },
+		fs: { readText: async () => "" },
 		log: {
 			info: () => {},
 			warning: () => {},
@@ -102,51 +70,33 @@ test("action run emits execve-shaped commands", async () => {
 
 	assert.deepEqual(commands, [
 		{
-			file: "sudo",
+			file: "docker",
 			args: [
-				"dm-bake",
-				"--dhv-binary",
-				"/usr/local/bin/dedalus-hypervisor",
-				"--kernel",
-				"/tmp/vmlinux",
-				"--rootfs",
-				"/tmp/rootfs.raw",
-				"--memory-mib-max",
-				"32768",
-				"--max-vcpus",
-				"16",
-				"--image-version",
-				"noble@2026.05.14",
-				"--epoch0-dir",
-				"/tmp/epoch0",
-				"--output",
-				"/tmp/snapshot",
+				"buildx",
+				"build",
+				"--file",
+				"Dockerfile",
+				"--tag",
+				"ghcr.io/acme/api:sha-abc123",
+				"--label",
+				"ci.build-attempt=3",
+				"--push",
+				".",
 			],
 		},
-		{
-			file: "sudo",
-			args: ["chown", "-R", "1001:1001", "/tmp/snapshot", "/tmp/templates", "/tmp/epoch0"],
-		},
 	]);
-	assert.deepEqual(outputs, {
-		snapshotDir: "/tmp/snapshot",
-		templatesDir: "/tmp/templates",
-		epoch0Dir: "/tmp/epoch0",
-	});
+	assert.deepEqual(outputs, { imageRef: "ghcr.io/acme/api:sha-abc123" });
 });
 
 test("runAction binds workflow string inputs into typed script inputs", async () => {
 	const commands: unknown[] = [];
-	const outputs = await runAction(bakeSnapshot, {
+	const outputs = await runAction(publishImage, {
 		with: {
-			dhvBinary: "/usr/local/bin/dedalus-hypervisor",
-			kernel: "/tmp/vmlinux",
-			rootfs: "/tmp/rootfs.raw",
-			output: "/tmp/snapshot",
-			memoryMibMax: "32768",
-			maxVcpus: "16",
+			image: "ghcr.io/acme/api",
+			tag: "sha-abc123",
+			buildAttempt: "3",
 		},
-		fs: { readText: async () => "2026.05.14\n" },
+		fs: { readText: async () => "" },
 		exec: async (file, args, options) => {
 			commands.push({ file, args, ...options });
 			return { exitCode: 0, stdout: "", stderr: "" };
@@ -154,107 +104,88 @@ test("runAction binds workflow string inputs into typed script inputs", async ()
 		runner: { uidGid: "1001:1001" },
 	});
 
-	assert.equal(commands.length, 2);
-	assert.deepEqual(outputs, {
-		snapshotDir: "/tmp/snapshot",
-		templatesDir: "/tmp/templates",
-		epoch0Dir: "/tmp/epoch0",
-	});
+	assert.equal(commands.length, 1);
+	assert.deepEqual(outputs, { imageRef: "ghcr.io/acme/api:sha-abc123" });
 });
 
 test("runAction rejects invalid integer workflow inputs", async () => {
 	await assert.rejects(
 		() =>
-			runAction(bakeSnapshot, {
+			runAction(publishImage, {
 				with: {
-					dhvBinary: "/usr/local/bin/dedalus-hypervisor",
-					kernel: "/tmp/vmlinux",
-					rootfs: "/tmp/rootfs.raw",
-					output: "/tmp/snapshot",
-					memoryMibMax: "a lot",
-					maxVcpus: "16",
+					image: "ghcr.io/acme/api",
+					tag: "sha-abc123",
+					buildAttempt: "a lot",
 				},
-				fs: { readText: async () => "2026.05.14\n" },
+				fs: { readText: async () => "" },
 				exec: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
 				runner: { uidGid: "1001:1001" },
 			}),
-		/memoryMibMax must be an integer/,
+		/buildAttempt must be an integer/,
 	);
 });
 
 test("runAction rejects blank integer workflow inputs", async () => {
 	await assert.rejects(
 		() =>
-			runAction(bakeSnapshot, {
+			runAction(publishImage, {
 				with: {
-					dhvBinary: "/usr/local/bin/dedalus-hypervisor",
-					kernel: "/tmp/vmlinux",
-					rootfs: "/tmp/rootfs.raw",
-					output: "/tmp/snapshot",
-					memoryMibMax: "",
-					maxVcpus: "16",
+					image: "ghcr.io/acme/api",
+					tag: "sha-abc123",
+					buildAttempt: "",
 				},
-				fs: { readText: async () => "2026.05.14\n" },
+				fs: { readText: async () => "" },
 				exec: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
 				runner: { uidGid: "1001:1001" },
 			}),
-		/memoryMibMax is required/,
+		/buildAttempt is required/,
 	);
 });
 
 test("runAction rejects blank required workflow inputs", async () => {
 	await assert.rejects(
 		() =>
-			runAction(bakeSnapshot, {
+			runAction(publishImage, {
 				with: {
-					dhvBinary: "   ",
-					kernel: "/tmp/vmlinux",
-					rootfs: "/tmp/rootfs.raw",
-					output: "/tmp/snapshot",
-					memoryMibMax: "32768",
-					maxVcpus: "16",
+					image: "   ",
+					tag: "sha-abc123",
+					buildAttempt: "3",
 				},
-				fs: { readText: async () => "2026.05.14\n" },
+				fs: { readText: async () => "" },
 				exec: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
 				runner: { uidGid: "1001:1001" },
 			}),
-		/dhvBinary is required/,
+		/image is required/,
 	);
 });
 
 test("runAction uses defaults for blank optional workflow inputs", async () => {
-	const outputs = await runAction(bakeSnapshot, {
+	const outputs = await runAction(publishImage, {
 		with: {
-			dhvBinary: "/usr/local/bin/dedalus-hypervisor",
-			kernel: "/tmp/vmlinux",
-			rootfs: "/tmp/rootfs.raw",
-			output: "/tmp/snapshot",
-			memoryMibMax: "32768",
-			maxVcpus: "16",
-			imageName: "",
+			image: "ghcr.io/acme/api",
+			tag: "sha-abc123",
+			context: "",
+			buildAttempt: "3",
 		},
-		fs: { readText: async () => "2026.05.14\n" },
+		fs: { readText: async () => "" },
 		exec: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
 		runner: { uidGid: "1001:1001" },
 	});
 
-	assert.equal(outputs.snapshotDir, "/tmp/snapshot");
+	assert.equal(outputs.imageRef, "ghcr.io/acme/api:sha-abc123");
 });
 
 test("runAction rejects unknown workflow inputs", async () => {
 	await assert.rejects(
 		() =>
-			runAction(bakeSnapshot, {
+			runAction(publishImage, {
 				with: {
-					dhvBinary: "/usr/local/bin/dedalus-hypervisor",
-					kernel: "/tmp/vmlinux",
-					rootfs: "/tmp/rootfs.raw",
-					output: "/tmp/snapshot",
-					memoryMibMax: "32768",
-					maxVcpus: "16",
+					image: "ghcr.io/acme/api",
+					tag: "sha-abc123",
+					buildAttempt: "3",
 					unused: "silently accepting this would hide workflow drift",
 				} as never,
-				fs: { readText: async () => "2026.05.14\n" },
+				fs: { readText: async () => "" },
 				exec: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
 				runner: { uidGid: "1001:1001" },
 			}),

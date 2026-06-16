@@ -6,6 +6,8 @@ description: TypeScript scripts for GitHub Actions, without shell-in-YAML.
 
 TypeScript scripts for GitHub Actions, without shell-in-YAML.
 
+<p class="hollywood-motto">"Lights, Cameras, (GitHub) Actions!"</p>
+
 Hollywood keeps GitHub Actions as the orchestration layer. GitHub still decides
 when jobs run, which runner label they need, which secrets exist, and how jobs
 depend on each other.
@@ -14,12 +16,15 @@ Hollywood replaces the part GitHub Actions is bad at: writing imperative
 programs inside YAML strings.
 
 ```typescript
-await exec("sudo", [
-	"dm-bake",
-	"--dhv-binary",
-	input.dhvBinary,
-	"--memory-mib-max",
-	input.memoryMibMax.toString(),
+await exec("docker", [
+	"buildx",
+	"build",
+	"--file",
+	input.dockerfile,
+	"--tag",
+	`${input.image}:${input.tag}`,
+	"--push",
+	input.context,
 ]);
 ```
 
@@ -46,14 +51,17 @@ GitHub-compatible files, and let GitHub run the generated action.
 
 ## First real targets
 
-The first Dedalus use cases are intentionally annoying:
+Hollywood fits the parts of DevOps and GitOps workflows that already want to be
+programs:
 
-| Use case                        | Why it matters                                                                 |
-| ------------------------------- | ------------------------------------------------------------------------------ |
-| S3 cache                        | Proves scripts can hit Amazon Simple Storage Service-compatible storage first. |
-| Dedalus Machines bake           | Proves scripts can express privileged VM snapshot work without shell in YAML.  |
-| LocalStack infrastructure tests | Proves workflows can depend on local AWS-shaped services.                      |
-| Lima action runs                | Proves Linux command execution locally before expensive GitHub pushes.         |
+| Use case                        | Why it matters                                                               |
+| ------------------------------- | ---------------------------------------------------------------------------- |
+| Container image publishing      | Build, tag, and push images without shell-in-YAML.                           |
+| Terraform plan/apply wrappers   | Keep environment policy and command arguments typed.                         |
+| GitOps manifest promotion       | Validate promotion inputs before mutating deployment state.                  |
+| S3-compatible cache actions     | Exercise real object-storage behavior in local tests.                        |
+| Path-dependent CI jobs          | Keep required checks explicit while skipping irrelevant expensive jobs.       |
+| Lima action runs                | Prove Linux command execution locally before expensive GitHub pushes.         |
 
 ## Next steps
 

@@ -33,33 +33,31 @@ Generated workflow usage:
     contents-path: /tmp/go-cache
 ```
 
-## Bake VM Snapshot
+## Publish Container Image
 
-[bake-vm-snapshot.ts](bake-vm-snapshot.ts) wraps the Dedalus Machines
-`dm-bake` command. This is the privileged infrastructure case: the script
-needs `sudo`, Linux Kernel-based Virtual Machine (KVM) support, root filesystem
-inputs, and generated artifacts.
+[publish-container-image.ts](publish-container-image.ts) wraps a Docker buildx
+publish step. This is the common DevOps case: build a container image, tag it
+with the GitHub commit, push it to a registry, and pass the published reference
+to downstream deploy jobs.
 
 It demonstrates:
 
-- typed path and integer inputs
+- typed string, path, and boolean inputs
 - grouped logs
-- privileged command execution without shell-in-YAML
-- generated outputs for downstream workflow steps
+- command execution without shell-in-YAML
+- a generated image reference output for downstream workflow steps
 
 Generated workflow usage:
 
 ```yaml
-- name: Bake VM snapshot
-  uses: ./.github/actions/dcs-bake-vm-snapshot
+- name: Publish container image
+  uses: ./.github/actions/publish-container-image
   with:
-    dhv-binary: /usr/local/bin/dedalus-hypervisor
-    kernel: /tmp/vmlinux
-    rootfs: /tmp/rootfs.raw
-    output: /tmp/snapshot
-    memory-mib-max: ${{ inputs.max_machine_memory_mib }}
-    max-vcpus: ${{ inputs.max_machine_burst_vcpus }}
-    image-version: noble@2026.05.14
+    image: ghcr.io/acme/api
+    tag: ${{ github.sha }}
+    context: .
+    dockerfile: Dockerfile
+    provenance: "true"
 ```
 
 ## GitHub Promotion API

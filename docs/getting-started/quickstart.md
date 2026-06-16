@@ -3,28 +3,43 @@
 ## 1. Write a script
 
 ```typescript
-import { action, integerInput, pathInput, stringOutput } from "@dedalus-labs/hollywood";
+import {
+	action,
+	booleanInput,
+	pathInput,
+	stringInput,
+	stringOutput,
+} from "@dedalus-labs/hollywood";
 
-export const bakeSnapshot = action({
-	name: "dcs-bake-vm-snapshot",
-	description: "Run dm-bake without embedding shell in workflow YAML.",
+export const publishImage = action({
+	name: "publish-container-image",
+	description: "Build and publish a container image without embedding shell in workflow YAML.",
 	inputs: {
-		dhvBinary: pathInput({ description: "Path to dedalus-hypervisor." }),
-		memoryMibMax: integerInput({ description: "Maximum guest memory in MiB." }),
+		image: stringInput({ description: "Container image name, including registry." }),
+		tag: stringInput({ description: "Container image tag." }),
+		context: pathInput({ description: "Build context path.", default: "." }),
+		dockerfile: pathInput({ description: "Dockerfile path.", default: "Dockerfile" }),
+		provenance: booleanInput({ description: "Emit build provenance.", default: "false" }),
 	},
 	outputs: {
-		snapshotDir: stringOutput({ description: "Snapshot output directory." }),
+		imageRef: stringOutput({ description: "Published image reference." }),
 	},
 	run: async ({ exec, input }) => {
-		await exec("sudo", [
-			"dm-bake",
-			"--dhv-binary",
-			input.dhvBinary,
-			"--memory-mib-max",
-			input.memoryMibMax.toString(),
+		const imageRef = `${input.image}:${input.tag}`;
+		await exec("docker", [
+			"buildx",
+			"build",
+			"--file",
+			input.dockerfile,
+			"--tag",
+			imageRef,
+			"--push",
+			"--provenance",
+			input.provenance ? "true" : "false",
+			input.context,
 		]);
 
-		return { snapshotDir: "/tmp/snapshot" };
+		return { imageRef };
 	},
 });
 ```
@@ -34,10 +49,11 @@ export const bakeSnapshot = action({
 ```typescript
 import { nodeExec, nodeFs, nodeLog, runAction } from "@dedalus-labs/hollywood";
 
-await runAction(bakeSnapshot, {
+await runAction(publishImage, {
 	with: {
-		dhvBinary: "/usr/local/bin/dedalus-hypervisor",
-		memoryMibMax: "32768",
+		image: "ghcr.io/acme/api",
+		tag: "sha-abc123",
+		provenance: "false",
 	},
 	exec: nodeExec,
 	fs: nodeFs,
@@ -52,21 +68,23 @@ want to run the command on the local machine.
 The CLI can run the same exported action:
 
 ```bash
-hollywood run gha/dcs/dm/bake-vm-snapshot.ts \
-  --export bakeSnapshot \
-  --with dhvBinary=/usr/local/bin/dedalus-hypervisor \
-  --with memoryMibMax=32768
+hollywood run gha/containers/publish-image.ts \
+  --export publishImage \
+  --with image=ghcr.io/acme/api \
+  --with tag=sha-abc123 \
+  --with provenance=false
 ```
 
 For Linux VM execution on macOS, add `--lima <name>`:
 
 ```bash
-hollywood run gha/dcs/dm/bake-vm-snapshot.ts \
-  --export bakeSnapshot \
-  --lima kvm \
+hollywood run gha/containers/publish-image.ts \
+  --export publishImage \
+  --lima default \
   --start-vm \
-  --with dhvBinary=/usr/local/bin/dedalus-hypervisor \
-  --with memoryMibMax=32768
+  --with image=ghcr.io/acme/api \
+  --with tag=sha-abc123 \
+  --with provenance=false
 ```
 
 ## 3. Generate action files
@@ -81,8 +99,8 @@ hollywood generate "gha/**/*.ts" --output .
 The command writes:
 
 ```text
-created .github/actions/dcs-bake-vm-snapshot/action.yml
-created .github/actions/dcs-bake-vm-snapshot/src/index.ts
+created .github/actions/publish-container-image/action.yml
+created .github/actions/publish-container-image/src/index.ts
 ```
 
 The same flow is available as a library API:
@@ -96,14 +114,14 @@ import {
 
 await writeGeneratedFiles(
 	[
-		generateActionFile(bakeSnapshot, {
-			sourcePath: "gha/dcs/dm/bake-vm-snapshot.ts",
+		generateActionFile(publishImage, {
+			sourcePath: "gha/containers/publish-image.ts",
 			actionsDir: ".github/actions",
 		}),
-		generateActionEntrypointFile(bakeSnapshot, {
-			sourcePath: "gha/dcs/dm/bake-vm-snapshot.ts",
+		generateActionEntrypointFile(publishImage, {
+			sourcePath: "gha/containers/publish-image.ts",
 			actionsDir: ".github/actions",
-			exportName: "bakeSnapshot",
+			exportName: "publishImage",
 		}),
 	],
 	{ outputDir: process.cwd() },
@@ -113,23 +131,24 @@ await writeGeneratedFiles(
 This writes:
 
 ```text
-.github/actions/dcs-bake-vm-snapshot/action.yml
-.github/actions/dcs-bake-vm-snapshot/src/index.ts
+.github/actions/publish-container-image/action.yml
+.github/actions/publish-container-image/src/index.ts
 ```
 
 ## 4. Call it from workflow YAML
 
 ```yaml
 jobs:
-  bake_snapshot:
-    runs-on: dedalus-kvm
+  publish_image:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-      - name: Bake VM snapshot
-        uses: ./.github/actions/dcs-bake-vm-snapshot
+      - name: Publish container image
+        uses: ./.github/actions/publish-container-image
         with:
-          dhv-binary: /usr/local/bin/dedalus-hypervisor
-          memory-mib-max: ${{ inputs.max_machine_memory_mib }}
+          image: ghcr.io/acme/api
+          tag: ${{ github.sha }}
+          provenance: "false"
 ```
 
 The workflow stays flat and GitHub-compatible. The real logic stays in

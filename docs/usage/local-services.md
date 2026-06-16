@@ -43,7 +43,7 @@ virtual machine (VM), and Hollywood routes each script `exec(file, args)` call
 through `limactl shell`.
 
 ```bash
-hollywood run gha/go/s3-cache.ts --export s3Cache --lima kvm --start-vm
+hollywood run gha/cache/s3-cache.ts --export s3Cache --lima default --start-vm
 ```
 
 Hollywood's current VM support is action-level, not whole-workflow emulation.
@@ -52,10 +52,11 @@ runner worker protocol in the package.
 
 ## Rejection is a feature
 
-Some jobs cannot run on a developer laptop. The Dedalus Machines bake requires
-Linux Kernel-based Virtual Machine (KVM) access and nested virtualization. A
-Mac running Lima can provide a Linux VM, but it cannot provide x86 KVM inside
-that VM.
+Some jobs cannot run on a developer laptop. A container publish action might
+require Docker BuildKit, registry credentials, and a Linux-only toolchain. A
+Terraform apply action might require cloud credentials that should never exist
+on a random machine.
 
-Hollywood should reject that local run before starting. A local green run that
-did not provide the runner contract would be worse than no local run.
+Hollywood should reject that local run before starting when the declared
+contract is missing. A local green run that did not provide the runner contract
+would be worse than no local run.

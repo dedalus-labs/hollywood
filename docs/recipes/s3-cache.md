@@ -72,7 +72,7 @@ through the same action, and checks the restored file contents.
   uses: ./.github/actions/s3-cache
   with:
     mode: restore
-    bucket: dcs-ci-artifacts
+    bucket: ci-artifacts
     prefix: go
     key: ${{ runner.os }}-${{ hashFiles('go.sum') }}
     archive-path: /tmp/go-cache.tar.gz
