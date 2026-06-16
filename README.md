@@ -7,6 +7,12 @@ locally, and generate ordinary GitHub Actions files for CI/CD.
 
 > "Lights, Cameras, (GitHub) Actions!"
 
+Hollywood is AI-native and AI-friendly. The docs ship copy-page controls and
+generated agent context. Point your agents at the docs, hand them
+[`llms.txt`](https://oss.dedaluslabs.ai/hollywood/llms.txt) or
+[`llms-full.txt`](https://oss.dedaluslabs.ai/hollywood/llms-full.txt), and let
+them rip on typed TypeScript actions instead of hand-writing YAML.
+
 GitHub Actions is a good orchestration layer. It knows when jobs should run,
 which runner labels they need, which secrets exist, and how jobs depend on each
 other.
@@ -14,6 +20,10 @@ other.
 It is a rough programming environment. Real DevOps logic often turns into shell
 inside YAML: untyped strings, quoting bugs, hidden input coercion, and commits
 whose only purpose is "try CI again".
+
+Our position is simple: people should not spend their time painstakingly
+handwriting imperative GitHub Actions YAML. YAML should orchestrate. TypeScript
+should program.
 
 Hollywood moves the imperative part into TypeScript scripts you can test before
 they run on GitHub. The generated output is still boring GitHub Actions:
