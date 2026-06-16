@@ -65,8 +65,9 @@ npm run generate
 ## Release Flow
 
 Contributors do not publish releases directly. Merge normal contribution PRs
-into `main`; each push lets Release Please update a single release PR with the
-next version, changelog, and package metadata.
+into `main`; each push lets [Release Please](https://github.com/googleapis/release-please)
+update a single release PR with the next version, changelog, and package
+metadata.
 
 When maintainers are ready to release, they merge the Release Please PR into
 `main`. That merge creates the GitHub release, and the npm publishing workflow

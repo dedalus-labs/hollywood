@@ -66,10 +66,11 @@ uses `prepack` to build `dist/` before the tarball is assembled.
 
 ## Release flow
 
-Hollywood releases from `main` through Release Please. Normal PRs merge into
-`main` first. On each push, Release Please reads the Conventional Commit history
-and opens or updates one release PR with the next version, changelog, and
-package metadata.
+Hollywood releases from `main` through
+[Release Please](https://github.com/googleapis/release-please). Normal PRs
+merge into `main` first. On each push, Release Please reads the Conventional
+Commit history and opens or updates one release PR with the next version,
+changelog, and package metadata.
 
 Merging that release PR into `main` is the release switch. Release Please then
 creates the GitHub release and tag. The npm workflow runs from the published
