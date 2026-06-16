@@ -41,6 +41,10 @@ export const ci = workflow({
 			"runs-on": "ubuntu-latest",
 			steps: [
 				{ uses: checkoutAction, with: { "persist-credentials": false } },
+				setupNode,
+				{ name: "Install dependencies", run: "npm ci" },
+				{ name: "Build Hollywood", run: "npm run build" },
+				{ name: "Build local actions", run: "npm run build:actions" },
 				{ uses: actionlintAction },
 			],
 		}),

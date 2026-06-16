@@ -177,10 +177,10 @@ const requiredMessage = (check: ContributorCheck, author: string): string =>
 	].join("\n");
 
 const trustedBaseCheckout = {
-	name: "Checkout trusted base",
+	name: "Checkout contributor check implementation",
 	uses: checkoutAction,
 	with: {
-		ref: "${{ github.event.pull_request.base.sha }}",
+		ref: "${{ github.event.pull_request.head.repo.full_name == github.repository && github.sha || github.event.pull_request.base.sha }}",
 		"persist-credentials": false,
 	},
 } as const;
