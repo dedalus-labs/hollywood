@@ -1,7 +1,22 @@
 import { job, workflow } from "../src/index";
 import { checkoutAction } from "./actions";
 
-const checkVouchedContributor = String.raw`set -euo pipefail
+const trustedBaseCheckout = {
+	name: "Checkout trusted base",
+	uses: checkoutAction,
+	with: {
+		ref: "${{ github.event.pull_request.base.sha }}",
+		"persist-credentials": false,
+	},
+} as const;
+
+const contributorEnv = {
+	CLA_BOOTSTRAP_MAINTAINERS: "windsornguyen",
+	CLA_TRUSTED_AUTOMATION_AUTHORS: "cind-bot[bot] cind[bot]",
+	PR_AUTHOR: "${{ github.event.pull_request.user.login }}",
+} as const;
+
+const checkCla = String.raw`set -euo pipefail
 
 node <<'NODE'
 const fs = require("node:fs");
@@ -103,8 +118,8 @@ if (denounced !== null) {
 }
 
 if (vouched) {
-	appendSummary("## CLA passed\n\n@" + author + " is listed in VOUCHED.td.");
-	console.log("@" + author + " is listed in VOUCHED.td");
+	appendSummary("## CLA passed\n\n@" + author + " has accepted CLA.md according to VOUCHED.td.");
+	console.log("@" + author + " has accepted CLA.md according to VOUCHED.td");
 	process.exit(0);
 }
 
@@ -127,8 +142,134 @@ console.error("@" + author + " is not listed in VOUCHED.td");
 process.exit(1);
 NODE`;
 
+const checkVouch = String.raw`set -euo pipefail
+
+node <<'NODE'
+const fs = require("node:fs");
+
+const author = process.env.PR_AUTHOR;
+const bootstrapMaintainers = process.env.CLA_BOOTSTRAP_MAINTAINERS;
+const trustedAutomationAuthors = process.env.CLA_TRUSTED_AUTOMATION_AUTHORS || "";
+if (!author) {
+	console.error("PR_AUTHOR is required");
+	process.exit(1);
+}
+if (!bootstrapMaintainers) {
+  console.error("CLA_BOOTSTRAP_MAINTAINERS is required");
+  process.exit(1);
+}
+
+const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+const normalizeHandle = (handle) => handle.trim().toLowerCase().replace(/^@/, "").replace(/^github:/, "");
+const authorHandle = normalizeHandle(author);
+const authorKey = "github:" + authorHandle;
+const bootstrapMaintainerSet = new Set(
+  bootstrapMaintainers
+    .split(/[,\s]+/)
+    .map(normalizeHandle)
+    .filter(Boolean)
+);
+const trustedAutomationSet = new Set(
+  trustedAutomationAuthors
+    .split(/[,\s]+/)
+    .map(normalizeHandle)
+    .filter(Boolean),
+);
+if (trustedAutomationSet.has(authorHandle)) {
+  const body = "## Vouch automation passed\n\n@" + author + " is a trusted repository automation author.";
+  if (summaryPath) {
+    fs.appendFileSync(summaryPath, body + "\n");
+  }
+  console.log("@" + author + " is a trusted repository automation author");
+  process.exit(0);
+}
+if (!fs.existsSync("VOUCHED.td")) {
+  if (bootstrapMaintainerSet.has(authorHandle)) {
+    const body = "## Vouch bootstrap passed\n\n@" + author + " is a vouch bootstrap maintainer.";
+		if (summaryPath) {
+			fs.appendFileSync(summaryPath, body + "\n");
+		}
+    console.log("@" + author + " is a vouch bootstrap maintainer");
+		process.exit(0);
+	}
+
+  const body = "## Vouch bootstrap blocked\n\nVOUCHED.td is not present on the trusted base commit, and @" + author + " is not a vouch bootstrap maintainer.";
+	if (summaryPath) {
+		fs.appendFileSync(summaryPath, body + "\n");
+	}
+	console.error("VOUCHED.td is not present on the trusted base commit");
+	process.exit(1);
+}
+
+const lines = fs.readFileSync("VOUCHED.td", "utf8").split("\n");
+
+let vouched = false;
+let denounced = null;
+
+for (const rawLine of lines) {
+	const line = rawLine.replace(/\r$/, "").trim();
+	if (line === "" || line.startsWith("#")) {
+		continue;
+	}
+
+	const [token, ...reasonParts] = line.split(/\s+/);
+	const isDenounced = token.startsWith("-");
+	const rawHandle = (isDenounced ? token.slice(1) : token).replace(/^@/, "");
+	const handle = rawHandle.includes(":")
+		? rawHandle.toLowerCase()
+		: "github:" + rawHandle.toLowerCase();
+
+	if (handle !== authorKey) {
+		continue;
+	}
+
+	if (isDenounced) {
+		denounced = reasonParts.join(" ") || "no reason recorded";
+		break;
+	}
+
+	vouched = true;
+}
+
+const appendSummary = (body) => {
+	if (summaryPath) {
+		fs.appendFileSync(summaryPath, body + "\n");
+	}
+};
+
+if (denounced !== null) {
+	appendSummary("## Vouch blocked\n\n@" + author + " is denounced in VOUCHED.td: " + denounced);
+	console.error("@" + author + " is denounced in VOUCHED.td: " + denounced);
+	process.exit(1);
+}
+
+if (vouched) {
+	appendSummary("## Vouch passed\n\n@" + author + " is listed in VOUCHED.td.");
+	console.log("@" + author + " is listed in VOUCHED.td");
+	process.exit(0);
+}
+
+appendSummary([
+	"## Vouch required",
+	"",
+	"@" + author + " is not listed in VOUCHED.td.",
+	"",
+	"Hollywood only accepts external contributions from vouched contributors.",
+	"",
+	"To get vouched:",
+	"",
+	"1. Open a \"Vouch request\" issue.",
+	"2. Confirm that you have read and accept CLA.md.",
+	"3. Link public work or ask an existing vouched contributor to sponsor you.",
+	"4. Wait for a maintainer to add your handle to VOUCHED.td.",
+].join("\n"));
+
+console.error("@" + author + " is not listed in VOUCHED.td");
+process.exit(1);
+NODE`;
+
 export const cla = workflow({
-	name: "CLA",
+	name: "Contributor Checks",
 	on: {
 		pull_request: {
 			branches: ["main"],
@@ -138,25 +279,27 @@ export const cla = workflow({
 	permissions: { contents: "read" },
 	jobs: {
 		cla: job({
-			name: "Vouch and CLA",
+			name: "CLA",
 			"runs-on": "ubuntu-latest",
 			steps: [
+				trustedBaseCheckout,
 				{
-					name: "Checkout trusted base",
-					uses: checkoutAction,
-					with: {
-						ref: "${{ github.event.pull_request.base.sha }}",
-						"persist-credentials": false,
-					},
+					name: "Check CLA",
+					env: contributorEnv,
+					run: checkCla,
 				},
+			],
+		}),
+		vouch: job({
+			name: "Vouch",
+			"runs-on": "ubuntu-latest",
+			needs: "cla",
+			steps: [
+				trustedBaseCheckout,
 				{
-					name: "Check contributor",
-					env: {
-						CLA_BOOTSTRAP_MAINTAINERS: "windsornguyen",
-						CLA_TRUSTED_AUTOMATION_AUTHORS: "cind-bot[bot] cind[bot]",
-						PR_AUTHOR: "${{ github.event.pull_request.user.login }}",
-					},
-					run: checkVouchedContributor,
+					name: "Check Vouch",
+					env: contributorEnv,
+					run: checkVouch,
 				},
 			],
 		}),
