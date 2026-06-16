@@ -92,14 +92,14 @@ plugins:
         right: "20px"
         z_index: "2000"
       copy_button_style:
-        background: "#1f6feb"
+        background: "#c72949"
         color: "white"
         border: "none"
         padding: "8px 16px"
         border_radius: "8px"
         font_size: "13px"
         font_weight: "500"
-        box_shadow: "0 2px 8px rgba(31, 111, 235, 0.3)"
+        box_shadow: "0 2px 8px rgba(199, 41, 73, 0.3)"
       sections:
         All:
           - "*.md"
