@@ -5,6 +5,22 @@ declarations, package metadata, and the README.
 
 It should not contain examples, tests, Vitest config, or TypeScript source.
 
+## Dependency boundary
+
+Hollywood keeps the direct runtime dependency list small:
+
+| Dependency                  | Why it exists                                      |
+| --------------------------- | -------------------------------------------------- |
+| `@actions/core`             | Official GitHub Actions input/output and logging.  |
+| `@actions/exec`             | Official GitHub Actions process execution.         |
+| `@actions/expressions`      | GitHub expression parsing and validation.          |
+| `@actions/workflow-parser`  | GitHub workflow schema parsing and validation.     |
+| `esbuild`                   | Local TypeScript source loading for the CLI.       |
+| `yaml`                      | Rendering generated action and workflow files.     |
+
+Keep new runtime dependencies rare. Every dependency expands the install graph
+that users have to trust when they run CI/CD automation from npm.
+
 ## Desired package boundary
 
 ```json
@@ -40,6 +56,7 @@ With that boundary:
 | `dist/index.d.ts`  | yes        | Public types.                           |
 | `dist/expr.js`     | yes        | Expression helper subpath.              |
 | `README.md`        | yes        | Package landing page.                   |
+| `LICENSE`          | yes        | License file included by npm.           |
 | `examples/*`       | no         | Repository examples, not runtime files. |
 | `src/*.test.ts`    | no         | Tests are not runtime files.            |
 | `vitest.config.ts` | no         | Local test configuration.               |

@@ -44,6 +44,8 @@ There is no shell interpolation and no YAML quoting puzzle.
   toolkit.
 - Generate flat `.github/workflows/*.yml` files from deeper source paths.
 - Validate generated YAML with upstream GitHub Actions parsers before writing.
+- Keep the runtime dependency surface small: six direct dependencies, mostly
+  GitHub action packages.
 
 Hollywood does not emulate the private GitHub runner worker protocol. It keeps
 the loop smaller: write the script, run it locally or through Lima, generate
