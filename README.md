@@ -25,6 +25,7 @@ This works because GitHub Actions can run JavaScript actions directly. An
 adapter around your typed script.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the CLA/Vouch contribution flow and
+[ROADMAP.md](ROADMAP.md) for planned contribution areas. See
 [SECURITY.md](SECURITY.md) for the GitHub Actions hardening policy.
 
 ## Contributing and Vouch
@@ -265,6 +266,12 @@ Hollywood is useful when the CI/CD step is a real program:
 
 Hollywood is not a local GitHub Actions emulator. GitHub still decides event
 payloads, runner labels, secrets, permissions, and job scheduling.
+
+## Roadmap
+
+Future work is tracked in [ROADMAP.md](ROADMAP.md). Concrete tasks should become
+GitHub issues before implementation, especially if they change the public API or
+generated YAML.
 
 ## Docs
 
