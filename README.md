@@ -77,6 +77,26 @@ For code and docs changes, fork the repository and open a pull request from
 your branch into `dedalus-labs/hollywood:main`. See
 [CONTRIBUTING.md](CONTRIBUTING.md) for the full checklist.
 
+## Node Requirements
+
+The package runtime and the repository toolchain have different Node
+requirements:
+
+| Surface                    | Node requirement             |
+| -------------------------- | ---------------------------- |
+| Installed package and CLI  | Node 20 or newer             |
+| Generated GitHub actions   | GitHub's Node 24 action runtime |
+| Building Hollywood locally | Node 22.18+ or Node 24.11+   |
+
+The published package declares `engines.node >=20` in
+[`package.json`](package.json). The build output targets Node 20 in
+[`tsdown.config.ts`](tsdown.config.ts). `tsconfig.json` is only the typecheck
+configuration; it is not the runtime support contract.
+
+Use Node 22.18+ or Node 24.11+ when contributing because the local build and
+declaration-generation toolchain has stricter engine requirements than the
+published runtime package.
+
 ## Install
 
 ```bash
@@ -85,11 +105,6 @@ npm install --save-dev @dedalus-labs/hollywood
 
 That installs a local `hollywood` binary at `node_modules/.bin/hollywood`. Run
 it with `npx hollywood ...`, or put `hollywood ...` inside an npm script.
-
-Hollywood's published package targets Node 20 and newer. Generated JavaScript
-actions target GitHub's Node 24 action runtime by default. The repository
-toolchain uses newer TypeScript build tools, so contributors should use Node
-22.18+ or Node 24.11+ when building Hollywood from source.
 
 ## Small Dependency Surface
 
