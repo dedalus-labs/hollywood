@@ -1,28 +1,28 @@
 # Installation
 
-Hollywood currently lives inside the Dedalus monorepo:
+Inside this repository, install dependencies and build the local CLI:
 
 ```bash
-pnpm --filter @dedalus/hollywood typecheck
-pnpm exec vitest run --root packages/typescript/hollywood --config vitest.config.ts
+npm ci
+npm run build
 ```
 
-When the package is published, install it as a development dependency:
+In another repository, install Hollywood as a development dependency:
 
 ```bash
-pnpm add -D @dedalus/hollywood
+npm install --save-dev @dedalus-labs/hollywood
 ```
 
 That installs the `hollywood` binary:
 
 ```bash
-pnpm exec hollywood generate "ci/**/*.ts" --output .
+npx hollywood generate "gha/**/*.ts" --output .
 ```
 
 Run an exported action locally:
 
 ```bash
-pnpm exec hollywood run ci/s3-cache.ts --export s3Cache --with mode=restore
+npx hollywood run gha/s3-cache.ts --export s3Cache --with mode=restore
 ```
 
 GitHub JavaScript actions need a bundled entrypoint. Hollywood generates the
@@ -47,17 +47,13 @@ GitHub Actions JavaScript action contract.
 Serve these docs locally with MkDocs:
 
 ```bash
-uvx --with mkdocs-material \
-  --with mkdocs-git-revision-date-localized-plugin \
-  --with mkdocs-llmstxt \
-  mkdocs serve -f packages/typescript/hollywood/mkdocs.yml
+python -m pip install -r docs/requirements.txt
+python -m mkdocs serve -f mkdocs.yml
 ```
 
 Build them with strict link validation:
 
 ```bash
-uvx --with mkdocs-material \
-  --with mkdocs-git-revision-date-localized-plugin \
-  --with mkdocs-llmstxt \
-  mkdocs build --strict -f packages/typescript/hollywood/mkdocs.yml
+python -m pip install -r docs/requirements.txt
+python -m mkdocs build --strict -f mkdocs.yml
 ```

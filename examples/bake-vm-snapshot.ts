@@ -1,4 +1,4 @@
-import { action, integerInput, pathInput, stringInput, stringOutput } from "@dedalus/hollywood";
+import { action, integerInput, pathInput, stringInput, stringOutput } from "@dedalus-labs/hollywood";
 
 export const bakeSnapshot = action({
 	name: "dcs-package-artifact",

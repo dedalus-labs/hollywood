@@ -11,7 +11,7 @@
 	"bugs": {
 		"url": "https://github.com/dedalus-labs/hollywood/issues"
 	},
-	"homepage": "https://github.com/dedalus-labs/hollywood#readme",
+	"homepage": "https://oss.dedaluslabs.ai/hollywood",
 	"bin": {
 		"hollywood": "dist/cli.js"
 	},
@@ -43,12 +43,13 @@
 	},
 	"scripts": {
 		"build": "tsdown",
-		"check:generated": "npm run build && npm run generate && git diff --exit-code dist .github/workflows",
-		"generate": "node dist/cli.js generate \"ci/**/*.ts\" --output .",
-		"pack:check": "npm pack --dry-run",
+		"check": "npm run build && node dist/cli.js check --source-root gha",
+		"generate": "node dist/cli.js generate \"gha/**/*.ts\" --source-root gha --output .",
+		"lint": "oxlint --vitest-plugin --import-plugin --deny-warnings . --ignore-pattern dist --ignore-pattern node_modules --ignore-pattern .github",
+		"package": "npm pack --dry-run",
 		"prepack": "npm run build",
 		"test": "vitest run --config vitest.config.ts",
-		"typecheck": "tsc --noEmit"
+		"typecheck": "tsgo --noEmit"
 	},
 	"publishConfig": {
 		"access": "public",
@@ -65,7 +66,10 @@
 	"devDependencies": {
 		"@commander-js/extra-typings": "14.0.0",
 		"@types/node": "^24.12.0",
+		"@typescript/native-preview": "7.0.0-dev.20260514.1",
 		"commander": "14.0.3",
+		"oxlint": "^1.70.0",
+		"oxlint-tsgolint": "^0.22.1",
 		"tsdown": "0.22.0",
 		"typescript": "^6.0.3",
 		"vitest": "^4.1.0"

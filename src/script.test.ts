@@ -266,7 +266,7 @@ test("input helpers type-check default literals", () => {
 	assert.equal(booleanInput({ description: "Boolean default.", default: "true" }).default, "true");
 	assert.equal(integerInput({ description: "Integer default.", default: "42" }).default, "42");
 
-	if (false) {
+	if (process.env["HOLLYWOOD_TYPE_TESTS"] === "1") {
 		// @ts-expect-error Boolean defaults must be GitHub boolean strings.
 		booleanInput({ description: "Invalid boolean default.", default: "yes" });
 		// @ts-expect-error Integer defaults must be integer strings.

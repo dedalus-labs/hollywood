@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title desc">
+  <title id="title">Hollywood</title>
+  <desc id="desc">A rose clapperboard mark for Hollywood.</desc>
+  <rect width="100" height="100" rx="14" fill="#24070d"/>
+  <path d="M15 31h70v51H15z" fill="#fffaf1"/>
+  <path d="M15 20h70v22H15z" fill="#c72949"/>
+  <path d="M24 20h12l-9 22H15zM48 20h12l-9 22H39zM72 20h12l-9 22H63z" fill="#f6c65b"/>
+  <path d="M24 56h52M24 68h35" stroke="#24070d" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="78" cy="56" r="4" fill="#c72949"/>
+  <circle cx="82" cy="26" r="2.2" fill="#fff3b8"/>
+  <circle cx="88" cy="34" r="1.8" fill="#fff3b8"/>
+  <circle cx="75" cy="35" r="1.5" fill="#fff3b8"/>
+  <path d="M17 31h66M15 42h70" stroke="#24070d" stroke-width="4" stroke-linecap="round"/>
+</svg>

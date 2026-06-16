@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "vitest";
 
-import { createHollywoodCli, generate, run } from "./cli-program";
+import { check, createCli, generate, run } from "./commands";
 
 test("generate discovers exported actions from source files", async () => {
 	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
@@ -58,7 +58,7 @@ test("generate discovers exported workflows from globbed source files", async ()
 		"  on: { workflow_dispatch: {} },",
 		"  jobs: {",
 		"    test: {",
-		'      \"runs-on\": \"ubuntu-latest\",',
+		'      "runs-on": "ubuntu-latest",',
 		'      steps: [{ name: "Hello", uses: "./.github/actions/hello", with: {} }],',
 		"    },",
 		"  },",
@@ -96,7 +96,7 @@ test("generate ignores test sources matched by workflow globs", async () => {
 		"  on: { workflow_dispatch: {} },",
 		"  jobs: {",
 		"    test: {",
-		'      \"runs-on\": \"ubuntu-latest\",',
+		'      "runs-on": "ubuntu-latest",',
 		'      steps: [{ run: "echo ok" }],',
 		"    },",
 		"  },",
@@ -123,7 +123,7 @@ test("generate ignores test sources matched by workflow globs", async () => {
 	assert.deepEqual(output, ["created\t.github/workflows/dcs-guest-artifacts.yml\n"]);
 });
 
-test("createHollywoodCli parses space-separated generate command", async () => {
+test("createCli parses space-separated generate command", async () => {
 	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
 	const sourcePath = join(root, "ci/hello.ts");
 	const output: string[] = [];
@@ -139,7 +139,7 @@ test("createHollywoodCli parses space-separated generate command", async () => {
 		"",
 	]);
 
-	await createHollywoodCli({ writeOut: (message) => output.push(message) }).parseAsync([
+	await createCli({ writeOut: (message) => output.push(message) }).parseAsync([
 		"node",
 		"hollywood",
 		"generate",
@@ -228,7 +228,7 @@ test("run bundles source package imports before loading", async () => {
 	assert.deepEqual(output, ["output\tgreeting=hello Hollywood\n"]);
 });
 
-test("createHollywoodCli parses space-separated run command", async () => {
+test("createCli parses space-separated run command", async () => {
 	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
 	const sourcePath = join(root, "ci/hello.ts");
 	const output: string[] = [];
@@ -244,7 +244,7 @@ test("createHollywoodCli parses space-separated run command", async () => {
 		"",
 	]);
 
-	await createHollywoodCli({ writeOut: (message) => output.push(message) }).parseAsync([
+	await createCli({ writeOut: (message) => output.push(message) }).parseAsync([
 		"node",
 		"hollywood",
 		"run",
@@ -254,6 +254,143 @@ test("createHollywoodCli parses space-separated run command", async () => {
 	]);
 
 	assert.deepEqual(output, ["output\tgreeting=hello Hollywood\n"]);
+});
+
+test("check accepts pinned workflows", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
+	const output: string[] = [];
+	await writeSource(join(root, ".github/workflows/ci.yml"), [
+		"name: CI",
+		"on: push",
+		"jobs:",
+		"  test:",
+		"    runs-on: ubuntu-latest",
+		"    steps:",
+		"      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10",
+		"",
+	]);
+
+	await check(
+		{
+			generated: false,
+			output: root,
+			sourceRoot: "ci",
+			workflowSecurity: true,
+			workflowsDir: ".github/workflows",
+		},
+		{ writeOut: (message) => output.push(message) },
+	);
+
+	assert.deepEqual(output, ["ok\tworkflow security\n"]);
+});
+
+test("check rejects mutable workflow actions", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
+	await writeSource(join(root, ".github/workflows/ci.yml"), [
+		"name: CI",
+		"on: push",
+		"jobs:",
+		"  test:",
+		"    runs-on: ubuntu-latest",
+		"    steps:",
+		"      - uses: actions/checkout@v6",
+		"",
+	]);
+
+	await assert.rejects(
+		() =>
+			check(
+				{
+					generated: false,
+					output: root,
+					sourceRoot: "ci",
+					workflowSecurity: true,
+					workflowsDir: ".github/workflows",
+				},
+				{ writeOut: () => {} },
+			),
+		/mutable action references/,
+	);
+});
+
+test("check rejects handwritten workflow yaml", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
+	await writeWorkflowSource(root);
+	await writeSource(join(root, ".github/workflows/manual.yml"), [
+		"name: Manual",
+		"on: push",
+		"jobs: {}",
+		"",
+	]);
+
+	await assert.rejects(
+		() =>
+			check(
+				{
+					generated: true,
+					output: root,
+					sourceRoot: "ci",
+					workflowSecurity: false,
+					workflowsDir: ".github/workflows",
+				},
+				{ writeOut: () => {} },
+			),
+		/handwritten GitHub Actions YAML found\n.*\.github\/workflows\/manual\.yml/s,
+	);
+});
+
+test("check rejects handwritten local action metadata", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
+	await writeWorkflowSource(root);
+	await writeSource(join(root, ".github/actions/manual/action.yml"), [
+		"name: Manual",
+		"description: Handwritten local action.",
+		"runs:",
+		"  using: node24",
+		"  main: dist/index.js",
+		"",
+	]);
+
+	await assert.rejects(
+		() =>
+			check(
+				{
+					generated: true,
+					output: root,
+					sourceRoot: "ci",
+					workflowSecurity: false,
+					workflowsDir: ".github/workflows",
+				},
+				{ writeOut: () => {} },
+			),
+		/handwritten GitHub Actions YAML found\n.*\.github\/actions\/manual\/action\.yml/s,
+	);
+});
+
+test("createCli parses space-separated check command", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
+	const output: string[] = [];
+	await writeSource(join(root, ".github/workflows/ci.yml"), [
+		"name: CI",
+		"on: push",
+		"jobs:",
+		"  test:",
+		"    runs-on: ubuntu-latest",
+		"    steps:",
+		"      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10",
+		"",
+	]);
+
+	await createCli({ writeOut: (message) => output.push(message) }).parseAsync([
+		"node",
+		"hollywood",
+		"check",
+		"--workflow-security",
+		"--output",
+		root,
+	]);
+
+	assert.deepEqual(output, ["ok\tworkflow security\n"]);
 });
 
 test("run wraps action commands in Lima when requested", async () => {
@@ -374,6 +511,22 @@ test("generate rejects sources without Hollywood exports", async () => {
 const writeSource = async (path: string, lines: readonly string[]): Promise<void> => {
 	await mkdir(dirname(path), { recursive: true });
 	await writeFile(path, lines.join("\n"), { flag: "w" });
+};
+
+const writeWorkflowSource = async (root: string): Promise<void> => {
+	await writeSource(join(root, "ci/ci.ts"), [
+		"export const ci = {",
+		'  name: "CI",',
+		"  on: { push: {} },",
+		"  jobs: {",
+		"    test: {",
+		'      "runs-on": "ubuntu-latest",',
+		"      steps: [{ run: 'echo ok' }],",
+		"    },",
+		"  },",
+		"};",
+		"",
+	]);
 };
 
 const restoreEnv = (name: string, value: string | undefined): void => {

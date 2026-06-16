@@ -1,4 +1,4 @@
-import { action, choiceInput, pathInput, stringInput, stringOutput } from "@dedalus/hollywood";
+import { action, choiceInput, pathInput, stringInput, stringOutput } from "@dedalus-labs/hollywood";
 
 export const s3Cache = action({
 	name: "s3-cache",

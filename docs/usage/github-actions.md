@@ -44,7 +44,7 @@ generateActionEntrypointFile(bakeSnapshot, {
 This produces:
 
 ```typescript
-import { runGitHubAction } from "@dedalus/hollywood/action-runtime";
+import { runGitHubAction } from "@dedalus-labs/hollywood/action-runtime";
 import { bakeSnapshot } from "./action.ts";
 
 void runGitHubAction(bakeSnapshot);
@@ -86,16 +86,16 @@ Then `uses(action, ...)` derives `./.github/actions/<path>` and preserves the
 action's typed inputs.
 
 ```typescript
-import { generateWorkflowFile, job, uses, workflow } from "@dedalus/hollywood";
-import { defineMatrix, format, gh } from "@dedalus/hollywood/expr";
+import { generateWorkflowFile, job, uses, workflow } from "@dedalus-labs/hollywood";
+import { defineMatrix, format, gh } from "@dedalus-labs/hollywood/expr";
 
 const build = defineMatrix({
 	runner: ["dedalus-kvm"],
 } as const);
 
 generateWorkflowFile({
-	sourcePath: "ci/dcs/guest-artifacts.ts",
-	sourceRoot: "ci",
+	sourcePath: "gha/dcs/guest-artifacts.ts",
+	sourceRoot: "gha",
 	workflowsDir: ".github/workflows",
 	workflow: workflow({
 		name: "DCS Guest Artifacts",
@@ -126,7 +126,7 @@ generateWorkflowFile({
 The source path is flattened:
 
 ```text
-ci/dcs/guest-artifacts.ts
+gha/dcs/guest-artifacts.ts
 ```
 
 becomes:
@@ -151,7 +151,7 @@ import {
 	job,
 	pathDependencies,
 	workflow,
-} from "@dedalus/hollywood";
+} from "@dedalus-labs/hollywood";
 
 const changes = pathDependencies("changes", {
 	terraform: [
@@ -165,8 +165,8 @@ const changes = pathDependencies("changes", {
 });
 
 generateWorkflowFile({
-	sourcePath: "ci/dcs/static-validation.ts",
-	sourceRoot: "ci",
+	sourcePath: "gha/dcs/static-validation.ts",
+	sourceRoot: "gha",
 	workflowsDir: ".github/workflows",
 	workflow: workflow({
 		name: "DCS Static Validation",
@@ -202,7 +202,7 @@ closed.
 Point the CLI at source files that export Hollywood actions or workflows:
 
 ```bash
-hollywood generate "ci/**/*.ts" --output .
+hollywood generate "gha/**/*.ts" --output .
 ```
 
 Hollywood discovers exports by shape:
@@ -215,7 +215,7 @@ Hollywood discovers exports by shape:
 For example, this source tree:
 
 ```text
-ci/
+gha/
   actions/
     s3-cache.ts
   workflows/

@@ -3,7 +3,7 @@
 ## 1. Write a script
 
 ```typescript
-import { action, integerInput, pathInput, stringOutput } from "@dedalus/hollywood";
+import { action, integerInput, pathInput, stringOutput } from "@dedalus-labs/hollywood";
 
 export const bakeSnapshot = action({
 	name: "dcs-package-artifact",
@@ -32,7 +32,7 @@ export const bakeSnapshot = action({
 ## 2. Test it locally
 
 ```typescript
-import { nodeExec, nodeFs, nodeLog, runAction } from "@dedalus/hollywood";
+import { nodeExec, nodeFs, nodeLog, runAction } from "@dedalus-labs/hollywood";
 
 await runAction(bakeSnapshot, {
 	with: {
@@ -52,7 +52,7 @@ want to run the command on the local machine.
 The CLI can run the same exported action:
 
 ```bash
-hollywood run ci/dcs/dm/package-artifact.ts \
+hollywood run gha/dcs/dm/package-artifact.ts \
   --export bakeSnapshot \
   --with toolBinary=/usr/local/bin/artifact-packager \
   --with memoryMibMax=32768
@@ -61,7 +61,7 @@ hollywood run ci/dcs/dm/package-artifact.ts \
 For Linux VM execution on macOS, add `--lima <name>`:
 
 ```bash
-hollywood run ci/dcs/dm/package-artifact.ts \
+hollywood run gha/dcs/dm/package-artifact.ts \
   --export bakeSnapshot \
   --lima kvm \
   --start-vm \
@@ -75,7 +75,7 @@ Point Hollywood at the source files that export actions or workflows. Quote glob
 patterns so your shell does not expand them first.
 
 ```bash
-hollywood generate "ci/**/*.ts" --output .
+hollywood generate "gha/**/*.ts" --output .
 ```
 
 The command writes:
@@ -92,16 +92,16 @@ import {
 	generateActionEntrypointFile,
 	generateActionFile,
 	writeGeneratedFiles,
-} from "@dedalus/hollywood";
+} from "@dedalus-labs/hollywood";
 
 await writeGeneratedFiles(
 	[
 		generateActionFile(bakeSnapshot, {
-			sourcePath: "ci/dcs/dm/package-artifact.ts",
+			sourcePath: "gha/dcs/dm/package-artifact.ts",
 			actionsDir: ".github/actions",
 		}),
 		generateActionEntrypointFile(bakeSnapshot, {
-			sourcePath: "ci/dcs/dm/package-artifact.ts",
+			sourcePath: "gha/dcs/dm/package-artifact.ts",
 			actionsDir: ".github/actions",
 			exportName: "bakeSnapshot",
 		}),
@@ -124,7 +124,7 @@ jobs:
   bake_snapshot:
     runs-on: dedalus-kvm
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - name: Bake release artifact
         uses: ./.github/actions/dcs-package-artifact
         with:

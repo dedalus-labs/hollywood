@@ -1,7 +1,7 @@
 import * as assert from "node:assert/strict";
 import { test } from "vitest";
 
-import { gh as subpathGh } from "@dedalus/hollywood/expr";
+import { gh as subpathGh } from "@dedalus-labs/hollywood/expr";
 
 import {
 	always,
@@ -139,7 +139,7 @@ test("defineMatrix exposes typed matrix references", () => {
 
 test("valueOr preserves primitive expression types", () => {
 	const branchRef: GitHubExpression<string> = valueOr(github.headRef, github.refName);
-	void branchRef;
+	assert.equal(branchRef, "${{ github.head_ref || github.ref_name }}");
 
 	// @ts-expect-error Value OR operands must share a primitive type.
 	const mixedRef = valueOr(github.refName, github.runId);

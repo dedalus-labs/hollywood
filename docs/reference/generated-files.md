@@ -67,7 +67,7 @@ The entrypoint still needs bundling into:
 The source tree can be nested:
 
 ```text
-ci/dcs/guest-artifacts.ts
+gha/dcs/guest-artifacts.ts
 ```
 
 The GitHub workflow output is flat:

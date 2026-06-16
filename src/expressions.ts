@@ -2,7 +2,7 @@ import { Lexer, Parser } from "@actions/expressions";
 
 declare const githubExpressionBrand: unique symbol;
 
-const typedMatrixSymbol = Symbol.for("@dedalus/hollywood.typed-matrix");
+const typedMatrixSymbol = Symbol.for("@dedalus-labs/hollywood.typed-matrix");
 
 export type GitHubExpression<Value = unknown> = string & {
 	readonly [githubExpressionBrand]: Value;

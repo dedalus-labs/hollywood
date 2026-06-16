@@ -1,0 +1,38 @@
+# --- CODEOWNERS ---
+#
+# Rules are evaluated bottom-up; last match wins.
+# Keep this file sorted by specificity: broad rules first, narrow overrides last.
+
+# ============================================================================
+# Default
+# ============================================================================
+
+*                                                   @windsornguyen
+
+# ============================================================================
+# GitHub, release, and generated workflow sources
+# ============================================================================
+
+/.github/                                           @windsornguyen
+/gha/                                               @windsornguyen
+
+# ============================================================================
+# Package source and tooling
+# ============================================================================
+
+/src/                                               @windsornguyen
+/package.json                                       @windsornguyen
+/package-lock.json                                  @windsornguyen
+/tsconfig.json                                      @windsornguyen
+/tsdown.config.ts                                   @windsornguyen
+/vitest.config.ts                                   @windsornguyen
+
+# ============================================================================
+# Public docs and policy
+# ============================================================================
+
+/README.md                                          @windsornguyen
+/CONTRIBUTING.md                                    @windsornguyen
+/SECURITY.md                                        @windsornguyen
+/docs/                                              @windsornguyen
+/mkdocs.yml                                         @windsornguyen
