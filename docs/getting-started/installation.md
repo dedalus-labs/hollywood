@@ -65,6 +65,8 @@ GitHub Actions JavaScript action contract.
 Serve these docs locally with MkDocs:
 
 ```bash
+python3 -m venv .venv
+. .venv/bin/activate
 python -m pip install -r docs/requirements.txt
 python -m mkdocs serve -f mkdocs.yml
 ```
@@ -72,6 +74,8 @@ python -m mkdocs serve -f mkdocs.yml
 Build them with strict link validation:
 
 ```bash
+python3 -m venv .venv
+. .venv/bin/activate
 python -m pip install -r docs/requirements.txt
 python -m mkdocs build --strict -f mkdocs.yml
 ```
