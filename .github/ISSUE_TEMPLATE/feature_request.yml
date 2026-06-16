@@ -11,6 +11,8 @@ body:
       value: |
         Before opening a new request, search existing issues first. If the idea already exists, add a reaction or comment there.
 
+        Check `ROADMAP.md` before filing. If your idea matches a roadmap lane, explain which lane it fits.
+
         Hollywood intentionally keeps the public API small. The strongest requests show the workflow pain, the target generated YAML, and why existing primitives do not cover it.
 
   - type: textarea

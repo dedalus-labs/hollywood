@@ -25,6 +25,11 @@ maintainer-owned trust state.
 
 ## Pull Requests
 
+For future work, start with [ROADMAP.md](ROADMAP.md). If the idea is concrete,
+open or comment on a GitHub issue before implementing it. Public API changes,
+generated YAML changes, and new workflow primitives should have issue context
+before a pull request.
+
 Before opening a code PR:
 
 ```bash
