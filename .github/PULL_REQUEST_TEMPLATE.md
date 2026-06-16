@@ -24,8 +24,8 @@
 - [ ] `npm run typecheck`
 - [ ] `npm test`
 - [ ] `npm run build`
-- [ ] `npm run check:generated`
-- [ ] `npm pack --dry-run`
+- [ ] `npm run check`
+- [ ] `npm run package`
 
 ## Generated Output
 

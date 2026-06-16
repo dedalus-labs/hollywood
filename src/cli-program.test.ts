@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "vitest";
 
-import { createHollywoodCli, generate, run } from "./cli-program";
+import { check, createHollywoodCli, generate, run } from "./cli-program";
 
 test("generate discovers exported actions from source files", async () => {
 	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
@@ -254,6 +254,89 @@ test("createHollywoodCli parses space-separated run command", async () => {
 	]);
 
 	assert.deepEqual(output, ["output\tgreeting=hello Hollywood\n"]);
+});
+
+test("check accepts pinned workflows", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
+	const output: string[] = [];
+	await writeSource(join(root, ".github/workflows/ci.yml"), [
+		"name: CI",
+		"on: push",
+		"jobs:",
+		"  test:",
+		"    runs-on: ubuntu-latest",
+		"    steps:",
+		"      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10",
+		"",
+	]);
+
+	await check(
+		{
+			generated: false,
+			output: root,
+			sourceRoot: "ci",
+			workflowSecurity: true,
+			workflowsDir: ".github/workflows",
+		},
+		{ writeOut: (message) => output.push(message) },
+	);
+
+	assert.deepEqual(output, ["ok\tworkflow security\n"]);
+});
+
+test("check rejects mutable workflow actions", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
+	await writeSource(join(root, ".github/workflows/ci.yml"), [
+		"name: CI",
+		"on: push",
+		"jobs:",
+		"  test:",
+		"    runs-on: ubuntu-latest",
+		"    steps:",
+		"      - uses: actions/checkout@v6",
+		"",
+	]);
+
+	await assert.rejects(
+		() =>
+			check(
+				{
+					generated: false,
+					output: root,
+					sourceRoot: "ci",
+					workflowSecurity: true,
+					workflowsDir: ".github/workflows",
+				},
+				{ writeOut: () => {} },
+			),
+		/mutable action references/,
+	);
+});
+
+test("createHollywoodCli parses space-separated check command", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
+	const output: string[] = [];
+	await writeSource(join(root, ".github/workflows/ci.yml"), [
+		"name: CI",
+		"on: push",
+		"jobs:",
+		"  test:",
+		"    runs-on: ubuntu-latest",
+		"    steps:",
+		"      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10",
+		"",
+	]);
+
+	await createHollywoodCli({ writeOut: (message) => output.push(message) }).parseAsync([
+		"node",
+		"hollywood",
+		"check",
+		"--workflow-security",
+		"--output",
+		root,
+	]);
+
+	assert.deepEqual(output, ["ok\tworkflow security\n"]);
 });
 
 test("run wraps action commands in Lima when requested", async () => {
