@@ -394,12 +394,6 @@ pip install -r docs/requirements.txt
 mkdocs serve
 ```
 
-## Release
-
-Releases are handled through Release Please. Normal commits land on `main`.
-Release Please opens a release PR with the changelog and version bump. Merging
-that PR publishes the package through the trusted publishing workflow.
-
 ## Development
 
 ```bash
