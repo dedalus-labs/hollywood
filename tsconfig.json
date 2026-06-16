@@ -11,6 +11,6 @@
 			"@dedalus-labs/hollywood/expr": ["./src/expr.ts"]
 		}
 	},
-	"include": ["ci/**/*.ts", "src/**/*.ts", "examples/**/*.ts"],
+	"include": ["gha/**/*.ts", "src/**/*.ts", "examples/**/*.ts"],
 	"exclude": ["node_modules"]
 }

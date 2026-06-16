@@ -33,7 +33,7 @@ Use `nodeExec`, `nodeFs`, and `nodeLog` when the script should run on the local
 machine. The CLI path is:
 
 ```bash
-hollywood run ci/dcs/dm/package-artifact.ts \
+hollywood run gha/dcs/dm/package-artifact.ts \
   --export bakeSnapshot \
   --with toolBinary=/usr/local/bin/artifact-packager \
   --with memoryMibMax=32768
@@ -59,7 +59,7 @@ This is useful for scripts that call local tools such as `aws`, `tar`, `zstd`,
 Use `--lima <name>` when the script should run commands inside a Linux VM:
 
 ```bash
-hollywood run ci/go/s3-cache.ts \
+hollywood run gha/go/s3-cache.ts \
   --export s3Cache \
   --lima kvm \
   --start-vm \

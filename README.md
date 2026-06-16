@@ -91,7 +91,7 @@ GitHub-facing contract typed while letting existing tools do the work.
 
 ```typescript
 await exec("python3", [
-	"ci/scripts/publish_artifact.py",
+	"gha/scripts/publish_artifact.py",
 	"--bucket",
 	input.bucket,
 	"--key",
@@ -180,7 +180,7 @@ await runAction(bakeSnapshot, {
 Generate ordinary GitHub Actions files:
 
 ```bash
-hollywood generate "ci/**/*.ts" --output .
+hollywood generate "gha/**/*.ts" --output .
 ```
 
 ```yaml
@@ -200,7 +200,7 @@ Linux. It does not pretend to execute whole GitHub workflow jobs locally.
 Run an exported action directly on the host:
 
 ```bash
-hollywood run ci/dcs/dm/package-artifact.ts \
+hollywood run gha/dcs/dm/package-artifact.ts \
   --export bakeSnapshot \
   --with toolBinary=/usr/local/bin/artifact-packager \
   --with kernel=/tmp/vmlinux \
@@ -214,7 +214,7 @@ hollywood run ci/dcs/dm/package-artifact.ts \
 Run the same action with every `exec(file, args)` call routed through Lima:
 
 ```bash
-hollywood run ci/go/s3-cache.ts \
+hollywood run gha/go/s3-cache.ts \
   --export s3Cache \
   --lima kvm \
   --start-vm \
@@ -430,8 +430,8 @@ uses(bakeSnapshot, {
 });
 renderWorkflowFile(
 	generateWorkflowFile({
-		sourcePath: "ci/dcs/guest-artifacts.ts",
-		sourceRoot: "ci",
+		sourcePath: "gha/dcs/guest-artifacts.ts",
+		sourceRoot: "gha",
 		workflowsDir: ".github/workflows",
 		generatedAt: new Date("2026-05-14T00:00:00.000Z"),
 		workflow: workflow({
@@ -466,8 +466,8 @@ const changes = pathDependencies("changes", {
 
 renderWorkflowFile(
 	generateWorkflowFile({
-		sourcePath: "ci/dcs/static-validation.ts",
-		sourceRoot: "ci",
+		sourcePath: "gha/dcs/static-validation.ts",
+		sourceRoot: "gha",
 		workflowsDir: ".github/workflows",
 		workflow: workflow({
 			name: "DCS Static Validation",
@@ -523,7 +523,7 @@ await writeGeneratedFiles(
 );
 
 // Or let the CLI discover exported actions and workflows:
-// hollywood generate "ci/**/*.ts" --output .
+// hollywood generate "gha/**/*.ts" --output .
 
 void runGitHubAction(bakeSnapshot);
 

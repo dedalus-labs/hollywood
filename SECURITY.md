@@ -37,7 +37,7 @@ Rules for workflows in this repository:
   or secrets.
 - Keep top-level pull request permissions read-only.
 - Pin every third-party `uses:` action to a full commit SHA.
-- Author workflows in `ci/*.ts` and regenerate YAML with Hollywood.
+- Author workflows in `gha/*.ts` and regenerate YAML with Hollywood.
 - Treat generated workflow YAML as build output. Do not handwrite
   `.github/workflows/*.yml` or `.github/actions/**/action.yml`.
 - Publish packages only from release workflows, never from pull request
@@ -53,7 +53,7 @@ request code.
 
 When adding or changing CI/CD:
 
-1. Edit Hollywood source under `ci/`.
+1. Edit Hollywood source under `gha/`.
 2. Regenerate workflows with `npm run generate`.
 3. Run `npm run check` before opening or merging the change.
 4. Keep verification jobs separate from release or publish jobs.

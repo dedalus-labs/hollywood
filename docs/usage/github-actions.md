@@ -94,8 +94,8 @@ const build = defineMatrix({
 } as const);
 
 generateWorkflowFile({
-	sourcePath: "ci/dcs/guest-artifacts.ts",
-	sourceRoot: "ci",
+	sourcePath: "gha/dcs/guest-artifacts.ts",
+	sourceRoot: "gha",
 	workflowsDir: ".github/workflows",
 	workflow: workflow({
 		name: "DCS Guest Artifacts",
@@ -126,7 +126,7 @@ generateWorkflowFile({
 The source path is flattened:
 
 ```text
-ci/dcs/guest-artifacts.ts
+gha/dcs/guest-artifacts.ts
 ```
 
 becomes:
@@ -165,8 +165,8 @@ const changes = pathDependencies("changes", {
 });
 
 generateWorkflowFile({
-	sourcePath: "ci/dcs/static-validation.ts",
-	sourceRoot: "ci",
+	sourcePath: "gha/dcs/static-validation.ts",
+	sourceRoot: "gha",
 	workflowsDir: ".github/workflows",
 	workflow: workflow({
 		name: "DCS Static Validation",
@@ -202,7 +202,7 @@ closed.
 Point the CLI at source files that export Hollywood actions or workflows:
 
 ```bash
-hollywood generate "ci/**/*.ts" --output .
+hollywood generate "gha/**/*.ts" --output .
 ```
 
 Hollywood discovers exports by shape:
@@ -215,7 +215,7 @@ Hollywood discovers exports by shape:
 For example, this source tree:
 
 ```text
-ci/
+gha/
   actions/
     s3-cache.ts
   workflows/

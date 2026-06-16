@@ -70,7 +70,7 @@ export const createCli = (io: CliIo = processIo()): Command => {
 		.argument("<sources...>", "Source files or glob patterns")
 		.option("--actions-dir <dir>", "Generated actions directory", ".github/actions")
 		.option("-o, --output <dir>", "Output directory", ".")
-		.option("--source-root <dir>", "Workflow source root", "ci")
+		.option("--source-root <dir>", "Workflow source root", "gha")
 		.option("--workflows-dir <dir>", "Generated workflows directory", ".github/workflows")
 		.action(async (sources, options) => {
 			await generate({ sources, ...options }, io);
@@ -82,7 +82,7 @@ export const createCli = (io: CliIo = processIo()): Command => {
 		.option("--generated", "Check generated files are current", false)
 		.option("--workflow-security", "Check workflow security policy", false)
 		.option("-o, --output <dir>", "Repository root", ".")
-		.option("--source-root <dir>", "Workflow source root", "ci")
+		.option("--source-root <dir>", "Workflow source root", "gha")
 		.option("--workflows-dir <dir>", "Generated workflows directory", ".github/workflows")
 		.action(async (options) => {
 			const selected = options.generated || options.workflowSecurity;

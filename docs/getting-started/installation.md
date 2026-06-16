@@ -16,13 +16,13 @@ npm install --save-dev @dedalus-labs/hollywood
 That installs the `hollywood` binary:
 
 ```bash
-npx hollywood generate "ci/**/*.ts" --output .
+npx hollywood generate "gha/**/*.ts" --output .
 ```
 
 Run an exported action locally:
 
 ```bash
-npx hollywood run ci/s3-cache.ts --export s3Cache --with mode=restore
+npx hollywood run gha/s3-cache.ts --export s3Cache --with mode=restore
 ```
 
 GitHub JavaScript actions need a bundled entrypoint. Hollywood generates the
