@@ -60,6 +60,6 @@
 	],
 	"release-type": "node",
 	"extra-files": [
-		"src/cli-program.ts"
+		"src/commands.ts"
 	]
 }

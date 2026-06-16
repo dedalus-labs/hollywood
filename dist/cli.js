@@ -3641,9 +3641,9 @@ const silentLog = {
 	group: async (_name, run) => run()
 };
 //#endregion
-//#region src/cli-program.ts
+//#region src/commands.ts
 const hollywoodVersion = "0.0.1-alpha.0";
-const createHollywoodCli = (io = processIo()) => {
+const createCli = (io = processIo()) => {
 	const program = new Command().name("hollywood").description("Lights, cameras, Actions!").version(hollywoodVersion);
 	program.command("generate").description("Generate GitHub Actions files").argument("<sources...>", "Source files or glob patterns").option("--actions-dir <dir>", "Generated actions directory", ".github/actions").option("-o, --output <dir>", "Output directory", ".").option("--source-root <dir>", "Workflow source root", "ci").option("--workflows-dir <dir>", "Generated workflows directory", ".github/workflows").action(async (sources, options) => {
 		await generate({
@@ -3940,6 +3940,6 @@ const processIo = () => ({ writeOut: (message) => {
 } });
 //#endregion
 //#region src/cli.ts
-await createHollywoodCli().parseAsync();
+await createCli().parseAsync();
 //#endregion
 export {};

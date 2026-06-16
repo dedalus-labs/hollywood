@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "vitest";
 
-import { check, createHollywoodCli, generate, run } from "./cli-program";
+import { check, createCli, generate, run } from "./commands";
 
 test("generate discovers exported actions from source files", async () => {
 	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
@@ -123,7 +123,7 @@ test("generate ignores test sources matched by workflow globs", async () => {
 	assert.deepEqual(output, ["created\t.github/workflows/dcs-guest-artifacts.yml\n"]);
 });
 
-test("createHollywoodCli parses space-separated generate command", async () => {
+test("createCli parses space-separated generate command", async () => {
 	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
 	const sourcePath = join(root, "ci/hello.ts");
 	const output: string[] = [];
@@ -139,7 +139,7 @@ test("createHollywoodCli parses space-separated generate command", async () => {
 		"",
 	]);
 
-	await createHollywoodCli({ writeOut: (message) => output.push(message) }).parseAsync([
+	await createCli({ writeOut: (message) => output.push(message) }).parseAsync([
 		"node",
 		"hollywood",
 		"generate",
@@ -228,7 +228,7 @@ test("run bundles source package imports before loading", async () => {
 	assert.deepEqual(output, ["output\tgreeting=hello Hollywood\n"]);
 });
 
-test("createHollywoodCli parses space-separated run command", async () => {
+test("createCli parses space-separated run command", async () => {
 	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
 	const sourcePath = join(root, "ci/hello.ts");
 	const output: string[] = [];
@@ -244,7 +244,7 @@ test("createHollywoodCli parses space-separated run command", async () => {
 		"",
 	]);
 
-	await createHollywoodCli({ writeOut: (message) => output.push(message) }).parseAsync([
+	await createCli({ writeOut: (message) => output.push(message) }).parseAsync([
 		"node",
 		"hollywood",
 		"run",
@@ -367,7 +367,7 @@ test("check rejects handwritten local action metadata", async () => {
 	);
 });
 
-test("createHollywoodCli parses space-separated check command", async () => {
+test("createCli parses space-separated check command", async () => {
 	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
 	const output: string[] = [];
 	await writeSource(join(root, ".github/workflows/ci.yml"), [
@@ -381,7 +381,7 @@ test("createHollywoodCli parses space-separated check command", async () => {
 		"",
 	]);
 
-	await createHollywoodCli({ writeOut: (message) => output.push(message) }).parseAsync([
+	await createCli({ writeOut: (message) => output.push(message) }).parseAsync([
 		"node",
 		"hollywood",
 		"check",
