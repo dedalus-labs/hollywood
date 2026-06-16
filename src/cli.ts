@@ -1,5 +1,5 @@
 #!/usr/bin/env node
 
-import { createHollywoodCli } from "./cli-program";
+import { createCli } from "./commands";
 
-await createHollywoodCli().parseAsync();
+await createCli().parseAsync();

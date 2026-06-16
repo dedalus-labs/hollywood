@@ -58,7 +58,7 @@ export type CliIo = Readonly<{
 	writeOut: (message: string) => void;
 }>;
 
-export const createHollywoodCli = (io: CliIo = processIo()): Command => {
+export const createCli = (io: CliIo = processIo()): Command => {
 	const program = new Command()
 		.name("hollywood")
 		.description("Lights, cameras, Actions!")
