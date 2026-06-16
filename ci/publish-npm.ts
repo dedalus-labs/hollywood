@@ -22,14 +22,14 @@ export const publishNpm = workflow({
 			},
 			steps: [
 				{
-					uses: "actions/checkout@v4",
+					uses: "actions/checkout@v6",
 					with: {
 						ref: "${{ github.event.release.tag_name || github.ref }}",
 						"persist-credentials": false,
 					},
 				},
 				{
-					uses: "actions/setup-node@v4",
+					uses: "actions/setup-node@v6",
 					with: {
 						"node-version": "24",
 						"registry-url": "https://registry.npmjs.org",
