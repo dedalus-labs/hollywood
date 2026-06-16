@@ -27,6 +27,26 @@ adapter around your typed script.
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the CLA/Vouch contribution flow and
 [SECURITY.md](SECURITY.md) for the GitHub Actions hardening policy.
 
+## Contributing and Vouch
+
+Hollywood accepts external code from vouched contributors. Being listed in
+`VOUCHED.td` means a maintainer has verified the GitHub account and recorded
+that the contributor accepted [CLA.md](CLA.md).
+
+The flow is:
+
+1. Open a "Vouch request" issue.
+2. Confirm that you have read and accept `CLA.md`.
+3. Link public GitHub work, a project website, or another public identity that
+   helps a maintainer recognize you.
+4. If an existing vouched contributor knows you, ask them to comment on the
+   issue.
+5. A maintainer adds your GitHub handle to `VOUCHED.td`.
+
+Do not add yourself to `VOUCHED.td` in your first contribution. The CLA check
+reads that file from the trusted base branch, so normal pull requests cannot
+self-vouch.
+
 ## Install
 
 ```bash
