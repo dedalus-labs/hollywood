@@ -56,6 +56,23 @@ npm install --save-dev @dedalus-labs/hollywood
 
 Hollywood targets Node 24.
 
+## Small Dependency Surface
+
+Hollywood is intentionally lightweight. The package has six direct runtime
+dependencies:
+
+- `@actions/core`
+- `@actions/exec`
+- `@actions/expressions`
+- `@actions/workflow-parser`
+- `esbuild`
+- `yaml`
+
+Most of that surface is GitHub's own action toolkit and schema parser. The
+published package only ships runtime files, type declarations, package metadata,
+the README, and the license. A smaller dependency graph is easier to audit and
+reduces npm supply-chain exposure.
+
 ## Before / After
 
 Before Hollywood, a container publish step might look like this:
