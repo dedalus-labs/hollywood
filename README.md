@@ -245,7 +245,8 @@ const args = [
 await exec("docker", args);
 ```
 
-That is `execve(2)`-shaped: one executable path and one array of arguments.
+That is [`execve(2)`](https://man7.org/linux/man-pages/man2/execve.2.html)-shaped:
+one executable path and one array of arguments.
 There is no shell interpolation and no YAML quoting puzzle.
 
 ## Local Runs
