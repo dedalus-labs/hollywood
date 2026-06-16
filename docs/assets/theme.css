@@ -1,4 +1,4 @@
-/* Hollywood docs theme - rose velvet and champagne */
+/* Hollywood docs theme - rose velvet, red carpet, and champagne flashbulbs */
 
 :root {
   --hollywood-velvet: #24070d;
@@ -8,6 +8,7 @@
   --hollywood-rose-hover: #a51c36;
   --hollywood-rose-muted: rgba(199, 41, 73, 0.14);
   --hollywood-champagne: #f6c65b;
+  --hollywood-flash: #fff3b8;
   --hollywood-champagne-soft: rgba(246, 198, 91, 0.2);
   --hollywood-ivory: #fffaf1;
   --hollywood-paper: #fff7f7;
@@ -16,6 +17,7 @@
   --hollywood-muted: #6f5b61;
   --hollywood-code: #f7ecee;
   --hollywood-border: #ead7dc;
+  --hollywood-tuxedo: #130f12;
 }
 
 [data-md-color-scheme="default"] {
@@ -52,6 +54,21 @@
 .md-header {
   background: var(--hollywood-velvet);
   border-bottom: 3px solid var(--hollywood-champagne);
+  position: relative;
+}
+
+.md-header::after {
+  background-image:
+    radial-gradient(circle, var(--hollywood-flash) 0 38%, transparent 42%),
+    linear-gradient(90deg, var(--hollywood-burgundy), var(--hollywood-rose), var(--hollywood-burgundy));
+  background-position: 0 0, 0 0;
+  background-size: 28px 6px, 100% 100%;
+  bottom: -3px;
+  content: "";
+  height: 6px;
+  left: 0;
+  position: absolute;
+  right: 0;
 }
 
 .md-header,
@@ -66,6 +83,11 @@
 
 .md-search__input::placeholder {
   color: rgba(255, 250, 241, 0.65);
+}
+
+.md-header .md-logo img,
+.md-header .md-logo svg {
+  filter: drop-shadow(0 0 7px rgba(246, 198, 91, 0.45));
 }
 
 .md-tabs {
@@ -102,6 +124,12 @@
   color: var(--md-code-fg-color);
 }
 
+.md-typeset table:not([class]) th {
+  background-color: var(--hollywood-tuxedo);
+  border-bottom: 2px solid var(--hollywood-champagne);
+  color: var(--hollywood-ivory);
+}
+
 [data-md-color-scheme="slate"] .md-typeset code {
   background-color: rgba(246, 198, 91, 0.12);
   color: var(--hollywood-champagne);
@@ -118,6 +146,55 @@
   border-color: var(--hollywood-rose-hover);
 }
 
+.hollywood-hero {
+  background:
+    radial-gradient(circle at 88% 18%, rgba(255, 243, 184, 0.9) 0 2px, transparent 3px),
+    radial-gradient(circle at 93% 32%, rgba(255, 243, 184, 0.7) 0 1px, transparent 3px),
+    radial-gradient(circle at 82% 42%, rgba(255, 243, 184, 0.65) 0 1px, transparent 3px),
+    linear-gradient(90deg, rgba(127, 16, 34, 0.12), transparent 30% 70%, rgba(127, 16, 34, 0.12));
+  border-bottom: 1px solid var(--hollywood-border);
+  border-top: 1px solid var(--hollywood-border);
+  margin: 0 0 1.8rem;
+  overflow: hidden;
+  padding: 1.2rem 0 1.4rem;
+  position: relative;
+}
+
+.hollywood-hero::before,
+.hollywood-hero::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+}
+
+.hollywood-hero::before {
+  background:
+    linear-gradient(90deg, transparent, rgba(246, 198, 91, 0.35), transparent),
+    repeating-linear-gradient(90deg, transparent 0 18px, rgba(246, 198, 91, 0.35) 19px 21px, transparent 22px 40px);
+  height: 1px;
+  left: 0;
+  right: 0;
+  top: 0.55rem;
+}
+
+.hollywood-hero::after {
+  background:
+    linear-gradient(90deg, transparent, rgba(199, 41, 73, 0.22), transparent),
+    linear-gradient(180deg, rgba(127, 16, 34, 0.08), transparent);
+  border-radius: 999px 999px 0 0;
+  bottom: -18px;
+  height: 44px;
+  left: 12%;
+  right: 12%;
+}
+
+.hollywood-kicker {
+  color: var(--hollywood-rose);
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: -0.35rem 0 1rem;
+}
+
 .md-typeset h1 {
   color: var(--hollywood-velvet);
   font-weight: 650;
@@ -130,6 +207,19 @@
 
 [data-md-color-scheme="slate"] .md-typeset h1 {
   color: var(--hollywood-ivory);
+}
+
+[data-md-color-scheme="slate"] .hollywood-hero {
+  background:
+    radial-gradient(circle at 88% 18%, rgba(255, 243, 184, 0.65) 0 2px, transparent 3px),
+    radial-gradient(circle at 93% 32%, rgba(255, 243, 184, 0.55) 0 1px, transparent 3px),
+    radial-gradient(circle at 82% 42%, rgba(255, 243, 184, 0.45) 0 1px, transparent 3px),
+    linear-gradient(90deg, rgba(127, 16, 34, 0.45), transparent 32% 68%, rgba(127, 16, 34, 0.45));
+  border-color: rgba(246, 198, 91, 0.2);
+}
+
+[data-md-color-scheme="slate"] .hollywood-kicker {
+  color: var(--hollywood-champagne);
 }
 
 [data-md-color-scheme="slate"] .md-typeset h2 {
@@ -177,4 +267,22 @@
 .md-typeset .tip > .admonition-title::before,
 .md-typeset .tip > summary::before {
   background-color: var(--hollywood-champagne);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .md-header::after {
+    animation: hollywood-flashbulbs 4s linear infinite;
+  }
+}
+
+@keyframes hollywood-flashbulbs {
+  0%,
+  100% {
+    background-position: 0 0, 0 0;
+    opacity: 0.86;
+  }
+  45% {
+    background-position: 14px 0, 0 0;
+    opacity: 1;
+  }
 }

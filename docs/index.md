@@ -2,9 +2,15 @@
 description: TypeScript scripts for GitHub Actions, without shell-in-YAML.
 ---
 
+<div class="hollywood-hero" markdown="1">
+
 # Hollywood
 
+<p class="hollywood-kicker">Lights, cameras, Actions!</p>
+
 TypeScript scripts for GitHub Actions, without shell-in-YAML.
+
+</div>
 
 Hollywood keeps GitHub Actions as the orchestration layer. GitHub still decides
 when jobs run, which runner label they need, which secrets exist, and how jobs
