@@ -8,12 +8,25 @@ TypeScript scripts for GitHub Actions, without shell-in-YAML.
 
 <p class="hollywood-motto">"Lights, Cameras, (GitHub) Actions!"</p>
 
+Hollywood is AI-native and AI-friendly. These docs include copy-page controls
+for humans and generated context for agents. Point your agent here and let it
+work from the same source of truth:
+
+- [llms.txt](https://oss.dedaluslabs.ai/hollywood/llms.txt) - compact project
+  context for agent prompts.
+- [llms-full.txt](https://oss.dedaluslabs.ai/hollywood/llms-full.txt) - full
+  documentation context for deeper work.
+
 Hollywood keeps GitHub Actions as the orchestration layer. GitHub still decides
 when jobs run, which runner label they need, which secrets exist, and how jobs
 depend on each other.
 
 Hollywood replaces the part GitHub Actions is bad at: writing imperative
 programs inside YAML strings.
+
+The position is loud on purpose: developers should not be spending their time
+painstakingly handwriting imperative GitHub Actions YAML. YAML should
+orchestrate. Typed TypeScript should program.
 
 ```typescript
 await exec("docker", [
@@ -78,8 +91,8 @@ programs:
 
 **For large language models:**
 
-- `llms.txt`
-- `llms-full.txt`
+- [llms.txt](https://oss.dedaluslabs.ai/hollywood/llms.txt)
+- [llms-full.txt](https://oss.dedaluslabs.ai/hollywood/llms-full.txt)
 
 **Viewing locally:**
 

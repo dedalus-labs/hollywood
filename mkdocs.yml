@@ -57,7 +57,7 @@ plugins:
   - llmstxt:
       full_output: llms-full.txt
       markdown_description: |
-        Hollywood is a TypeScript scripting library for GitHub Actions.
+        Hollywood is an AI-native TypeScript scripting library for GitHub Actions.
         It moves imperative CI/CD logic out of YAML and into testable scripts
         while generating ordinary action.yml files, workflow YAML, and
         GitHub-compatible action entrypoints.
