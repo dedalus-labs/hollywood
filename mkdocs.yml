@@ -76,7 +76,7 @@ plugins:
           - usage/local-services.md
         Recipes:
           - recipes/s3-cache.md
-          - recipes/package-artifact.md
+          - recipes/publish-container-image.md
         Reference:
           - reference/api.md
           - reference/generated-files.md
@@ -141,7 +141,7 @@ nav:
   - Recipes:
       - Overview: recipes/index.md
       - S3 Cache: recipes/s3-cache.md
-      - Package Artifact: recipes/package-artifact.md
+      - Publish Container Image: recipes/publish-container-image.md
   - Reference:
       - Overview: reference/index.md
       - API Surface: reference/api.md

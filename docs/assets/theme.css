@@ -158,12 +158,25 @@
   padding-bottom: 0.3em;
 }
 
+.hollywood-motto {
+  border-left: 3px solid var(--hollywood-champagne);
+  color: var(--hollywood-burgundy);
+  font-weight: 650;
+  font-style: italic;
+  margin: 1rem 0 1.2rem;
+  padding-left: 0.75rem;
+}
+
 [data-md-color-scheme="slate"] .md-typeset h1 {
   color: var(--hollywood-ivory);
 }
 
 [data-md-color-scheme="slate"] .md-typeset h2 {
   border-bottom-color: rgba(246, 198, 91, 0.24);
+}
+
+[data-md-color-scheme="slate"] .hollywood-motto {
+  color: var(--hollywood-champagne);
 }
 
 ::selection {

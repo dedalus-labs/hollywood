@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "vitest";
 
-import { bakeSnapshot } from "../examples/package-artifact";
+import { publishImage } from "../examples/publish-container-image";
 import {
 	requestPreviewToMainPromotion,
 	type GitHubWorkflowDispatch,
@@ -33,22 +33,22 @@ import {
 import { nodeExec, nodeFs } from "./local";
 import { runAction, type Command, type ScriptLog } from "./script";
 
-test("package-artifact example generates action files and runs locally", async () => {
+test("publish-container-image example generates action files and runs locally", async () => {
 	const outputDir = await mkdtemp(join(tmpdir(), "hollywood-examples-"));
 	const commands: Command[] = [];
 	const events: string[] = [];
 
 	await writeGeneratedFiles(
 		[
-			generateActionFile(bakeSnapshot, {
-				sourcePath: "examples/package-artifact.ts",
+			generateActionFile(publishImage, {
+				sourcePath: "examples/publish-container-image.ts",
 				actionsDir: ".github/actions",
 				generatedAt: new Date("2026-05-14T00:00:00.000Z"),
 			}),
-			generateActionEntrypointFile(bakeSnapshot, {
-				sourcePath: "examples/package-artifact.ts",
+			generateActionEntrypointFile(publishImage, {
+				sourcePath: "examples/publish-container-image.ts",
 				actionsDir: ".github/actions",
-				exportName: "bakeSnapshot",
+				exportName: "publishImage",
 				generatedAt: new Date("2026-05-14T00:00:00.000Z"),
 			}),
 		],
@@ -56,43 +56,31 @@ test("package-artifact example generates action files and runs locally", async (
 	);
 
 	assert.match(
-		await readFile(join(outputDir, ".github/actions/dcs-package-artifact/action.yml"), "utf8"),
+		await readFile(join(outputDir, ".github/actions/publish-container-image/action.yml"), "utf8"),
 		/runs:\n  using: node24\n  main: dist\/index\.js/,
 	);
 	assert.deepEqual(
-		generateUsesStep(bakeSnapshot, {
-			name: "Bake release artifact",
-			uses: "./.github/actions/dcs-package-artifact",
+		generateUsesStep(publishImage, {
+			name: "Publish container image",
+			uses: "./.github/actions/publish-container-image",
 			with: {
-				toolBinary: "/usr/local/bin/artifact-packager",
-				kernel: "/tmp/vmlinux",
-				rootfs: "/tmp/rootfs.raw",
-				output: "/tmp/snapshot",
-				memoryMibMax: "${{ inputs.max_machine_memory_mib }}",
-				maxVcpus: "${{ inputs.max_machine_burst_vcpus }}",
-				imageVersion: "noble@2026.05.14",
+				image: "ghcr.io/acme/api",
+				tag: "${{ github.sha }}",
+				provenance: "true",
 			},
 		}).with,
 		{
-			"tool-binary": "/usr/local/bin/artifact-packager",
-			kernel: "/tmp/vmlinux",
-			rootfs: "/tmp/rootfs.raw",
-			output: "/tmp/snapshot",
-			"memory-mib-max": "${{ inputs.max_machine_memory_mib }}",
-			"max-vcpus": "${{ inputs.max_machine_burst_vcpus }}",
-			"image-version": "noble@2026.05.14",
+			image: "ghcr.io/acme/api",
+			tag: "${{ github.sha }}",
+			provenance: "true",
 		},
 	);
 
-	const outputs = await runAction(bakeSnapshot, {
+	const outputs = await runAction(publishImage, {
 		with: {
-			toolBinary: "/usr/local/bin/artifact-packager",
-			kernel: "/tmp/vmlinux",
-			rootfs: "/tmp/rootfs.raw",
-			output: "/tmp/snapshot",
-			memoryMibMax: "32768",
-			maxVcpus: "16",
-			imageVersion: "noble@2026.05.14",
+			image: "ghcr.io/acme/api",
+			tag: "sha-abc123",
+			provenance: "true",
 		},
 		exec: async (file, args, options) => {
 			commands.push({ file, args, ...options });
@@ -103,16 +91,10 @@ test("package-artifact example generates action files and runs locally", async (
 		runner: { uidGid: "1001:1001" },
 	});
 
-	assert.deepEqual(outputs, {
-		snapshotDir: "/tmp/snapshot",
-		templatesDir: "/tmp/templates",
-		epoch0Dir: "/tmp/epoch0",
-	});
-	assert.equal(commands[0]?.args[0], "artifact-pack");
-	assert.deepEqual(events, [
-		"group:Bake release artifact",
-		"group:Return bake artifacts to runner user",
-	]);
+	assert.deepEqual(outputs, { imageRef: "ghcr.io/acme/api:sha-abc123" });
+	assert.equal(commands[0]?.file, "docker");
+	assert.equal(commands[0]?.args[0], "buildx");
+	assert.deepEqual(events, ["group:Publish container image"]);
 });
 
 test("s3-cache example treats restore miss as expected nonzero command", async () => {
@@ -180,7 +162,7 @@ test("github promotion admin example audits before workflow dispatch", async () 
 	const result = await requestPreviewToMainPromotion(
 		{
 			canPromoteProduction: true,
-			email: "win@dedaluslabs.ai",
+			email: "release@example.com",
 			id: "00000000-0000-4000-8000-000000000001",
 		},
 		{
@@ -223,7 +205,7 @@ test("github promotion admin example rejects unauthorized callers before dispatc
 			requestPreviewToMainPromotion(
 				{
 					canPromoteProduction: false,
-					email: "dev@dedaluslabs.ai",
+					email: "dev@example.com",
 					id: "00000000-0000-4000-8000-000000000002",
 				},
 				{ reason: "ship it" },
@@ -245,7 +227,7 @@ test("github promotion gate example verifies a successful workflow run", async (
 	const targetSha = "f".repeat(40);
 	const url = await verifyPreviewCi(
 		promotionGateRequest({
-			repository: "dedalus-labs/dedalus",
+			repository: "acme/widgets",
 			targetSha,
 			workflowName: "CI",
 		}),

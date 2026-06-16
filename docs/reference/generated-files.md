@@ -67,13 +67,13 @@ The entrypoint still needs bundling into:
 The source tree can be nested:
 
 ```text
-gha/dcs/guest-artifacts.ts
+gha/containers/release.ts
 ```
 
 The GitHub workflow output is flat:
 
 ```text
-.github/workflows/dcs-guest-artifacts.yml
+.github/workflows/containers-release.yml
 ```
 
 That satisfies GitHub's directory shape without forcing humans to keep every

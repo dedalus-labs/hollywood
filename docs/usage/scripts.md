@@ -15,7 +15,7 @@ const mode = choiceInput({
 
 const bucket = stringInput({ description: "S3 bucket name." });
 const archivePath = pathInput({ description: "Temporary archive path." });
-const memoryMibMax = integerInput({ description: "Maximum guest memory in MiB." });
+const buildAttempt = integerInput({ description: "CI build attempt number." });
 const dryRun = booleanInput({ description: "Skip mutating commands.", default: "false" });
 ```
 
@@ -69,8 +69,8 @@ inside one action process; workflow `strategy.max-parallel`, `needs`, and
 Scripts receive a small logger:
 
 ```typescript
-await log.group("Bake release artifact", async () => {
-	await exec("sudo", ["artifact-pack", "--output", input.output]);
+await log.group("Publish container image", async () => {
+	await exec("docker", ["buildx", "build", "--tag", input.imageRef, "--push", input.context]);
 });
 
 log.warning("Cache upload failed");
