@@ -168,9 +168,8 @@ export const flowers = workflow({
 						"private-key": "${{ secrets.CIND_BOT_APP_PRIVATE_KEY }}",
 						owner: "${{ github.repository_owner }}",
 						repositories: "hollywood",
-						"permission-issues": "write",
 						"permission-metadata": "read",
-						"permission-pull-requests": "read",
+						"permission-pull-requests": "write",
 					},
 				},
 				{
