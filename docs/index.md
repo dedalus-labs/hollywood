@@ -72,8 +72,6 @@ The first Dedalus use cases are intentionally annoying:
 **Viewing locally:**
 
 ```bash
-uvx --with mkdocs-material \
-  --with mkdocs-git-revision-date-localized-plugin \
-  --with mkdocs-llmstxt \
-  mkdocs serve -f packages/typescript/hollywood/mkdocs.yml
+python -m pip install -r docs/requirements.txt
+python -m mkdocs serve -f mkdocs.yml
 ```

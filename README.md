@@ -542,7 +542,11 @@ docs sites for `inline-tests-python` and `slurmq`.
 
 ```text
 docs/
+  assets/
+    logo.svg
+    theme.css
   index.md
+  requirements.txt
   getting-started/
     quickstart.md
   usage/
@@ -563,13 +567,13 @@ examples/
 mkdocs.yml
 ```
 
+Published docs live at <https://oss.dedaluslabs.ai/hollywood>.
+
 Serve it locally:
 
 ```bash
-uvx --with mkdocs-material \
-  --with mkdocs-git-revision-date-localized-plugin \
-  --with mkdocs-llmstxt \
-  mkdocs serve -f packages/typescript/hollywood/mkdocs.yml
+python -m pip install -r docs/requirements.txt
+python -m mkdocs serve -f mkdocs.yml
 ```
 
 The README should stay short: problem, one real example, local test, generated

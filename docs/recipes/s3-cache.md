@@ -57,10 +57,7 @@ encode it in the script.
 
 ```bash
 HOLLYWOOD_RUN_MINIO=1 \
-  pnpm exec vitest run \
-  --root packages/typescript/hollywood \
-  --config vitest.config.ts \
-  packages/typescript/hollywood/src/examples.test.ts \
+  npm test -- src/examples.test.ts \
   -t "s3-cache example saves and restores through real local MinIO"
 ```
 

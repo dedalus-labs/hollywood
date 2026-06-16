@@ -11,7 +11,7 @@
 	"bugs": {
 		"url": "https://github.com/dedalus-labs/hollywood/issues"
 	},
-	"homepage": "https://github.com/dedalus-labs/hollywood#readme",
+	"homepage": "https://oss.dedaluslabs.ai/hollywood",
 	"bin": {
 		"hollywood": "dist/cli.js"
 	},
