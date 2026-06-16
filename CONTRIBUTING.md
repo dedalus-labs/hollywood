@@ -37,12 +37,37 @@ npm run check
 npm run package
 ```
 
+Use Conventional Commits so Release Please can build the changelog and version
+bump from merged history:
+
+```text
+feat(cli): add watch mode
+fix(expr): preserve boolean inputs
+docs: clarify generated workflow output
+```
+
+`feat` and `fix` commits are releasable. `docs`, `test`, `chore`, `ci`,
+`style`, `refactor`, and `build` commits may appear in the changelog, but they
+do not drive a release by themselves.
+
 Generated workflow YAML is committed, but it is not handwritten. Edit files in
 `ci/`, then run:
 
 ```bash
 npm run generate
 ```
+
+## Release Flow
+
+Contributors do not publish releases directly. Merge normal contribution PRs
+into `main`; each push lets Release Please update a single release PR with the
+next version, changelog, and package metadata.
+
+When maintainers are ready to release, they merge the Release Please PR into
+`main`. That merge creates the GitHub release, and the npm publishing workflow
+publishes the tagged package. Do not edit `package.json`, `CHANGELOG.md`, or
+`.release-please-manifest.json` by hand unless a maintainer asks for a manual
+release repair.
 
 ## Security
 
