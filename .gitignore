@@ -1,4 +1,5 @@
 node_modules/
+.github/actions/**/dist/
 .DS_Store
 .cache/
 coverage/
