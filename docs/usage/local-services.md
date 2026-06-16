@@ -9,7 +9,7 @@ Use MinIO, an Amazon Simple Storage Service (S3)-compatible object store, for
 S3-specific tests when persistence and speed matter more than full Amazon Web
 Services (AWS) behavior.
 
-Good fit:
+Use cases:
 
 - direct S3 cache restore/save scripts
 - object upload and download
@@ -27,7 +27,7 @@ Not a fit:
 Use LocalStack, a local AWS emulator, when the script or workflow depends on
 AWS-shaped behavior across multiple services.
 
-Good fit:
+Use cases:
 
 - Terraform tests that need S3, DynamoDB, IAM, or STS endpoints
 - service containers in GitHub Actions

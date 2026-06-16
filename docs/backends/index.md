@@ -11,7 +11,7 @@ Hollywood's script contract stays the same for every backend:
 
 ## Backend Matrix
 
-| Backend                              | Status    | Good fit                                                       |
+| Backend                              | Status    | Use cases                                                      |
 | ------------------------------------ | --------- | -------------------------------------------------------------- |
 | Host process                         | Supported | Commands that should run on the current developer machine.     |
 | [Lima](lima.md)                      | Supported | Linux command execution from macOS or another host.            |
