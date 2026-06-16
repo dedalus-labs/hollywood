@@ -28,11 +28,13 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the CLA/Vouch contribution flow and
 [ROADMAP.md](ROADMAP.md) for planned contribution areas. See
 [SECURITY.md](SECURITY.md) for the GitHub Actions hardening policy.
 
-## Contributing and Vouch
+## Contributions
 
-Hollywood accepts external code from vouched contributors. Being listed in
-`VOUCHED.td` means a maintainer has verified the GitHub account and recorded
-that the contributor accepted [CLA.md](CLA.md).
+Hollywood accepts external code from vouched contributors. Due to the increased
+volume of AI-generated code, Hollywood uses [Vouch](https://github.com/mitchellh/vouch)
+as the arbiter of contributor trust and CLA eligibility for external pull
+requests. Being listed in `VOUCHED.td` means a maintainer has verified the
+GitHub account and recorded that the contributor accepted [CLA.md](CLA.md).
 
 The flow is:
 
