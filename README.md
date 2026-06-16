@@ -375,7 +375,7 @@ export default generateWorkflowFile({
 });
 ```
 
-## Good Fits
+## Use Cases
 
 Hollywood is useful when the CI/CD step is a real program:
 
