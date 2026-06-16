@@ -20,7 +20,7 @@ export const release = workflow({
 				version: "${{ steps.release.outputs.version }}",
 			},
 			steps: [
-				{ uses: "actions/checkout@v4", with: { "persist-credentials": false } },
+				{ uses: "actions/checkout@v6", with: { "persist-credentials": false } },
 				{
 					id: "release",
 					name: "Run release-please",

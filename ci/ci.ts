@@ -1,7 +1,7 @@
 import { job, workflow } from "../src/index";
 
 const setupNode = {
-	uses: "actions/setup-node@v4",
+	uses: "actions/setup-node@v6",
 	with: {
 		"node-version": "24",
 		cache: "npm",
@@ -20,7 +20,7 @@ export const ci = workflow({
 			name: "Test",
 			"runs-on": "ubuntu-latest",
 			steps: [
-				{ uses: "actions/checkout@v4", with: { "persist-credentials": false } },
+				{ uses: "actions/checkout@v6", with: { "persist-credentials": false } },
 				setupNode,
 				{ name: "Install dependencies", run: "npm ci" },
 				{ name: "Typecheck", run: "npm run typecheck" },
@@ -34,7 +34,7 @@ export const ci = workflow({
 			name: "Actionlint",
 			"runs-on": "ubuntu-latest",
 			steps: [
-				{ uses: "actions/checkout@v4", with: { "persist-credentials": false } },
+				{ uses: "actions/checkout@v6", with: { "persist-credentials": false } },
 				{ uses: "rhysd/actionlint@v1.7.9" },
 			],
 		}),
