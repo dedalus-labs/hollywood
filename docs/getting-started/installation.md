@@ -13,10 +13,28 @@ In another repository, install Hollywood as a development dependency:
 npm install --save-dev @dedalus-labs/hollywood
 ```
 
-That installs the `hollywood` binary:
+That installs a local `hollywood` binary at `node_modules/.bin/hollywood`. Run
+it with `npx hollywood ...`:
 
 ```bash
 npx hollywood generate "gha/**/*.ts" --output .
+```
+
+If you prefer npm scripts, wire the local binary once:
+
+```json
+{
+  "scripts": {
+    "actions:generate": "hollywood generate \"gha/**/*.ts\" --output .",
+    "actions:check": "hollywood check"
+  }
+}
+```
+
+Then run:
+
+```bash
+npm run actions:generate
 ```
 
 Run an exported action locally:

@@ -56,6 +56,9 @@ self-vouch.
 npm install --save-dev @dedalus-labs/hollywood
 ```
 
+That installs a local `hollywood` binary at `node_modules/.bin/hollywood`. Run
+it with `npx hollywood ...`, or put `hollywood ...` inside an npm script.
+
 Hollywood's published package targets Node 20 and newer. Generated JavaScript
 actions target GitHub's Node 24 action runtime by default. The repository
 toolchain uses newer TypeScript build tools, so contributors should use Node
@@ -254,7 +257,7 @@ There is no shell interpolation and no YAML quoting puzzle.
 Run an exported action directly on your machine:
 
 ```bash
-hollywood run gha/containers/publish-image.ts \
+npx hollywood run gha/containers/publish-image.ts \
   --export publishImage \
   --with image=ghcr.io/acme/api \
   --with tag="$(git rev-parse --short HEAD)" \
@@ -268,7 +271,7 @@ Route every `exec(file, args)` call through a Lima VM when the script needs a
 Linux environment:
 
 ```bash
-hollywood run gha/cache/s3-cache.ts \
+npx hollywood run gha/cache/s3-cache.ts \
   --export s3Cache \
   --lima default \
   --start-vm \
@@ -294,7 +297,7 @@ was not passed, the run fails before the action starts.
 Generate local action metadata and entrypoints:
 
 ```bash
-hollywood generate "gha/**/*.ts" --output .
+npx hollywood generate "gha/**/*.ts" --output .
 ```
 
 Hollywood writes ordinary GitHub Actions files:

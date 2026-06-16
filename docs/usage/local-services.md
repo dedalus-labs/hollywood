@@ -43,7 +43,7 @@ virtual machine (VM), and Hollywood routes each script `exec(file, args)` call
 through `limactl shell`.
 
 ```bash
-hollywood run gha/cache/s3-cache.ts --export s3Cache --lima default --start-vm
+npx hollywood run gha/cache/s3-cache.ts --export s3Cache --lima default --start-vm
 ```
 
 Hollywood's current VM support is action-level, not whole-workflow emulation.

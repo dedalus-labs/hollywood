@@ -104,7 +104,7 @@ typed `needs.<job>.outputs.<name> == 'true'` expressions.
 The command accepts explicit source files or glob patterns:
 
 ```bash
-hollywood generate "gha/**/*.ts" --output .
+npx hollywood generate "gha/**/*.ts" --output .
 ```
 
 Supported flags:
@@ -122,13 +122,13 @@ hardcoded paths.
 Run an action on the host:
 
 ```bash
-hollywood run gha/s3-cache.ts --export s3Cache --with mode=restore
+npx hollywood run gha/s3-cache.ts --export s3Cache --with mode=restore
 ```
 
 Run the same action with command execution routed through Lima:
 
 ```bash
-hollywood run gha/s3-cache.ts --export s3Cache --lima kvm --start-vm --with mode=restore
+npx hollywood run gha/s3-cache.ts --export s3Cache --lima kvm --start-vm --with mode=restore
 ```
 
 `--require-containerd` checks `containerd` and `nerdctl` before the action

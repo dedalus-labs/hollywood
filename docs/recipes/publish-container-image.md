@@ -81,7 +81,7 @@ Hollywood keeps the contract typed:
 ## Run locally
 
 ```bash
-hollywood run examples/publish-container-image.ts \
+npx hollywood run examples/publish-container-image.ts \
   --export publishImage \
   --with image=ghcr.io/acme/api \
   --with tag=sha-abc123 \
