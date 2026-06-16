@@ -46,10 +46,11 @@
 		"check:generated": "npm run build && npm run generate && git diff --exit-code dist .github/workflows",
 		"check:workflow-security": "node scripts/check-workflow-security.mjs",
 		"generate": "node dist/cli.js generate \"ci/**/*.ts\" --output .",
+		"lint": "oxlint --vitest-plugin --import-plugin --deny-warnings . --ignore-pattern dist --ignore-pattern node_modules --ignore-pattern .github",
 		"pack:check": "npm pack --dry-run",
 		"prepack": "npm run build",
 		"test": "vitest run --config vitest.config.ts",
-		"typecheck": "tsc --noEmit"
+		"typecheck": "tsgo --noEmit"
 	},
 	"publishConfig": {
 		"access": "public",
@@ -66,7 +67,10 @@
 	"devDependencies": {
 		"@commander-js/extra-typings": "14.0.0",
 		"@types/node": "^24.12.0",
+		"@typescript/native-preview": "7.0.0-dev.20260514.1",
 		"commander": "14.0.3",
+		"oxlint": "^1.70.0",
+		"oxlint-tsgolint": "^0.22.1",
 		"tsdown": "0.22.0",
 		"typescript": "^6.0.3",
 		"vitest": "^4.1.0"

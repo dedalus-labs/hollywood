@@ -29,6 +29,7 @@ Before opening a code PR:
 
 ```bash
 npm ci
+npm run lint
 npm run typecheck
 npm test
 npm run build

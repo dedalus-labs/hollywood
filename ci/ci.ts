@@ -23,6 +23,7 @@ export const ci = workflow({
 				{ uses: checkoutAction, with: { "persist-credentials": false } },
 				setupNode,
 				{ name: "Install dependencies", run: "npm ci" },
+				{ name: "Lint", run: "npm run lint" },
 				{ name: "Typecheck", run: "npm run typecheck" },
 				{ name: "Test", run: "npm test" },
 				{ name: "Build", run: "npm run build" },

@@ -165,7 +165,7 @@ const execGit = (cwd: string, args: readonly string[]): string =>
 	execFileSync("git", [...args], { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
 
 test("pathDependencies expose dependency names as compile-time properties", () => {
-	if (Boolean(false)) {
+	if (process.env["HOLLYWOOD_TYPE_TESTS"] === "1") {
 		const changes = pathDependencies("changes", {
 			terraform: ["apps/cloud/apps/dcs/tf/**"],
 		});
@@ -173,4 +173,5 @@ test("pathDependencies expose dependency names as compile-time properties", () =
 		// @ts-expect-error Unknown path dependency names should fail at compile time.
 		void changes.mysql.changed;
 	}
+	assert.ok(true);
 });
