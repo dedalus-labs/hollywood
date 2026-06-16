@@ -23,7 +23,7 @@ within 7 days.
 | main | Active development |
 | < 1.0 | Pre-release, best-effort |
 
-## GitHub Actions Policy
+## CI/CD Policy
 
 Hollywood is a public repository. Forks and pull requests are expected, but
 untrusted pull requests must not become a path to repository credentials,
@@ -38,14 +38,27 @@ Rules for workflows in this repository:
 - Keep top-level pull request permissions read-only.
 - Pin every third-party `uses:` action to a full commit SHA.
 - Author workflows in `ci/*.ts` and regenerate YAML with Hollywood.
+- Treat generated workflow YAML as build output. Do not handwrite
+  `.github/workflows/*.yml` or `.github/actions/**/action.yml`.
 - Publish packages only from release workflows, never from pull request
   workflows.
+- Publish with provenance and short-lived identity tokens. Do not store
+  long-lived registry publish tokens in repository workflows.
 - Do not share caches across untrusted and release contexts.
 
 The CLA workflow follows these rules. It runs on `pull_request`, checks out the
 trusted base commit, reads `VOUCHED.td` from that base commit, and emits a
 status result. It does not write comments, use secrets, or evaluate pull
 request code.
+
+When adding or changing CI/CD:
+
+1. Edit Hollywood source under `ci/`.
+2. Regenerate workflows with `npm run generate`.
+3. Run `npm run check` before opening or merging the change.
+4. Keep verification jobs separate from release or publish jobs.
+5. If Hollywood cannot express a required workflow field, extend Hollywood
+   first instead of hand-editing generated YAML.
 
 ## Disclosure Policy
 
