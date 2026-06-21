@@ -341,7 +341,7 @@ and planned backend directions.
 Generate local action metadata and entrypoints:
 
 ```bash
-npx hollywood generate "gha/**/*.ts" --output .
+npx hollywood generate
 ```
 
 Hollywood writes ordinary GitHub Actions files:

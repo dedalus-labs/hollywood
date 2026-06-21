@@ -89,11 +89,10 @@ npx hollywood run gha/containers/publish-image.ts \
 
 ## 3. Generate action files
 
-Point Hollywood at the source files that export actions or workflows. Quote glob
-patterns so your shell does not expand them first.
+Generate action files from the inferred source directory.
 
 ```bash
-npx hollywood generate "gha/**/*.ts" --output .
+npx hollywood generate
 ```
 
 The command writes:

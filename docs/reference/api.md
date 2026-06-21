@@ -99,25 +99,34 @@ typed `needs.<job>.outputs.<name> == 'true'` expressions.
 | Command              | Purpose                                                    |
 | -------------------- | ---------------------------------------------------------- |
 | `hollywood generate` | Discover exported actions and workflows from source files. |
+| `hollywood check`    | Check generated files and workflow security policy.        |
 | `hollywood run`      | Run one exported Hollywood action locally.                 |
 
-The command accepts explicit source files or glob patterns:
+By default, `generate` scans the inferred source root:
 
 ```bash
-npx hollywood generate "gha/**/*.ts" --output .
+npx hollywood generate
+```
+
+You can still pass explicit source files or glob patterns:
+
+```bash
+npx hollywood generate "ci/**/*.ts"
 ```
 
 Supported flags:
 
-| Flag              | Default             | Purpose                                    |
-| ----------------- | ------------------- | ------------------------------------------ |
-| `--output`        | `.`                 | Repository root where files are written.   |
-| `--actions-dir`   | `.github/actions`   | Destination for generated local actions.   |
-| `--workflows-dir` | `.github/workflows` | Destination for generated workflows.       |
-| `--source-root`   | `gha`                | Prefix removed before workflow flattening. |
+| Flag                  | Default             | Purpose                                                |
+| --------------------- | ------------------- | ------------------------------------------------------ |
+| `--output`            | `.`                 | Repository root where files are written.               |
+| `--actions-dir`       | `.github/actions`   | Destination for generated local actions.               |
+| `--workflows-dir`     | `.github/workflows` | Destination for generated workflows.                   |
+| `--source-root`       | inferred            | Prefix removed before workflow flattening.             |
+| `--root-import-alias` | `tsconfig.json`     | Override root-relative imports in action entrypoints.  |
 
-The source root and generated output directories are CLI options, not
-hardcoded paths.
+Hollywood infers `--source-root` from explicit source patterns, then from a
+`gha/` or `ci/` directory. It infers `--root-import-alias` from
+`compilerOptions.paths` entries like `"@/*": ["./*"]`.
 
 Run an action on the host:
 

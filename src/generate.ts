@@ -348,6 +348,7 @@ export const generateActionEntrypointFile = <
 		actionsDir: string;
 		exportName: string;
 		generatedAt?: Date;
+		rootImportAlias?: string;
 	}>,
 ): GitHubActionEntrypointFile => {
 	assertTypeScriptIdentifier(options.exportName);
@@ -357,7 +358,10 @@ export const generateActionEntrypointFile = <
 		sourcePath: options.sourcePath,
 	})}/src/index.ts`;
 	const header = generatedTypeScriptHeader(options.generatedAt);
-	const importPath = relativeImportPath(path, options.sourcePath);
+	const importPath =
+		options.rootImportAlias === undefined
+			? relativeImportPath(path, options.sourcePath)
+			: rootImportPath(options.rootImportAlias, options.sourcePath);
 	const importStatement =
 		options.exportName === "default"
 			? `import scriptAction from "${importPath}";`
@@ -610,6 +614,9 @@ const relativeImportPath = (fromPath: string, toPath: string): string => {
 	}
 	return `./${path}`;
 };
+
+const rootImportPath = (alias: string, sourcePath: string): string =>
+	`${trimTrailingSlash(alias)}/${trimSlashes(sourcePath)}`;
 
 const assertTypeScriptIdentifier = (value: string): void => {
 	if (value === "default") {
