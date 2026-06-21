@@ -13,8 +13,8 @@ import { readdir as readdir$1, readdirSync, realpath, realpathSync, stat as stat
 import { basename as basename$1, dirname as dirname$1, isAbsolute as isAbsolute$1, normalize, posix, relative as relative$1, resolve as resolve$1, sep as sep$1 } from "path";
 import { fileURLToPath as fileURLToPath$1 } from "url";
 import { createRequire as createRequire$1 } from "module";
+import { parse, stringify } from "yaml";
 import { dirname as dirname$2, relative as relative$2 } from "node:path/posix";
-import { stringify } from "yaml";
 import { Lexer, Parser } from "@actions/expressions";
 import { ACTION_ROOT } from "@actions/workflow-parser/actions/action-constants";
 import { JSONObjectReader } from "@actions/workflow-parser/templates/json-object-reader";
@@ -5893,7 +5893,7 @@ const generateActionEntrypointFile = (action, options) => {
 		sourcePath: options.sourcePath
 	})}/src/index.ts`;
 	const header = generatedTypeScriptHeader(options.generatedAt);
-	const importPath = relativeImportPath(path, options.sourcePath);
+	const importPath = options.rootImportAlias === void 0 ? relativeImportPath(path, options.sourcePath) : rootImportPath(options.rootImportAlias, options.sourcePath);
 	const importStatement = options.exportName === "default" ? `import scriptAction from "${importPath}";` : `import { ${options.exportName} } from "${importPath}";`;
 	const bindingName = options.exportName === "default" ? "scriptAction" : options.exportName;
 	return {
@@ -6004,6 +6004,7 @@ const relativeImportPath = (fromPath, toPath) => {
 	if (path.startsWith(".")) return path;
 	return `./${path}`;
 };
+const rootImportPath = (alias, sourcePath) => `${trimTrailingSlash(alias)}/${trimSlashes(sourcePath)}`;
 const assertTypeScriptIdentifier = (value) => {
 	if (value === "default") return;
 	if (/^[A-Za-z_$][\w$]*$/.test(value)) return;
@@ -6306,18 +6307,19 @@ const silentLog = {
 //#region src/commands.ts
 const createCli = (io = processIo()) => {
 	const program = new Command().name("hollywood").description("Lights, cameras, Actions!").version(readHollywoodVersion());
-	program.command("generate").description("Generate GitHub Actions files").argument("<sources...>", "Source files or glob patterns").option("--actions-dir <dir>", "Generated actions directory", ".github/actions").option("-o, --output <dir>", "Output directory", ".").option("--source-root <dir>", "Workflow source root", "gha").option("--workflows-dir <dir>", "Generated workflows directory", ".github/workflows").action(async (sources, options) => {
+	program.command("generate").description("Generate GitHub Actions files").argument("[sources...]", "Source files or glob patterns").option("--actions-dir <dir>", "Generated actions directory", ".github/actions").option("-o, --output <dir>", "Output directory", ".").option("--root-import-alias <alias>", "Import alias for repository-root-relative action sources").option("--source-root <dir>", "Workflow source root").option("--workflows-dir <dir>", "Generated workflows directory", ".github/workflows").action(async (sources, options) => {
 		await generate({
-			sources,
-			...options
+			...options,
+			...sources.length === 0 ? {} : { sources }
 		}, io);
 	});
-	program.command("check").description("Run Hollywood repository checks").option("--generated", "Check generated files are current", false).option("--workflow-security", "Check workflow security policy", false).option("-o, --output <dir>", "Repository root", ".").option("--source-root <dir>", "Workflow source root", "gha").option("--workflows-dir <dir>", "Generated workflows directory", ".github/workflows").action(async (options) => {
+	program.command("check").description("Run Hollywood repository checks").option("--generated", "Check generated files are current", false).option("--workflow-security", "Check workflow security policy", false).option("-o, --output <dir>", "Repository root", ".").option("--root-import-alias <alias>", "Import alias for repository-root-relative action sources").option("--source-root <dir>", "Workflow source root").option("--workflows-dir <dir>", "Generated workflows directory", ".github/workflows").action(async (options) => {
 		const selected = options.generated || options.workflowSecurity;
 		await check({
 			generated: selected ? options.generated : true,
 			output: options.output,
-			sourceRoot: options.sourceRoot,
+			...options.rootImportAlias === void 0 ? {} : { rootImportAlias: options.rootImportAlias },
+			...options.sourceRoot === void 0 ? {} : { sourceRoot: options.sourceRoot },
 			workflowSecurity: selected ? options.workflowSecurity : true,
 			workflowsDir: options.workflowsDir
 		}, io);
@@ -6339,7 +6341,8 @@ const createCli = (io = processIo()) => {
 	return program;
 };
 const generate = async (options, io) => {
-	const results = await writeGeneratedFiles(await discoverGeneratedFiles(await resolveSourceFiles(options.sources), options), { outputDir: options.output });
+	const resolved = await resolveGenerateOptions(options);
+	const results = await writeGeneratedFiles(await discoverGeneratedFiles(await resolveSourceFiles(resolved.sources), resolved), { outputDir: resolved.output });
 	for (const result of results) io.writeOut(`${result.status}\t${result.path}\n`);
 	if (results.length === 0) io.writeOut("unchanged	(no generated files)\n");
 };
@@ -6362,8 +6365,9 @@ const run = async (options, io) => {
 	for (const [name, value] of entries) io.writeOut(`output\t${name}=${value}\n`);
 };
 const check = async (options, io) => {
-	if (options.workflowSecurity) await checkWorkflowSecurity(options, io);
-	if (options.generated) await checkGeneratedFiles(options, io);
+	const resolved = await resolveCheckOptions(options);
+	if (resolved.workflowSecurity) await checkWorkflowSecurity(resolved, io);
+	if (resolved.generated) await checkGeneratedFiles(resolved, io);
 };
 const buildActions = async (options, io) => {
 	const entries = await actionEntrypoints(resolve(options.output, options.actionsDir));
@@ -6384,6 +6388,7 @@ const checkGeneratedFiles = async (options, io) => {
 	await generate({
 		actionsDir,
 		output: options.output,
+		...options.rootImportAlias === void 0 ? {} : { rootImportAlias: options.rootImportAlias },
 		sourceRoot: options.sourceRoot,
 		sources: [`${sourceRootPath}/**/*.ts`],
 		workflowsDir: options.workflowsDir
@@ -6514,6 +6519,85 @@ const resolveSourceFiles = async (sources) => {
 };
 const isTestSourceFile = (sourceFile) => sourceFile.endsWith(".test.ts") || sourceFile.endsWith(".spec.ts");
 const globMatches = (source) => glob(source, { absolute: isAbsolute(source) });
+const resolveGenerateOptions = async (options) => {
+	const output = resolve(options.output);
+	const sourceRoot = await resolveSourceRoot({
+		output,
+		...options.sourceRoot === void 0 ? {} : { sourceRoot: options.sourceRoot },
+		sources: options.sources ?? []
+	});
+	const rootImportAlias = options.rootImportAlias === void 0 ? await detectRootImportAlias(output) : normalizeRootImportAlias(options.rootImportAlias);
+	return {
+		actionsDir: options.actionsDir,
+		output,
+		...rootImportAlias === void 0 ? {} : { rootImportAlias },
+		sourceRoot,
+		sources: options.sources === void 0 || options.sources.length === 0 ? [`${resolve(output, sourceRoot)}/**/*.ts`] : options.sources,
+		workflowsDir: options.workflowsDir
+	};
+};
+const resolveCheckOptions = async (options) => {
+	const output = resolve(options.output);
+	const sourceRoot = await resolveSourceRoot({
+		output,
+		...options.sourceRoot === void 0 ? {} : { sourceRoot: options.sourceRoot },
+		sources: []
+	});
+	const rootImportAlias = options.rootImportAlias === void 0 ? await detectRootImportAlias(output) : normalizeRootImportAlias(options.rootImportAlias);
+	return {
+		generated: options.generated,
+		output,
+		...rootImportAlias === void 0 ? {} : { rootImportAlias },
+		sourceRoot,
+		workflowSecurity: options.workflowSecurity,
+		workflowsDir: options.workflowsDir
+	};
+};
+const resolveSourceRoot = async (options) => {
+	if (options.sourceRoot !== void 0) return options.sourceRoot;
+	const sourceRoot = inferSourceRootFromSources(options.output, options.sources);
+	if (sourceRoot !== void 0) return sourceRoot;
+	if (await isDirectory(resolve(options.output, "gha"))) return "gha";
+	if (await isDirectory(resolve(options.output, "ci"))) return "ci";
+	return "gha";
+};
+const inferSourceRootFromSources = (output, sources) => {
+	const roots = /* @__PURE__ */ new Set();
+	for (const source of sources) {
+		const root = inferSourceRootFromSource(output, source);
+		if (root !== void 0) roots.add(root);
+	}
+	if (roots.size > 1) throw new Error(`multiple source roots inferred: ${[...roots].sort().join(", ")}`);
+	return roots.values().next().value;
+};
+const inferSourceRootFromSource = (output, source) => {
+	const relativePattern = (isAbsolute(source) ? relative(output, source) : source).split(sep).join("/");
+	if (relativePattern.startsWith("..")) return;
+	const segment = relativePattern.replace(/^\.\//, "").split("/")[0];
+	if (segment === void 0 || segment === "" || hasGlobSyntax(segment)) return;
+	return segment;
+};
+const hasGlobSyntax = (value) => /[*?[\]{}]/.test(value);
+const detectRootImportAlias = async (output) => {
+	const tsconfigPath = resolve(output, "tsconfig.json");
+	if (!await pathExists(tsconfigPath)) return;
+	const paths = parse(await readFile(tsconfigPath, "utf8")).compilerOptions?.paths;
+	if (paths === void 0) return;
+	for (const [pattern, targets] of Object.entries(paths)) {
+		const alias = rootImportAliasForPath(pattern, targets);
+		if (alias !== void 0) return alias;
+	}
+};
+const rootImportAliasForPath = (pattern, targets) => {
+	if (!pattern.endsWith("/*") || !Array.isArray(targets)) return;
+	if (!targets.some((target) => target === "*" || target === "./*")) return;
+	return normalizeRootImportAlias(pattern);
+};
+const normalizeRootImportAlias = (alias) => {
+	const normalized = alias.replace(/\/\*$/, "").replace(/\/+$/, "");
+	if (normalized === "" || normalized.includes("*")) throw new Error(`invalid root import alias: ${alias}`);
+	return normalized;
+};
 const discoverGeneratedFiles = async (sourceFiles, options) => {
 	const files = [];
 	for (const sourceFile of sourceFiles) {
@@ -6526,7 +6610,8 @@ const discoverGeneratedFiles = async (sourceFiles, options) => {
 			}), generateActionEntrypointFile(value, {
 				sourcePath,
 				actionsDir: options.actionsDir,
-				exportName
+				exportName,
+				...options.rootImportAlias === void 0 ? {} : { rootImportAlias: options.rootImportAlias }
 			}));
 			if (isGitHubWorkflow(value)) files.push(generateWorkflowFile({
 				sourcePath,

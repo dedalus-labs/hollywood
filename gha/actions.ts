@@ -21,3 +21,5 @@ export const uploadPagesArtifactAction =
 
 export const deployPagesAction =
 	"actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128"; // v5.0.0
+
+export const checkHollywoodStateCommand = "node dist/cli.js check";

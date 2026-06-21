@@ -7,6 +7,7 @@ import { pathToFileURL } from "node:url";
 import { Command } from "@commander-js/extra-typings";
 import { build } from "esbuild";
 import { glob } from "tinyglobby";
+import { parse } from "yaml";
 
 import {
 	generateActionEntrypointFile,
@@ -33,8 +34,9 @@ type PackageMetadata = Readonly<{ version?: unknown }>;
 export type GenerateOptions = Readonly<{
 	actionsDir: string;
 	output: string;
-	sourceRoot: string;
-	sources: readonly string[];
+	rootImportAlias?: string;
+	sourceRoot?: string;
+	sources?: readonly string[];
 	workflowsDir: string;
 }>;
 
@@ -51,7 +53,8 @@ export type RunOptions = Readonly<{
 export type CheckOptions = Readonly<{
 	generated: boolean;
 	output: string;
-	sourceRoot: string;
+	rootImportAlias?: string;
+	sourceRoot?: string;
 	workflowSecurity: boolean;
 	workflowsDir: string;
 }>;
@@ -75,13 +78,14 @@ export const createCli = (io: CliIo = processIo()): Command => {
 	program
 		.command("generate")
 		.description("Generate GitHub Actions files")
-		.argument("<sources...>", "Source files or glob patterns")
+		.argument("[sources...]", "Source files or glob patterns")
 		.option("--actions-dir <dir>", "Generated actions directory", ".github/actions")
 		.option("-o, --output <dir>", "Output directory", ".")
-		.option("--source-root <dir>", "Workflow source root", "gha")
+		.option("--root-import-alias <alias>", "Import alias for repository-root-relative action sources")
+		.option("--source-root <dir>", "Workflow source root")
 		.option("--workflows-dir <dir>", "Generated workflows directory", ".github/workflows")
 		.action(async (sources, options) => {
-			await generate({ sources, ...options }, io);
+			await generate({ ...options, ...(sources.length === 0 ? {} : { sources }) }, io);
 		});
 
 	program
@@ -90,7 +94,8 @@ export const createCli = (io: CliIo = processIo()): Command => {
 		.option("--generated", "Check generated files are current", false)
 		.option("--workflow-security", "Check workflow security policy", false)
 		.option("-o, --output <dir>", "Repository root", ".")
-		.option("--source-root <dir>", "Workflow source root", "gha")
+		.option("--root-import-alias <alias>", "Import alias for repository-root-relative action sources")
+		.option("--source-root <dir>", "Workflow source root")
 		.option("--workflows-dir <dir>", "Generated workflows directory", ".github/workflows")
 		.action(async (options) => {
 			const selected = options.generated || options.workflowSecurity;
@@ -98,7 +103,8 @@ export const createCli = (io: CliIo = processIo()): Command => {
 				{
 					generated: selected ? options.generated : true,
 					output: options.output,
-					sourceRoot: options.sourceRoot,
+					...(options.rootImportAlias === undefined ? {} : { rootImportAlias: options.rootImportAlias }),
+					...(options.sourceRoot === undefined ? {} : { sourceRoot: options.sourceRoot }),
 					workflowSecurity: selected ? options.workflowSecurity : true,
 					workflowsDir: options.workflowsDir,
 				},
@@ -145,9 +151,10 @@ export const createCli = (io: CliIo = processIo()): Command => {
 };
 
 export const generate = async (options: GenerateOptions, io: CliIo): Promise<void> => {
-	const sourceFiles = await resolveSourceFiles(options.sources);
-	const files = await discoverGeneratedFiles(sourceFiles, options);
-	const results = await writeGeneratedFiles(files, { outputDir: options.output });
+	const resolved = await resolveGenerateOptions(options);
+	const sourceFiles = await resolveSourceFiles(resolved.sources);
+	const files = await discoverGeneratedFiles(sourceFiles, resolved);
+	const results = await writeGeneratedFiles(files, { outputDir: resolved.output });
 	for (const result of results) {
 		io.writeOut(`${result.status}\t${result.path}\n`);
 	}
@@ -182,11 +189,12 @@ export const run = async (options: RunOptions, io: CliIo): Promise<void> => {
 };
 
 export const check = async (options: CheckOptions, io: CliIo): Promise<void> => {
-	if (options.workflowSecurity) {
-		await checkWorkflowSecurity(options, io);
+	const resolved = await resolveCheckOptions(options);
+	if (resolved.workflowSecurity) {
+		await checkWorkflowSecurity(resolved, io);
 	}
-	if (options.generated) {
-		await checkGeneratedFiles(options, io);
+	if (resolved.generated) {
+		await checkGeneratedFiles(resolved, io);
 	}
 };
 
@@ -210,13 +218,32 @@ export const buildActions = async (
 	}
 };
 
-const checkGeneratedFiles = async (options: CheckOptions, io: CliIo): Promise<void> => {
+type ResolvedGenerateOptions = Readonly<{
+	actionsDir: string;
+	output: string;
+	rootImportAlias?: string;
+	sourceRoot: string;
+	sources: readonly string[];
+	workflowsDir: string;
+}>;
+
+type ResolvedCheckOptions = Readonly<{
+	generated: boolean;
+	output: string;
+	rootImportAlias?: string;
+	sourceRoot: string;
+	workflowSecurity: boolean;
+	workflowsDir: string;
+}>;
+
+const checkGeneratedFiles = async (options: ResolvedCheckOptions, io: CliIo): Promise<void> => {
 	const actionsDir = ".github/actions";
 	const sourceRootPath = resolve(options.output, options.sourceRoot);
 	await generate(
 		{
 			actionsDir,
 			output: options.output,
+			...(options.rootImportAlias === undefined ? {} : { rootImportAlias: options.rootImportAlias }),
 			sourceRoot: options.sourceRoot,
 			sources: [`${sourceRootPath}/**/*.ts`],
 			workflowsDir: options.workflowsDir,
@@ -309,7 +336,7 @@ const workflowSecurityChecks: readonly WorkflowSecurityCheck[] = [
 
 const workflowSecurityExtensions = new Set([".ts", ".yaml", ".yml"]);
 
-const checkWorkflowSecurity = async (options: CheckOptions, io: CliIo): Promise<void> => {
+const checkWorkflowSecurity = async (options: ResolvedCheckOptions, io: CliIo): Promise<void> => {
 	const outputDir = resolve(options.output);
 	const findings: string[] = [];
 	for await (const file of scanWorkflowSecurityFiles([
@@ -430,9 +457,150 @@ const isTestSourceFile = (sourceFile: string): boolean =>
 const globMatches = (source: string): Promise<readonly string[]> =>
 	glob(source, { absolute: isAbsolute(source) });
 
+const resolveGenerateOptions = async (options: GenerateOptions): Promise<ResolvedGenerateOptions> => {
+	const output = resolve(options.output);
+	const sourceRoot = await resolveSourceRoot({
+		output,
+		...(options.sourceRoot === undefined ? {} : { sourceRoot: options.sourceRoot }),
+		sources: options.sources ?? [],
+	});
+	const rootImportAlias =
+		options.rootImportAlias === undefined
+			? await detectRootImportAlias(output)
+			: normalizeRootImportAlias(options.rootImportAlias);
+	return {
+		actionsDir: options.actionsDir,
+		output,
+		...(rootImportAlias === undefined ? {} : { rootImportAlias }),
+		sourceRoot,
+		sources:
+			options.sources === undefined || options.sources.length === 0
+				? [`${resolve(output, sourceRoot)}/**/*.ts`]
+				: options.sources,
+		workflowsDir: options.workflowsDir,
+	};
+};
+
+const resolveCheckOptions = async (options: CheckOptions): Promise<ResolvedCheckOptions> => {
+	const output = resolve(options.output);
+	const sourceRoot = await resolveSourceRoot({
+		output,
+		...(options.sourceRoot === undefined ? {} : { sourceRoot: options.sourceRoot }),
+		sources: [],
+	});
+	const rootImportAlias =
+		options.rootImportAlias === undefined
+			? await detectRootImportAlias(output)
+			: normalizeRootImportAlias(options.rootImportAlias);
+	return {
+		generated: options.generated,
+		output,
+		...(rootImportAlias === undefined ? {} : { rootImportAlias }),
+		sourceRoot,
+		workflowSecurity: options.workflowSecurity,
+		workflowsDir: options.workflowsDir,
+	};
+};
+
+const resolveSourceRoot = async (
+	options: Readonly<{
+		output: string;
+		sourceRoot?: string;
+		sources: readonly string[];
+	}>,
+): Promise<string> => {
+	if (options.sourceRoot !== undefined) {
+		return options.sourceRoot;
+	}
+	const sourceRoot = inferSourceRootFromSources(options.output, options.sources);
+	if (sourceRoot !== undefined) {
+		return sourceRoot;
+	}
+	if (await isDirectory(resolve(options.output, "gha"))) {
+		return "gha";
+	}
+	if (await isDirectory(resolve(options.output, "ci"))) {
+		return "ci";
+	}
+	return "gha";
+};
+
+const inferSourceRootFromSources = (output: string, sources: readonly string[]): string | undefined => {
+	const roots = new Set<string>();
+	for (const source of sources) {
+		const root = inferSourceRootFromSource(output, source);
+		if (root !== undefined) {
+			roots.add(root);
+		}
+	}
+	if (roots.size > 1) {
+		throw new Error(`multiple source roots inferred: ${[...roots].sort().join(", ")}`);
+	}
+	return roots.values().next().value as string | undefined;
+};
+
+const inferSourceRootFromSource = (output: string, source: string): string | undefined => {
+	const relativePattern = (isAbsolute(source) ? relative(output, source) : source)
+		.split(sep)
+		.join("/");
+	if (relativePattern.startsWith("..")) {
+		return undefined;
+	}
+	const segment = relativePattern.replace(/^\.\//, "").split("/")[0];
+	if (segment === undefined || segment === "" || hasGlobSyntax(segment)) {
+		return undefined;
+	}
+	return segment;
+};
+
+const hasGlobSyntax = (value: string): boolean => /[*?[\]{}]/.test(value);
+
+type Tsconfig = Readonly<{
+	compilerOptions?: Readonly<{
+		paths?: Readonly<Record<string, unknown>>;
+	}>;
+}>;
+
+const detectRootImportAlias = async (output: string): Promise<string | undefined> => {
+	const tsconfigPath = resolve(output, "tsconfig.json");
+	if (!(await pathExists(tsconfigPath))) {
+		return undefined;
+	}
+	const parsed = parse(await readFile(tsconfigPath, "utf8")) as Tsconfig;
+	const paths = parsed.compilerOptions?.paths;
+	if (paths === undefined) {
+		return undefined;
+	}
+	for (const [pattern, targets] of Object.entries(paths)) {
+		const alias = rootImportAliasForPath(pattern, targets);
+		if (alias !== undefined) {
+			return alias;
+		}
+	}
+	return undefined;
+};
+
+const rootImportAliasForPath = (pattern: string, targets: unknown): string | undefined => {
+	if (!pattern.endsWith("/*") || !Array.isArray(targets)) {
+		return undefined;
+	}
+	if (!targets.some((target) => target === "*" || target === "./*")) {
+		return undefined;
+	}
+	return normalizeRootImportAlias(pattern);
+};
+
+const normalizeRootImportAlias = (alias: string): string => {
+	const normalized = alias.replace(/\/\*$/, "").replace(/\/+$/, "");
+	if (normalized === "" || normalized.includes("*")) {
+		throw new Error(`invalid root import alias: ${alias}`);
+	}
+	return normalized;
+};
+
 const discoverGeneratedFiles = async (
 	sourceFiles: readonly string[],
-	options: GenerateOptions,
+	options: ResolvedGenerateOptions,
 ): Promise<readonly GeneratedFile[]> => {
 	const files: GeneratedFile[] = [];
 	for (const sourceFile of sourceFiles) {
@@ -449,6 +617,9 @@ const discoverGeneratedFiles = async (
 						sourcePath,
 						actionsDir: options.actionsDir,
 						exportName,
+						...(options.rootImportAlias === undefined
+							? {}
+							: { rootImportAlias: options.rootImportAlias }),
 					}),
 				);
 			}

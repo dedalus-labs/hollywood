@@ -62,9 +62,9 @@
 	},
 	"scripts": {
 		"build": "tsdown",
-		"actions": "npm exec -- hollywood build --actions-dir .github/actions --output . --target node24",
-		"check": "npm run build && node dist/cli.js check --source-root gha",
-		"generate": "node dist/cli.js generate \"gha/**/*.ts\" --source-root gha --output .",
+		"actions": "npm exec -- hollywood build",
+		"check": "npm run build && node dist/cli.js check",
+		"generate": "node dist/cli.js generate",
 		"lint": "oxlint --vitest-plugin --import-plugin --deny-warnings . --ignore-pattern dist --ignore-pattern node_modules --ignore-pattern .github",
 		"package": "npm pack --dry-run",
 		"prepack": "npm run build",

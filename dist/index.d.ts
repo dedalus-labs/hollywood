@@ -221,6 +221,7 @@ declare const generateActionEntrypointFile: <const Inputs extends InputDefinitio
   actionsDir: string;
   exportName: string;
   generatedAt?: Date;
+  rootImportAlias?: string;
 }>) => GitHubActionEntrypointFile;
 declare const generateActionFiles: (files: readonly Readonly<{
   action: ScriptActionDescriptor<InputDefinitions, OutputDefinitions>;
