@@ -1,5 +1,10 @@
 import { job, workflow } from "../src/index";
-import { actionlintAction, checkoutAction, setupNodeAction } from "./actions";
+import {
+	actionlintAction,
+	checkHollywoodStateCommand,
+	checkoutAction,
+	setupNodeAction,
+} from "./actions";
 import { trustedCiRun } from "./guards";
 
 const setupNode = {
@@ -30,7 +35,7 @@ export const ci = workflow({
 				{ name: "Test", run: "npm test" },
 				{ name: "Build", run: "npm run build" },
 				{ name: "Check package contents", run: "npm run package" },
-				{ name: "Check Hollywood state", run: "node dist/cli.js check" },
+				{ name: "Check Hollywood state", run: checkHollywoodStateCommand },
 				{ ...setupNode, with: { "node-version": "20" } },
 				{ name: "Check Node 20 CLI runtime", run: "node dist/cli.js check --workflow-security" },
 			],

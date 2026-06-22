@@ -103,7 +103,7 @@ const generateActionEntrypointFile = (action, options) => {
 		sourcePath: options.sourcePath
 	})}/src/index.ts`;
 	const header = generatedTypeScriptHeader(options.generatedAt);
-	const importPath = relativeImportPath(path, options.sourcePath);
+	const importPath = options.rootImportAlias === void 0 ? relativeImportPath(path, options.sourcePath) : rootImportPath(options.rootImportAlias, options.sourcePath);
 	const importStatement = options.exportName === "default" ? `import scriptAction from "${importPath}";` : `import { ${options.exportName} } from "${importPath}";`;
 	const bindingName = options.exportName === "default" ? "scriptAction" : options.exportName;
 	return {
@@ -252,6 +252,7 @@ const relativeImportPath = (fromPath, toPath) => {
 	if (path.startsWith(".")) return path;
 	return `./${path}`;
 };
+const rootImportPath = (alias, sourcePath) => `${trimTrailingSlash(alias)}/${trimSlashes(sourcePath)}`;
 const assertTypeScriptIdentifier = (value) => {
 	if (value === "default") return;
 	if (/^[A-Za-z_$][\w$]*$/.test(value)) return;

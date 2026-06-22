@@ -158,6 +158,110 @@ test("createCli parses space-separated generate command", async () => {
 	);
 });
 
+test("createCli generates inferred source root when sources are omitted", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
+	const sourcePath = join(root, "ci/hello.ts");
+	const output: string[] = [];
+
+	await writeSource(sourcePath, [
+		"export default {",
+		'  name: "hello",',
+		'  description: "Say hello.",',
+		"  inputs: {},",
+		"  outputs: {},",
+		"  run: async () => ({}),",
+		"};",
+		"",
+	]);
+
+	await createCli({ writeOut: (message) => output.push(message) }).parseAsync([
+		"node",
+		"hollywood",
+		"generate",
+		"--output",
+		root,
+	]);
+
+	assert.deepEqual(output, [
+		"created\t.github/actions/hello/action.yml\n",
+		"created\t.github/actions/hello/src/index.ts\n",
+	]);
+});
+
+test("generate uses tsconfig root alias for action entrypoints", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
+	const sourcePath = join(root, "ci/hello.ts");
+
+	await writeSource(join(root, "tsconfig.json"), [
+		"{",
+		'  "compilerOptions": {',
+		'    "paths": {',
+		'      "@/*": ["./*"]',
+		"    }",
+		"  }",
+		"}",
+		"",
+	]);
+	await writeSource(sourcePath, [
+		"export const helloAction = {",
+		'  name: "hello",',
+		'  description: "Say hello.",',
+		"  inputs: {},",
+		"  outputs: {},",
+		"  run: async () => ({}),",
+		"};",
+		"",
+	]);
+
+	await generate(
+		{
+			actionsDir: ".github/actions",
+			output: root,
+			sourceRoot: "ci",
+			sources: [sourcePath],
+			workflowsDir: ".github/workflows",
+		},
+		{ writeOut: () => {} },
+	);
+
+	assert.match(
+		await readFile(join(root, ".github/actions/hello/src/index.ts"), "utf8"),
+		/import { helloAction } from "@\/ci\/hello.ts";/,
+	);
+});
+
+test("createCli passes root import aliases to generated action entrypoints", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
+	const sourcePath = join(root, "ci/hello.ts");
+
+	await writeSource(sourcePath, [
+		"export default {",
+		'  name: "hello",',
+		'  description: "Say hello.",',
+		"  inputs: {},",
+		"  outputs: {},",
+		"  run: async () => ({}),",
+		"};",
+		"",
+	]);
+
+	await createCli({ writeOut: () => {} }).parseAsync([
+		"node",
+		"hollywood",
+		"generate",
+		sourcePath,
+		"--output",
+		root,
+		"--root-import-alias",
+		"@",
+	]);
+
+	assert.match(
+		await readFile(join(root, ".github/actions/hello/src/index.ts"), "utf8"),
+		/import scriptAction from "@\/ci\/hello.ts";/,
+	);
+});
+
 test("run executes an exported action on the host", async () => {
 	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
 	const sourcePath = join(root, "ci/hello.ts");
@@ -187,6 +291,69 @@ test("run executes an exported action on the host", async () => {
 	);
 
 	assert.deepEqual(output, ["output\tgreeting=hello Hollywood\n"]);
+});
+
+test("run infers the only exported action", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
+	const sourcePath = join(root, "ci/hello.ts");
+	const output: string[] = [];
+
+	await writeSource(sourcePath, [
+		"export const hello = {",
+		'  name: "hello",',
+		'  description: "Say hello.",',
+		"  inputs: { name: { kind: 'string', description: 'Name.' } },",
+		"  outputs: { greeting: { description: 'Greeting.' } },",
+		"  run: async ({ input }) => ({ greeting: `hello ${input.name}` }),",
+		"};",
+		"",
+	]);
+
+	await run(
+		{
+			inputs: ["name=Hollywood"],
+			requireContainerd: false,
+			requireKvm: false,
+			source: sourcePath,
+			startVm: false,
+		},
+		{ writeOut: (message) => output.push(message) },
+	);
+
+	assert.deepEqual(output, ["output\tgreeting=hello Hollywood\n"]);
+});
+
+test("run requires export name when a source has multiple actions", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
+	const sourcePath = join(root, "ci/hello.ts");
+
+	await writeSource(sourcePath, [
+		"const action = {",
+		'  name: "hello",',
+		'  description: "Say hello.",',
+		"  inputs: {},",
+		"  outputs: {},",
+		"  run: async () => ({}),",
+		"};",
+		"export const first = action;",
+		"export const second = action;",
+		"",
+	]);
+
+	await assert.rejects(
+		() =>
+			run(
+				{
+					inputs: [],
+					requireContainerd: false,
+					requireKvm: false,
+					source: sourcePath,
+					startVm: false,
+				},
+				{ writeOut: () => {} },
+			),
+		/multiple Hollywood actions exported: first, second; pass --export/,
+	);
 });
 
 test("run bundles source package imports before loading", async () => {

@@ -208,10 +208,10 @@ closed.
 
 ## CLI
 
-Point the CLI at source files that export Hollywood actions or workflows:
+Let the CLI discover source files that export Hollywood actions or workflows:
 
 ```bash
-npx hollywood generate "gha/**/*.ts" --output .
+npx hollywood generate
 ```
 
 Hollywood discovers exports by shape:

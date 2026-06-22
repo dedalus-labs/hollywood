@@ -101,34 +101,36 @@ typed `needs.<job>.outputs.<name> == 'true'` expressions.
 | `hollywood generate` | Discover exported actions and workflows from source files. |
 | `hollywood run`      | Run one exported Hollywood action locally.                 |
 
-The command accepts explicit source files or glob patterns:
+The command infers `gha/**/*.ts` or `ci/**/*.ts` from the repository:
 
 ```bash
-npx hollywood generate "gha/**/*.ts" --output .
+npx hollywood generate
 ```
 
-Supported flags:
+Supported override flags:
 
-| Flag              | Default             | Purpose                                    |
-| ----------------- | ------------------- | ------------------------------------------ |
-| `--output`        | `.`                 | Repository root where files are written.   |
-| `--actions-dir`   | `.github/actions`   | Destination for generated local actions.   |
-| `--workflows-dir` | `.github/workflows` | Destination for generated workflows.       |
-| `--source-root`   | `gha`                | Prefix removed before workflow flattening. |
+| Flag                  | Default             | Purpose                                      |
+| --------------------- | ------------------- | -------------------------------------------- |
+| `--output`            | `.`                 | Repository root where files are written.     |
+| `--actions-dir`       | `.github/actions`   | Destination for generated local actions.     |
+| `--workflows-dir`     | `.github/workflows` | Destination for generated workflows.         |
+| `--source-root`       | inferred            | Prefix removed before workflow flattening.   |
+| `--root-import-alias` | inferred            | Import alias for generated action entrypoints. |
 
-The source root and generated output directories are CLI options, not
-hardcoded paths.
+The source root, root import alias, and generated output directories are CLI
+options, not hardcoded paths. Hollywood infers `@` from a `tsconfig.json`
+`@/*` path alias when present.
 
 Run an action on the host:
 
 ```bash
-npx hollywood run gha/s3-cache.ts --export s3Cache --with mode=restore
+npx hollywood run gha/s3-cache.ts --with mode=restore
 ```
 
 Run the same action with command execution routed through Lima:
 
 ```bash
-npx hollywood run gha/s3-cache.ts --export s3Cache --lima kvm --start-vm --with mode=restore
+npx hollywood run gha/s3-cache.ts --lima kvm --start-vm --with mode=restore
 ```
 
 `--require-containerd` checks `containerd` and `nerdctl` before the action

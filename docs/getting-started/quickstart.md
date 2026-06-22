@@ -69,7 +69,6 @@ The CLI can run the same exported action:
 
 ```bash
 npx hollywood run gha/containers/publish-image.ts \
-  --export publishImage \
   --with image=ghcr.io/acme/api \
   --with tag=sha-abc123 \
   --with provenance=false
@@ -79,7 +78,6 @@ For Linux VM execution on macOS, add `--lima <name>`:
 
 ```bash
 npx hollywood run gha/containers/publish-image.ts \
-  --export publishImage \
   --lima default \
   --start-vm \
   --with image=ghcr.io/acme/api \
@@ -89,11 +87,10 @@ npx hollywood run gha/containers/publish-image.ts \
 
 ## 3. Generate action files
 
-Point Hollywood at the source files that export actions or workflows. Quote glob
-patterns so your shell does not expand them first.
+Let Hollywood discover source files that export actions or workflows.
 
 ```bash
-npx hollywood generate "gha/**/*.ts" --output .
+npx hollywood generate
 ```
 
 The command writes:

@@ -44,7 +44,7 @@ through `limactl shell`. See [Execution Backends](../backends/index.md) for the
 current backend matrix and planned directions.
 
 ```bash
-npx hollywood run gha/cache/s3-cache.ts --export s3Cache --lima default --start-vm
+npx hollywood run gha/cache/s3-cache.ts --lima default --start-vm
 ```
 
 Hollywood's current VM support is action-level, not whole-workflow emulation.

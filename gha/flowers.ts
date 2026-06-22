@@ -177,7 +177,7 @@ export const flowers = workflow({
 					env: {
 						GITHUB_TOKEN: "${{ steps.cind-token.outputs.token }}",
 					},
-					run: 'node dist/cli.js run gha/flowers.ts --export leaveFlower --with eventPath="$GITHUB_EVENT_PATH" --with repository="$GITHUB_REPOSITORY" --with token="$GITHUB_TOKEN"',
+					run: 'node dist/cli.js run gha/flowers.ts --with eventPath="$GITHUB_EVENT_PATH" --with repository="$GITHUB_REPOSITORY" --with token="$GITHUB_TOKEN"',
 				},
 			],
 		}),

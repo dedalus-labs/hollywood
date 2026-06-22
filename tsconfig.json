@@ -5,6 +5,7 @@
 		"allowImportingTsExtensions": true,
 		"types": ["node"],
 		"paths": {
+			"@/*": ["./*"],
 			"@dedalus-labs/hollywood": ["./src/index.ts"],
 			"@dedalus-labs/hollywood/action-runtime": ["./src/action-runtime.ts"],
 			"@dedalus-labs/hollywood/environments": ["./src/environments.ts"],

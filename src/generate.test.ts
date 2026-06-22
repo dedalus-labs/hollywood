@@ -393,6 +393,20 @@ test("generateActionEntrypointFile wires a typed script to GitHub actions", () =
 	);
 });
 
+test("generateActionEntrypointFile supports repository root import aliases", () => {
+	const entrypoint = generateActionEntrypointFile(publishImage, {
+		sourcePath: "ci/containers/publish-image.ts",
+		actionsDir: ".github/actions",
+		exportName: "publishImage",
+		rootImportAlias: "@",
+	});
+
+	assert.match(
+		entrypoint.content,
+		/import \{ publishImage \} from "@\/ci\/containers\/publish-image.ts";/,
+	);
+});
+
 test("generateActionEntrypointFile supports default action exports", () => {
 	const entrypoint = generateActionEntrypointFile(publishImage, {
 		sourcePath: "ci/containers/publish-image.ts",

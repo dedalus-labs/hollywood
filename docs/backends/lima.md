@@ -7,7 +7,6 @@ host that should delegate execution into a named Lima virtual machine.
 
 ```bash
 npx hollywood run gha/cache/s3-cache.ts \
-  --export s3Cache \
   --lima default \
   --start-vm \
   --with mode=restore
