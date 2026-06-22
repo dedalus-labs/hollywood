@@ -114,7 +114,8 @@ test("runGitHubAction binds core inputs, execs commands, and sets outputs", asyn
 
 test("runGitHubAction groups exec logs with command metadata and status", async () => {
 	const events: string[] = [];
-	const readableAction = action({
+
+	await runGitHubAction(action({
 		name: "readable-action",
 		description: "Exercise readable command logs.",
 		inputs: {},
@@ -131,9 +132,7 @@ test("runGitHubAction groups exec logs with command metadata and status", async 
 			});
 			return { status: "ok" };
 		},
-	});
-
-	await runGitHubAction(readableAction, {
+	}), {
 		core: {
 			getInput: () => "",
 			group: async (name, run) => {
@@ -160,9 +159,8 @@ test("runGitHubAction groups exec logs with command metadata and status", async 
 	assert.equal(events[1], "info:\u001B[2m  cwd  /repo\u001B[0m");
 	assert.equal(events[2], "info:\u001B[2m  env  ALPHA, ZETA\u001B[0m");
 	const status = events[3] ?? "";
-	const statusPrefix = "info:  \u001B[32mok\u001B[0m";
-	assert.ok(status.startsWith(statusPrefix));
-	assert.match(status.slice(statusPrefix.length), /^\s+\d+ms  tool 'hello world' 'it'\\''s'$/);
+	assert.ok(status.startsWith("info:  \u001B[32mok\u001B[0m"));
+	assert.match(status, /\s+\d+ms  tool 'hello world' 'it'\\''s'$/);
 	assert.equal(events[4], "output:status:ok");
 });
 
