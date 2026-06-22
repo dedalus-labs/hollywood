@@ -198,7 +198,7 @@ const runGitHubAction = async (scriptAction, options = {}) => {
 		};
 		const outputs = await runAction(scriptAction, {
 			with: readGitHubInputs(scriptAction.inputs, runtime.core),
-			exec: githubScriptExec(runtime.exec),
+			exec: githubScriptExec(runtime.exec, runtime.core),
 			fs: runtime.fs,
 			log: githubScriptLog(runtime.core),
 			runner: runtime.runner
@@ -224,12 +224,58 @@ const readGitHubInputs = (inputs, githubCore) => {
 	}
 	return Object.fromEntries(values);
 };
-const githubScriptExec = (githubExec) => async (file, args, commandOptions = {}) => {
+const githubScriptExec = (githubExec, githubCore) => async (file, args, commandOptions = {}) => {
 	const options = githubExecOptions(commandOptions);
-	const result = await githubExec.getExecOutput(file, [...args], options);
-	if (result.exitCode !== 0 && commandOptions.exitPolicy !== "any") throw new Error(`${file} exited ${result.exitCode}: ${result.stderr}${result.stdout}`);
-	return result;
+	const command = formatCommand(file, args);
+	return githubCore.group(command, async () => {
+		logCommandMetadata(githubCore, commandOptions);
+		const startedAt = Date.now();
+		const result = await githubExec.getExecOutput(file, [...args], options);
+		logCommandStatus(githubCore, command, result, formatElapsed(Date.now() - startedAt));
+		if (result.exitCode !== 0 && commandOptions.exitPolicy !== "any") throw new Error(commandFailureMessage(command, result));
+		return result;
+	});
 };
+const logCommandMetadata = (githubCore, commandOptions) => {
+	if (commandOptions.cwd !== void 0) githubCore.info(dim(`  cwd  ${commandOptions.cwd}`));
+	if (commandOptions.env !== void 0) {
+		const names = Object.keys(commandOptions.env).sort();
+		if (names.length > 0) githubCore.info(dim(`  env  ${names.join(", ")}`));
+	}
+};
+const logCommandStatus = (githubCore, command, result, elapsed) => {
+	if (result.exitCode === 0) {
+		githubCore.info(statusLine("ok", elapsed, command));
+		return;
+	}
+	githubCore.info(statusLine("fail", elapsed, `${command} (exit ${result.exitCode})`));
+};
+const commandFailureMessage = (command, result) => {
+	const output = [formatOutputSection("stderr", result.stderr), formatOutputSection("stdout", result.stdout)].filter((section) => section.length > 0).join("\n");
+	if (output.length === 0) return `${command} exited ${result.exitCode}`;
+	return `${command} exited ${result.exitCode}\n${output}`;
+};
+const formatOutputSection = (name, output) => {
+	const trimmed = output.trimEnd();
+	if (trimmed.length === 0) return "";
+	return `${name}:\n${trimmed}`;
+};
+const formatCommand = (file, args) => [file, ...args].map(shellQuote).join(" ");
+const shellQuote = (value) => {
+	if (value.length === 0) return "''";
+	if (/^[A-Za-z0-9_/@%+=:,./-]+$/.test(value)) return value;
+	return `'${value.replaceAll("'", "'\\''")}'`;
+};
+const formatElapsed = (elapsedMs) => {
+	if (elapsedMs < 1e3) return `${elapsedMs}ms`;
+	return `${(elapsedMs / 1e3).toFixed(2)}s`;
+};
+const statusLine = (status, elapsed, message) => `  ${statusColor(status)(status)}${" ".repeat(4 - status.length)}  ${elapsed.padStart(7)}  ${message}`;
+const statusColor = (status) => status === "ok" ? green : red;
+const color = (code, message) => `\u001B[${code}m${message}\u001B[0m`;
+const dim = (message) => color(2, message);
+const green = (message) => color(32, message);
+const red = (message) => color(31, message);
 const githubExecOptions = (commandOptions) => {
 	const options = {};
 	if (commandOptions.cwd !== void 0) options.cwd = commandOptions.cwd;
