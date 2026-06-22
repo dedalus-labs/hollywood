@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "vitest";
 
-import { check, createCli, generate, run } from "./commands";
+import { buildActions, check, createCli, generate, run } from "./commands";
 
 test("generate discovers exported actions from source files", async () => {
 	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
@@ -391,6 +391,57 @@ test("createCli parses space-separated check command", async () => {
 	]);
 
 	assert.deepEqual(output, ["ok\tworkflow security\n"]);
+});
+
+test("buildActions bundles generated action entrypoints", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
+	const output: string[] = [];
+	await writeSource(join(root, ".github/actions/hello/src/index.ts"), [
+		'console.log("hello action");',
+		"",
+	]);
+
+	await buildActions(
+		{
+			actionsDir: ".github/actions",
+			output: root,
+			target: "node24",
+		},
+		{ writeOut: (message) => output.push(message) },
+	);
+
+	assert.deepEqual(output, ["built\t.github/actions/hello/dist/index.js\n"]);
+	assert.match(
+		await readFile(join(root, ".github/actions/hello/dist/index.js"), "utf8"),
+		/hello action/,
+	);
+});
+
+test("createCli parses space-separated build command", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
+	const output: string[] = [];
+	await writeSource(join(root, ".github/actions/hello/src/index.ts"), [
+		'console.log("hello action");',
+		"",
+	]);
+
+	await createCli({ writeOut: (message) => output.push(message) }).parseAsync([
+		"node",
+		"hollywood",
+		"build",
+		"--actions-dir",
+		".github/actions",
+		"--output",
+		root,
+		"--target",
+		"node24",
+	]);
+
+	assert.deepEqual(output, ["built\t.github/actions/hello/dist/index.js\n"]);
+	assert.match(
+		await readFile(join(root, ".github/actions/hello/dist/index.js"), "utf8"),
+		/hello action/,
+	);
 });
 
 test("run wraps action commands in Lima when requested", async () => {

@@ -1,119 +1,213 @@
-import { job, workflow } from "../src/index";
-import { checkoutAction } from "./actions";
+import {
+	action,
+	job,
+	stringInput,
+	uses,
+	workflow,
+	type ScriptActionContext,
+	type ScriptFs,
+} from "../src/index";
+import { checkoutAction, setupNodeAction } from "./actions";
 
-const checkVouchedContributor = String.raw`set -euo pipefail
+const vouchedPath = "VOUCHED.td";
 
-node <<'NODE'
-const fs = require("node:fs");
+const contributorInputs = {
+	author: stringInput({ description: "GitHub login that opened the pull request." }),
+	bootstrapMaintainers: stringInput({
+		description: "Maintainers allowed to bootstrap the contributor registry.",
+	}),
+	trustedAutomationAuthors: stringInput({
+		default: "",
+		description: "Exact GitHub app/bot logins trusted for repository automation.",
+	}),
+} as const;
 
-const author = process.env.PR_AUTHOR;
-const bootstrapMaintainers = process.env.CLA_BOOTSTRAP_MAINTAINERS;
-if (!author) {
-	console.error("PR_AUTHOR is required");
-	process.exit(1);
-}
-if (!bootstrapMaintainers) {
-  console.error("CLA_BOOTSTRAP_MAINTAINERS is required");
-  process.exit(1);
-}
+type ContributorCheck = "CLA" | "Vouch";
+type ContributorContext = Pick<
+	ScriptActionContext<typeof contributorInputs>,
+	"fs" | "input" | "log"
+>;
 
-const summaryPath = process.env.GITHUB_STEP_SUMMARY;
-const authorHandle = author.toLowerCase();
-const authorKey = "github:" + author.toLowerCase();
-const bootstrapMaintainerSet = new Set(
-  bootstrapMaintainers
-    .split(/[,\s]+/)
-    .map((handle) => handle.trim().toLowerCase())
-    .filter(Boolean)
-    .map((handle) => handle.replace(/^@/, "").replace(/^github:/, "")),
-);
-if (!fs.existsSync("VOUCHED.td")) {
-  if (bootstrapMaintainerSet.has(authorHandle)) {
-    const body = "## CLA bootstrap passed\n\n@" + author + " is a CLA bootstrap maintainer.";
-		if (summaryPath) {
-			fs.appendFileSync(summaryPath, body + "\n");
+export const checkCla = action({
+	name: "Check CLA",
+	description: "Verify that a pull request author has accepted the CLA.",
+	localActionPath: "check-cla",
+	inputs: contributorInputs,
+	outputs: {},
+	run: async (context) => {
+		await checkContributor("CLA", context);
+		return {};
+	},
+});
+
+export const checkVouch = action({
+	name: "Check Vouch",
+	description: "Verify that a pull request author is vouched for contributions.",
+	localActionPath: "check-vouch",
+	inputs: contributorInputs,
+	outputs: {},
+	run: async (context) => {
+		await checkContributor("Vouch", context);
+		return {};
+	},
+});
+
+const checkContributor = async (
+	check: ContributorCheck,
+	{ fs, input, log }: ContributorContext,
+): Promise<void> => {
+	const author = normalizeHandle(input.author);
+	const bootstrapMaintainers = handleSet(input.bootstrapMaintainers);
+	const trustedAutomationAuthors = handleSet(input.trustedAutomationAuthors);
+
+	if (trustedAutomationAuthors.has(author)) {
+		log.info(`@${input.author} is a trusted repository automation author`);
+		return;
+	}
+
+	const vouched = await readVouched(fs);
+	if (vouched === null) {
+		if (bootstrapMaintainers.has(author)) {
+			log.info(`@${input.author} is a ${check} bootstrap maintainer`);
+			return;
 		}
-    console.log("@" + author + " is a CLA bootstrap maintainer");
-		process.exit(0);
+		throw new Error(
+			`${vouchedPath} is not present on the trusted base commit, and @${input.author} is not a ${check} bootstrap maintainer.`,
+		);
 	}
 
-  const body = "## CLA bootstrap blocked\n\nVOUCHED.td is not present on the trusted base commit, and @" + author + " is not a CLA bootstrap maintainer.";
-	if (summaryPath) {
-		fs.appendFileSync(summaryPath, body + "\n");
+	const entry = findContributor(vouched, author);
+	if (entry?.denouncedReason !== undefined) {
+		throw new Error(`@${input.author} is denounced in ${vouchedPath}: ${entry.denouncedReason}`);
 	}
-	console.error("VOUCHED.td is not present on the trusted base commit");
-	process.exit(1);
-}
-
-const lines = fs.readFileSync("VOUCHED.td", "utf8").split("\n");
-
-let vouched = false;
-let denounced = null;
-
-for (const rawLine of lines) {
-	const line = rawLine.replace(/\r$/, "").trim();
-	if (line === "" || line.startsWith("#")) {
-		continue;
+	if (entry !== null) {
+		log.info(passMessage(check, input.author));
+		return;
 	}
 
-	const [token, ...reasonParts] = line.split(/\s+/);
-	const isDenounced = token.startsWith("-");
-	const rawHandle = (isDenounced ? token.slice(1) : token).replace(/^@/, "");
-	const handle = rawHandle.includes(":")
-		? rawHandle.toLowerCase()
-		: "github:" + rawHandle.toLowerCase();
+	throw new Error(requiredMessage(check, input.author));
+};
 
-	if (handle !== authorKey) {
-		continue;
-	}
-
-	if (isDenounced) {
-		denounced = reasonParts.join(" ") || "no reason recorded";
-		break;
-	}
-
-	vouched = true;
-}
-
-const appendSummary = (body) => {
-	if (summaryPath) {
-		fs.appendFileSync(summaryPath, body + "\n");
+const readVouched = async (fs: ScriptFs): Promise<string | null> => {
+	try {
+		return await fs.readText(vouchedPath);
+	} catch (error: unknown) {
+		if (isMissingFile(error)) {
+			return null;
+		}
+		throw error;
 	}
 };
 
-if (denounced !== null) {
-	appendSummary("## CLA blocked\n\n@" + author + " is denounced in VOUCHED.td: " + denounced);
-	console.error("@" + author + " is denounced in VOUCHED.td: " + denounced);
-	process.exit(1);
-}
+const findContributor = (
+	vouched: string,
+	authorHandle: string,
+): { readonly denouncedReason?: string } | null => {
+	const authorKey = `github:${authorHandle}`;
+	for (const rawLine of vouched.split("\n")) {
+		const line = rawLine.replace(/\r$/, "").trim();
+		if (line.length === 0 || line.startsWith("#")) {
+			continue;
+		}
 
-if (vouched) {
-	appendSummary("## CLA passed\n\n@" + author + " is listed in VOUCHED.td.");
-	console.log("@" + author + " is listed in VOUCHED.td");
-	process.exit(0);
-}
+		const [token, ...reasonParts] = line.split(/\s+/);
+		if (token === undefined) {
+			continue;
+		}
 
-appendSummary([
-	"## CLA required",
-	"",
-	"@" + author + " is not listed in VOUCHED.td.",
-	"",
-	"Hollywood only accepts external contributions from vouched contributors. Being listed in VOUCHED.td records that a maintainer verified the contributor and their CLA acceptance.",
-	"",
-	"To get vouched:",
-	"",
-	"1. Open a \"Vouch request\" issue.",
-	"2. Confirm that you have read and accept CLA.md.",
-	"3. Link public work or ask an existing vouched contributor to sponsor you.",
-	"4. Wait for a maintainer to add your handle to VOUCHED.td.",
-].join("\n"));
+		const isDenounced = token.startsWith("-");
+		const rawHandle = isDenounced ? token.slice(1) : token;
+		const key = contributorKey(rawHandle);
+		if (key !== authorKey) {
+			continue;
+		}
+		if (isDenounced) {
+			return { denouncedReason: reasonParts.join(" ") || "no reason recorded" };
+		}
+		return {};
+	}
+	return null;
+};
 
-console.error("@" + author + " is not listed in VOUCHED.td");
-process.exit(1);
-NODE`;
+const contributorKey = (rawHandle: string): string => {
+	const handle = rawHandle.trim().replace(/^@/, "");
+	if (handle.includes(":")) {
+		return handle.toLowerCase();
+	}
+	return `github:${handle.toLowerCase()}`;
+};
+
+const handleSet = (handles: string): ReadonlySet<string> =>
+	new Set(handles.split(/[,\s]+/).map(normalizeHandle).filter(isNonEmpty));
+
+const normalizeHandle = (handle: string): string =>
+	handle.trim().toLowerCase().replace(/^@/, "").replace(/^github:/, "");
+
+const isNonEmpty = (value: string): boolean => value.length > 0;
+
+const isMissingFile = (error: unknown): boolean =>
+	typeof error === "object" &&
+	error !== null &&
+	"code" in error &&
+	(error as { readonly code?: unknown }).code === "ENOENT";
+
+const passMessage = (check: ContributorCheck, author: string): string => {
+	if (check === "CLA") {
+		return `@${author} has accepted CLA.md according to ${vouchedPath}`;
+	}
+	return `@${author} is listed in ${vouchedPath}`;
+};
+
+const requiredMessage = (check: ContributorCheck, author: string): string =>
+	[
+		`${check} required for @${author}.`,
+		"",
+		`@${author} is not listed in ${vouchedPath}.`,
+		"",
+		check === "CLA"
+			? `Being listed in ${vouchedPath} records that a maintainer verified CLA acceptance.`
+			: "Hollywood only accepts external contributions from vouched contributors.",
+		"",
+		"To get vouched:",
+		"",
+		'1. Open a "Vouch request" issue.',
+		"2. Confirm that you have read and accept CLA.md.",
+		"3. Link public work or ask an existing vouched contributor to sponsor you.",
+		`4. Wait for a maintainer to add your handle to ${vouchedPath}.`,
+	].join("\n");
+
+const trustedBaseCheckout = {
+	name: "Checkout contributor check implementation",
+	uses: checkoutAction,
+	with: {
+		ref: "${{ github.event.pull_request.head.repo.full_name == github.repository && github.sha || github.event.pull_request.base.sha }}",
+		"persist-credentials": false,
+	},
+} as const;
+
+const setupNode = {
+	uses: setupNodeAction,
+	with: {
+		"node-version": "24",
+	},
+} as const;
+
+const prepareHollywood = [
+	trustedBaseCheckout,
+	setupNode,
+	{ name: "Install dependencies", run: "npm ci" },
+	{ name: "Build Hollywood", run: "npm run build" },
+	{ name: "Build local actions", run: "npm run actions" },
+] as const;
+
+const contributorWith = {
+	author: "${{ github.event.pull_request.user.login }}",
+	bootstrapMaintainers: "windsornguyen",
+	trustedAutomationAuthors: "cind-bot[bot] cind[bot]",
+} as const;
 
 export const cla = workflow({
-	name: "CLA",
+	name: "Contributor Checks",
 	on: {
 		pull_request: {
 			branches: ["main"],
@@ -123,25 +217,26 @@ export const cla = workflow({
 	permissions: { contents: "read" },
 	jobs: {
 		cla: job({
-			name: "Vouch and CLA",
+			name: "CLA",
 			"runs-on": "ubuntu-latest",
 			steps: [
-				{
-					name: "Checkout trusted base",
-					uses: checkoutAction,
-					with: {
-						ref: "${{ github.event.pull_request.base.sha }}",
-						"persist-credentials": false,
-					},
-				},
-				{
-					name: "Check contributor",
-					env: {
-						CLA_BOOTSTRAP_MAINTAINERS: "windsornguyen",
-						PR_AUTHOR: "${{ github.event.pull_request.user.login }}",
-					},
-					run: checkVouchedContributor,
-				},
+				...prepareHollywood,
+				uses(checkCla, {
+					name: "Check CLA",
+					with: contributorWith,
+				}),
+			],
+		}),
+		vouch: job({
+			name: "Vouch",
+			"runs-on": "ubuntu-latest",
+			needs: "cla",
+			steps: [
+				...prepareHollywood,
+				uses(checkVouch, {
+					name: "Check Vouch",
+					with: contributorWith,
+				}),
 			],
 		}),
 	},
