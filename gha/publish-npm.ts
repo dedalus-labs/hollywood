@@ -1,4 +1,4 @@
-import { action, booleanInput, job, pathInput, workflow, type ScriptExec } from "../src/index";
+import { action, booleanInput, job, pathInput, workflow } from "../src/index";
 import { checkHollywoodStateCommand, checkoutAction, setupNodeAction } from "./actions";
 
 export const publishNpmPackage = action({
@@ -12,16 +12,8 @@ export const publishNpmPackage = action({
 	outputs: {},
 	run: async ({ exec, fs, input }) => {
 		const packageJson = JSON.parse(await fs.readText(input.packageJson)) as unknown;
-		const packageName = requiredString(recordField(packageJson, "name"), "package.json name");
 		const version = requiredString(recordField(packageJson, "version"), "package.json version");
-		const prereleaseTag = prereleaseName(version);
-		const latestVersion = await npmLatestVersion(exec, packageName);
-		const tag =
-			prereleaseTag !== undefined &&
-			latestVersion !== undefined &&
-			prereleaseName(latestVersion) === undefined
-				? prereleaseTag
-				: "latest";
+		const tag = publishTagForVersion(version);
 
 		await exec("npm", [
 			"publish",
@@ -32,10 +24,6 @@ export const publishNpmPackage = action({
 			"--provenance",
 			...(input.dryRun ? ["--dry-run"] : []),
 		]);
-
-		if (prereleaseTag !== undefined && tag === "latest" && !input.dryRun) {
-			await exec("npm", ["dist-tag", "add", `${packageName}@${version}`, prereleaseTag]);
-		}
 
 		return {};
 	},
@@ -91,18 +79,6 @@ export const publishNpm = workflow({
 	},
 });
 
-const npmLatestVersion = async (exec: ScriptExec, name: string): Promise<string | undefined> => {
-	const result = await exec("npm", ["view", name, "version", "--json"], { exitPolicy: "any" });
-	if (result.exitCode !== 0) {
-		if (result.stderr.includes("E404")) {
-			return undefined;
-		}
-		throw new Error(result.stderr || `npm view ${name} failed`);
-	}
-	const version = JSON.parse(result.stdout) as unknown;
-	return requiredString(version, `npm ${name} latest version`);
-};
-
 const requiredString = (value: unknown, name: string): string => {
 	if (typeof value !== "string" || value.length === 0) {
 		throw new Error(`${name} is required`);
@@ -117,7 +93,17 @@ const recordField = (value: unknown, key: string): unknown => {
 	return (value as Record<string, unknown>)[key];
 };
 
-const prereleaseName = (value: string): string | undefined => {
-	const match = /^\d+\.\d+\.\d+-([0-9A-Za-z-]+)/.exec(value);
-	return match?.[1];
+const publishTagForVersion = (version: string): string => {
+	const match = /^\d+\.\d+\.\d+(?:-([0-9A-Za-z-]+)(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z.-]+)?$/.exec(version);
+	if (match === null) {
+		throw new Error(`package.json version must be semver: ${version}`);
+	}
+	const prereleaseTag = match[1];
+	if (prereleaseTag === undefined) {
+		return "latest";
+	}
+	if (/^\d+$/.test(prereleaseTag)) {
+		throw new Error(`npm prerelease dist-tag must not be numeric: ${prereleaseTag}`);
+	}
+	return prereleaseTag;
 };

@@ -72,8 +72,7 @@
 		"typecheck": "tsgo --noEmit"
 	},
 	"publishConfig": {
-		"access": "public",
-		"tag": "alpha"
+		"access": "public"
 	},
 	"dependencies": {
 		"@actions/core": "3.0.1",

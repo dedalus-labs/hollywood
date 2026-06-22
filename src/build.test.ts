@@ -36,6 +36,14 @@ test("published package only includes built artifacts", async () => {
 	assert.deepEqual(packageJson.files, ["dist", "README.md", "package.json"]);
 });
 
+test("package publish config does not choose the npm dist-tag", async () => {
+	const packageJson = JSON.parse(
+		await readFile(new URL("../package.json", import.meta.url), "utf8"),
+	) as { readonly publishConfig?: unknown };
+
+	assert.deepEqual(packageJson.publishConfig, { access: "public" });
+});
+
 test("release please does not rewrite generated cli source", async () => {
 	const releasePleaseConfig = JSON.parse(
 		await readFile(new URL("../release-please-config.json", import.meta.url), "utf8"),
