@@ -197,7 +197,7 @@ const prepareHollywood = [
 	setupNode,
 	{ name: "Install dependencies", run: "npm ci" },
 	{ name: "Build Hollywood", run: "npm run build" },
-	{ name: "Build local actions", run: "npm run build:actions" },
+	{ name: "Build local actions", run: "npm run actions" },
 ] as const;
 
 const contributorWith = {

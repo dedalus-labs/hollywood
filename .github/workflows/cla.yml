@@ -30,7 +30,7 @@ jobs:
       - name: Build Hollywood
         run: npm run build
       - name: Build local actions
-        run: npm run build:actions
+        run: npm run actions
       - name: Check CLA
         uses: ./.github/actions/check-cla
         with:
@@ -55,7 +55,7 @@ jobs:
       - name: Build Hollywood
         run: npm run build
       - name: Build local actions
-        run: npm run build:actions
+        run: npm run actions
       - name: Check Vouch
         uses: ./.github/actions/check-vouch
         with:
