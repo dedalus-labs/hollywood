@@ -300,7 +300,6 @@ Run an exported action directly on your machine:
 
 ```bash
 npx hollywood run gha/containers/publish-image.ts \
-  --export publishImage \
   --with image=ghcr.io/acme/api \
   --with tag="$(git rev-parse --short HEAD)" \
   --with context=. \
@@ -314,7 +313,6 @@ Linux environment:
 
 ```bash
 npx hollywood run gha/cache/s3-cache.ts \
-  --export s3Cache \
   --lima default \
   --start-vm \
   --with mode=restore \
@@ -341,8 +339,11 @@ and planned backend directions.
 Generate local action metadata and entrypoints:
 
 ```bash
-npx hollywood generate "gha/**/*.ts" --output .
+npx hollywood generate
 ```
+
+Hollywood infers the source root from `gha/` or `ci/`, and it uses `@/*` from
+`tsconfig.json` for generated imports when that path alias exists.
 
 Hollywood writes ordinary GitHub Actions files:
 

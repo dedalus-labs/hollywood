@@ -6327,14 +6327,14 @@ const createCli = (io = processIo()) => {
 	program.command("build").description("Bundle generated local GitHub actions").option("--actions-dir <dir>", "Generated actions directory", ".github/actions").option("-o, --output <dir>", "Repository root", ".").option("--target <target>", "JavaScript action Node target", "node24").action(async (options) => {
 		await buildActions(options, io);
 	});
-	program.command("run").description("Run an exported Hollywood action locally").argument("<source>", "Source file exporting a Hollywood action").option("--export <name>", "Action export name", "default").option("--with <name=value>", "Action input", collect, []).option("--lima <name>", "Run commands inside the named Lima VM").option("--require-containerd", "Require containerd and nerdctl in the Lima VM", false).option("--require-kvm", "Require readable and writable /dev/kvm in the Lima VM", false).option("--start-vm", "Start the Lima VM before running", false).action(async (source, options) => {
+	program.command("run").description("Run an exported Hollywood action locally").argument("<source>", "Source file exporting a Hollywood action").option("--export <name>", "Action export name").option("--with <name=value>", "Action input", collect, []).option("--lima <name>", "Run commands inside the named Lima VM").option("--require-containerd", "Require containerd and nerdctl in the Lima VM", false).option("--require-kvm", "Require readable and writable /dev/kvm in the Lima VM", false).option("--start-vm", "Start the Lima VM before running", false).action(async (source, options) => {
 		await run({
-			exportName: options.export,
 			inputs: options.with,
 			requireContainerd: options.requireContainerd,
 			requireKvm: options.requireKvm,
 			source,
 			startVm: options.startVm,
+			...options.export === void 0 ? {} : { exportName: options.export },
 			...options.lima === void 0 ? {} : { lima: options.lima }
 		}, io);
 	});
@@ -6347,8 +6347,7 @@ const generate = async (options, io) => {
 	if (results.length === 0) io.writeOut("unchanged	(no generated files)\n");
 };
 const run = async (options, io) => {
-	const scriptAction = (await loadHollywoodModule(options.source))[options.exportName];
-	if (!isScriptAction(scriptAction)) throw new Error(`Hollywood action export not found: ${options.exportName}`);
+	const scriptAction = selectScriptAction(await loadHollywoodModule(options.source), options);
 	const runtime = await runRuntime(options);
 	const outputs = await runAction(scriptAction, {
 		with: parseInputPairs(options.inputs),
@@ -6363,6 +6362,23 @@ const run = async (options, io) => {
 		return;
 	}
 	for (const [name, value] of entries) io.writeOut(`output\t${name}=${value}\n`);
+};
+const selectScriptAction = (module, options) => {
+	if (options.exportName !== void 0) {
+		const scriptAction = module[options.exportName];
+		if (!isScriptAction(scriptAction)) throw new Error(`Hollywood action export not found: ${options.exportName}`);
+		return scriptAction;
+	}
+	const defaultAction = module["default"];
+	if (isScriptAction(defaultAction)) return defaultAction;
+	const actions = Object.entries(module).filter((entry) => isScriptAction(entry[1]));
+	if (actions.length === 1) {
+		const action = actions[0];
+		if (action === void 0) throw new Error("Hollywood action export not found");
+		return action[1];
+	}
+	if (actions.length === 0) throw new Error("Hollywood action export not found");
+	throw new Error(`multiple Hollywood actions exported: ${actions.map(([name]) => name).sort().join(", ")}; pass --export`);
 };
 const check = async (options, io) => {
 	const resolved = await resolveCheckOptions(options);

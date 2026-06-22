@@ -35,7 +35,6 @@ machine. The CLI path is:
 
 ```bash
 npx hollywood run gha/containers/publish-image.ts \
-  --export publishImage \
   --with image=ghcr.io/acme/api \
   --with tag=sha-abc123 \
   --with provenance=false
@@ -63,7 +62,6 @@ full command mapping lives in the [Lima backend docs](../backends/lima.md).
 
 ```bash
 npx hollywood run gha/go/s3-cache.ts \
-  --export s3Cache \
   --lima kvm \
   --start-vm \
   --with mode=restore

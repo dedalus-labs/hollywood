@@ -41,7 +41,7 @@ export type GenerateOptions = Readonly<{
 }>;
 
 export type RunOptions = Readonly<{
-	exportName: string;
+	exportName?: string;
 	inputs: readonly string[];
 	lima?: string;
 	requireContainerd: boolean;
@@ -126,25 +126,23 @@ export const createCli = (io: CliIo = processIo()): Command => {
 		.command("run")
 		.description("Run an exported Hollywood action locally")
 		.argument("<source>", "Source file exporting a Hollywood action")
-		.option("--export <name>", "Action export name", "default")
+		.option("--export <name>", "Action export name")
 		.option("--with <name=value>", "Action input", collect, [] as string[])
 		.option("--lima <name>", "Run commands inside the named Lima VM")
 		.option("--require-containerd", "Require containerd and nerdctl in the Lima VM", false)
 		.option("--require-kvm", "Require readable and writable /dev/kvm in the Lima VM", false)
 		.option("--start-vm", "Start the Lima VM before running", false)
 		.action(async (source, options) => {
-			await run(
-				{
-					exportName: options.export,
-					inputs: options.with,
-					requireContainerd: options.requireContainerd,
-					requireKvm: options.requireKvm,
-					source,
-					startVm: options.startVm,
-					...(options.lima === undefined ? {} : { lima: options.lima }),
-				},
-				io,
-			);
+			const runOptions = {
+				inputs: options.with,
+				requireContainerd: options.requireContainerd,
+				requireKvm: options.requireKvm,
+				source,
+				startVm: options.startVm,
+				...(options.export === undefined ? {} : { exportName: options.export }),
+				...(options.lima === undefined ? {} : { lima: options.lima }),
+			};
+			await run(runOptions, io);
 		});
 
 	return program;
@@ -165,10 +163,7 @@ export const generate = async (options: GenerateOptions, io: CliIo): Promise<voi
 
 export const run = async (options: RunOptions, io: CliIo): Promise<void> => {
 	const module = await loadHollywoodModule(options.source);
-	const scriptAction = module[options.exportName];
-	if (!isScriptAction(scriptAction)) {
-		throw new Error(`Hollywood action export not found: ${options.exportName}`);
-	}
+	const scriptAction = selectScriptAction(module, options);
 
 	const runtime = await runRuntime(options);
 	const outputs = await runAction(scriptAction, {
@@ -186,6 +181,42 @@ export const run = async (options: RunOptions, io: CliIo): Promise<void> => {
 	for (const [name, value] of entries) {
 		io.writeOut(`output\t${name}=${value}\n`);
 	}
+};
+
+const selectScriptAction = (
+	module: HollywoodModule,
+	options: RunOptions,
+): ScriptAction<InputDefinitions, OutputDefinitions> => {
+	if (options.exportName !== undefined) {
+		const scriptAction = module[options.exportName];
+		if (!isScriptAction(scriptAction)) {
+			throw new Error(`Hollywood action export not found: ${options.exportName}`);
+		}
+		return scriptAction;
+	}
+
+	const defaultAction = module["default"];
+	if (isScriptAction(defaultAction)) {
+		return defaultAction;
+	}
+
+	const actions = Object.entries(module).filter((entry): entry is [
+		string,
+		ScriptAction<InputDefinitions, OutputDefinitions>,
+	] => isScriptAction(entry[1]));
+	if (actions.length === 1) {
+		const action = actions[0];
+		if (action === undefined) {
+			throw new Error("Hollywood action export not found");
+		}
+		return action[1];
+	}
+	if (actions.length === 0) {
+		throw new Error("Hollywood action export not found");
+	}
+	throw new Error(
+		`multiple Hollywood actions exported: ${actions.map(([name]) => name).sort().join(", ")}; pass --export`,
+	);
 };
 
 export const check = async (options: CheckOptions, io: CliIo): Promise<void> => {

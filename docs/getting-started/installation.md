@@ -17,7 +17,7 @@ That installs a local `hollywood` binary at `node_modules/.bin/hollywood`. Run
 it with `npx hollywood ...`:
 
 ```bash
-npx hollywood generate "gha/**/*.ts" --output .
+npx hollywood generate
 ```
 
 If you prefer npm scripts, wire the local binary once:
@@ -25,8 +25,8 @@ If you prefer npm scripts, wire the local binary once:
 ```json
 {
   "scripts": {
-    "actions:generate": "hollywood generate \"gha/**/*.ts\" --output .",
-    "actions:check": "hollywood check"
+    "generate": "hollywood generate",
+    "check": "hollywood check"
   }
 }
 ```
@@ -34,13 +34,13 @@ If you prefer npm scripts, wire the local binary once:
 Then run:
 
 ```bash
-npm run actions:generate
+npm run generate
 ```
 
 Run an exported action locally:
 
 ```bash
-npx hollywood run gha/s3-cache.ts --export s3Cache --with mode=restore
+npx hollywood run gha/s3-cache.ts --with mode=restore
 ```
 
 ## Node requirements

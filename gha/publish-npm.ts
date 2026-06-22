@@ -84,7 +84,7 @@ export const publishNpm = workflow({
 				{ name: "Check Hollywood state", run: checkHollywoodStateCommand },
 				{
 					name: "Publish to npm",
-					run: "node dist/cli.js run gha/publish-npm.ts --export publishNpmPackage",
+					run: "node dist/cli.js run gha/publish-npm.ts",
 				},
 			],
 		}),

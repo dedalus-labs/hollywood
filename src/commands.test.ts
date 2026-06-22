@@ -293,6 +293,69 @@ test("run executes an exported action on the host", async () => {
 	assert.deepEqual(output, ["output\tgreeting=hello Hollywood\n"]);
 });
 
+test("run infers the only exported action", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
+	const sourcePath = join(root, "ci/hello.ts");
+	const output: string[] = [];
+
+	await writeSource(sourcePath, [
+		"export const hello = {",
+		'  name: "hello",',
+		'  description: "Say hello.",',
+		"  inputs: { name: { kind: 'string', description: 'Name.' } },",
+		"  outputs: { greeting: { description: 'Greeting.' } },",
+		"  run: async ({ input }) => ({ greeting: `hello ${input.name}` }),",
+		"};",
+		"",
+	]);
+
+	await run(
+		{
+			inputs: ["name=Hollywood"],
+			requireContainerd: false,
+			requireKvm: false,
+			source: sourcePath,
+			startVm: false,
+		},
+		{ writeOut: (message) => output.push(message) },
+	);
+
+	assert.deepEqual(output, ["output\tgreeting=hello Hollywood\n"]);
+});
+
+test("run requires export name when a source has multiple actions", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
+	const sourcePath = join(root, "ci/hello.ts");
+
+	await writeSource(sourcePath, [
+		"const action = {",
+		'  name: "hello",',
+		'  description: "Say hello.",',
+		"  inputs: {},",
+		"  outputs: {},",
+		"  run: async () => ({}),",
+		"};",
+		"export const first = action;",
+		"export const second = action;",
+		"",
+	]);
+
+	await assert.rejects(
+		() =>
+			run(
+				{
+					inputs: [],
+					requireContainerd: false,
+					requireKvm: false,
+					source: sourcePath,
+					startVm: false,
+				},
+				{ writeOut: () => {} },
+			),
+		/multiple Hollywood actions exported: first, second; pass --export/,
+	);
+});
+
 test("run bundles source package imports before loading", async () => {
 	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
 	const sourcePath = join(root, "ci/hello.ts");

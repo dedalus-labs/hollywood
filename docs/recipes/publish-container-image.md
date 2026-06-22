@@ -82,7 +82,6 @@ Hollywood keeps the contract typed:
 
 ```bash
 npx hollywood run examples/publish-container-image.ts \
-  --export publishImage \
   --with image=ghcr.io/acme/api \
   --with tag=sha-abc123 \
   --with context=. \
