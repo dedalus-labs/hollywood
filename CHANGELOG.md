@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.1.0-alpha.1](https://github.com/dedalus-labs/hollywood/compare/v0.0.1-alpha.1...v0.1.0-alpha.1) (2026-06-22)
+
+
+### Features
+
+* **github:** group action command logs ([#18](https://github.com/dedalus-labs/hollywood/issues/18)) ([b6390c7](https://github.com/dedalus-labs/hollywood/commit/b6390c76b246028e18b0b9eece76c338a84ce546))
+
+
+### Bug Fixes
+
+* **ci:** bootstrap local action checks ([22214d7](https://github.com/dedalus-labs/hollywood/commit/22214d76c68a094c6432e3dcd94f26c726ca9515))
+* **ci:** publish prereleases to latest before ga ([#16](https://github.com/dedalus-labs/hollywood/issues/16)) ([332dd32](https://github.com/dedalus-labs/hollywood/commit/332dd32e6d02697bb770c4c1e356ef7689d1c503))
+* **cla:** split contributor checks ([356cdaa](https://github.com/dedalus-labs/hollywood/commit/356cdaa1370a86ad40f93059f0a2cfb62a1d5698))
+* **cla:** trust release automation author ([19dd0cb](https://github.com/dedalus-labs/hollywood/commit/19dd0cbee9b76a96b051e593dfca5b78a8565392))
+* **gha:** request write pr token for flowers ([#14](https://github.com/dedalus-labs/hollywood/issues/14)) ([26e485f](https://github.com/dedalus-labs/hollywood/commit/26e485f0abaebc63e0070e42604a48dc1f03603c))
+* **gha:** trust cind bot rename ([#12](https://github.com/dedalus-labs/hollywood/issues/12)) ([f2520bf](https://github.com/dedalus-labs/hollywood/commit/f2520bf3d16262b4a4249170eca45b63aa3cebde))
+* **security:** add GitHub private vulnerability reporting ([#17](https://github.com/dedalus-labs/hollywood/issues/17)) ([e5d9c6f](https://github.com/dedalus-labs/hollywood/commit/e5d9c6f461461bdc0919c99d2376f61208d9078a))
+
+
+### Chores
+
+* **actions:** rename local action script ([b686a1d](https://github.com/dedalus-labs/hollywood/commit/b686a1d1772210349468d3d2472fcdd82ba6b686))
+
+
+### Refactors
+
+* **cla:** split contributor checks ([97031bf](https://github.com/dedalus-labs/hollywood/commit/97031bf6e0051b23d3c3a47454bf2b41bdfc5636))
+* **cla:** use typed contributor actions ([09a3d42](https://github.com/dedalus-labs/hollywood/commit/09a3d42c5b128d87ab4b87fc8d841ee94c9850af))
+* **cli:** add build command ([b90f776](https://github.com/dedalus-labs/hollywood/commit/b90f776f1ba108d23674f24548e348aa4deeca01))
+
 ## [0.0.1-alpha.1](https://github.com/dedalus-labs/hollywood/compare/v0.0.1-alpha.0...v0.0.1-alpha.1) (2026-06-16)
 
 
