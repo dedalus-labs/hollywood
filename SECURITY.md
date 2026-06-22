@@ -6,6 +6,8 @@ Do not open public issues for security vulnerabilities.
 
 Email security reports to [security@dedaluslabs.ai](mailto:security@dedaluslabs.ai).
 
+You can also [report privately via GitHub](https://github.com/dedalus-labs/hollywood/security/advisories/new).
+
 Include:
 
 - Description of the vulnerability
