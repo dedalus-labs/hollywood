@@ -70,7 +70,7 @@ export const runGitHubAction = async <
 		};
 		const outputs = await runAction(scriptAction, {
 			with: readGitHubInputs(scriptAction.inputs, runtime.core),
-			exec: githubScriptExec(runtime.exec),
+			exec: githubScriptExec(runtime.exec, runtime.core),
 			fs: runtime.fs,
 			log: githubScriptLog(runtime.core),
 			runner: runtime.runner,
@@ -106,19 +106,100 @@ const readGitHubInputs = <const Inputs extends InputDefinitions>(
 };
 
 const githubScriptExec =
-	(githubExec: GitHubExec) =>
+	(githubExec: GitHubExec, githubCore: GitHubCore) =>
 	async (
 		file: string,
 		args: readonly string[],
 		commandOptions: CommandOptions = {},
 	): Promise<CommandResult> => {
 		const options = githubExecOptions(commandOptions);
-		const result = await githubExec.getExecOutput(file, [...args], options);
-		if (result.exitCode !== 0 && commandOptions.exitPolicy !== "any") {
-			throw new Error(`${file} exited ${result.exitCode}: ${result.stderr}${result.stdout}`);
-		}
-		return result;
+		const command = formatCommand(file, args);
+		return githubCore.group(command, async () => {
+			logCommandMetadata(githubCore, commandOptions);
+			const startedAt = Date.now();
+			const result = await githubExec.getExecOutput(file, [...args], options);
+			const elapsed = formatElapsed(Date.now() - startedAt);
+			logCommandStatus(githubCore, command, result, elapsed);
+			if (result.exitCode !== 0 && commandOptions.exitPolicy !== "any") {
+				throw new Error(commandFailureMessage(command, result));
+			}
+			return result;
+		});
 	};
+
+const logCommandMetadata = (githubCore: GitHubCore, commandOptions: CommandOptions): void => {
+	if (commandOptions.cwd !== undefined) {
+		githubCore.info(dim(`  cwd  ${commandOptions.cwd}`));
+	}
+	if (commandOptions.env !== undefined) {
+		const names = Object.keys(commandOptions.env).sort();
+		if (names.length > 0) {
+			githubCore.info(dim(`  env  ${names.join(", ")}`));
+		}
+	}
+};
+
+const logCommandStatus = (
+	githubCore: GitHubCore,
+	command: string,
+	result: CommandResult,
+	elapsed: string,
+): void => {
+	if (result.exitCode === 0) {
+		githubCore.info(statusLine("ok", elapsed, command));
+		return;
+	}
+	githubCore.info(statusLine("fail", elapsed, `${command} (exit ${result.exitCode})`));
+};
+
+const commandFailureMessage = (command: string, result: CommandResult): string => {
+	const output = [formatOutputSection("stderr", result.stderr), formatOutputSection("stdout", result.stdout)]
+		.filter((section) => section.length > 0)
+		.join("\n");
+	if (output.length === 0) {
+		return `${command} exited ${result.exitCode}`;
+	}
+	return `${command} exited ${result.exitCode}\n${output}`;
+};
+
+const formatOutputSection = (name: "stderr" | "stdout", output: string): string => {
+	const trimmed = output.trimEnd();
+	if (trimmed.length === 0) {
+		return "";
+	}
+	return `${name}:\n${trimmed}`;
+};
+
+const formatCommand = (file: string, args: readonly string[]): string =>
+	[file, ...args].map(shellQuote).join(" ");
+
+const shellQuote = (value: string): string => {
+	if (value.length === 0) {
+		return "''";
+	}
+	if (/^[A-Za-z0-9_/@%+=:,./-]+$/.test(value)) {
+		return value;
+	}
+	return `'${value.replaceAll("'", "'\\''")}'`;
+};
+
+const formatElapsed = (elapsedMs: number): string => {
+	if (elapsedMs < 1_000) {
+		return `${elapsedMs}ms`;
+	}
+	return `${(elapsedMs / 1_000).toFixed(2)}s`;
+};
+
+const statusLine = (status: "fail" | "ok", elapsed: string, message: string): string =>
+	`  ${statusColor(status)(status)}${" ".repeat(4 - status.length)}  ${elapsed.padStart(7)}  ${message}`;
+
+const statusColor = (status: "fail" | "ok"): ((message: string) => string) =>
+	status === "ok" ? green : red;
+
+const color = (code: number, message: string): string => `\u001B[${code}m${message}\u001B[0m`;
+const dim = (message: string): string => color(2, message);
+const green = (message: string): string => color(32, message);
+const red = (message: string): string => color(31, message);
 
 const githubExecOptions = (commandOptions: CommandOptions): GitHubExecOptions => {
 	const options: { cwd?: string; env?: CommandEnvironment; ignoreReturnCode?: boolean } = {};

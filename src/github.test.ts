@@ -112,6 +112,60 @@ test("runGitHubAction binds core inputs, execs commands, and sets outputs", asyn
 	}
 });
 
+test("runGitHubAction groups exec logs with command metadata and status", async () => {
+	const events: string[] = [];
+	const readableAction = action({
+		name: "readable-action",
+		description: "Exercise readable command logs.",
+		inputs: {},
+		outputs: {
+			status: stringOutput({ description: "Command status." }),
+		},
+		run: async ({ exec }) => {
+			await exec("tool", ["hello world", "it's"], {
+				cwd: "/repo",
+				env: {
+					ZETA: "hidden",
+					ALPHA: "also-hidden",
+				},
+			});
+			return { status: "ok" };
+		},
+	});
+
+	await runGitHubAction(readableAction, {
+		core: {
+			getInput: () => "",
+			group: async (name, run) => {
+				events.push(`group:${name}`);
+				return run();
+			},
+			info: (message) => {
+				events.push(`info:${message}`);
+			},
+			setOutput: (name, value) => {
+				events.push(`output:${name}:${value}`);
+			},
+			setFailed: (message) => {
+				throw new Error(`unexpected failure: ${message}`);
+			},
+			warning: () => {},
+		},
+		exec: { getExecOutput: async () => ({ exitCode: 0, stdout: "", stderr: "" }) },
+		fs: { readText: async () => "" },
+		runner: { uidGid: "1001:1001" },
+	});
+
+	assert.equal(events[0], "group:tool 'hello world' 'it'\\''s'");
+	assert.equal(events[1], "info:\u001B[2m  cwd  /repo\u001B[0m");
+	assert.equal(events[2], "info:\u001B[2m  env  ALPHA, ZETA\u001B[0m");
+	const status = events[3] ?? "";
+	const statusPrefix = "info:  \u001B[32mok\u001B[0m";
+	assert.ok(status.startsWith(statusPrefix));
+	assert.match(status.slice(statusPrefix.length), /^\s+\d+ms  tool 'hello world' 'it'\\''s'$/);
+	assert.equal(events[4], "output:status:ok");
+});
+
 test("runGitHubAction marks the action failed before rethrowing", async () => {
 	let failed = "";
 	const core: GitHubCore = {
@@ -144,9 +198,9 @@ test("runGitHubAction marks the action failed before rethrowing", async () => {
 				fs: { readText: async () => "" },
 				runner: { uidGid: "1001:1001" },
 			}),
-		/publish exited 1: denied/,
+		/publish \/tmp\/artifact.tgz 3 dev exited 1\nstderr:\ndenied/,
 	);
-	assert.equal(failed, "publish exited 1: denied");
+	assert.equal(failed, "publish /tmp/artifact.tgz 3 dev exited 1\nstderr:\ndenied");
 });
 
 test("runGitHubAction tells the GitHub exec toolkit when nonzero exits are expected", async () => {
