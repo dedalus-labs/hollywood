@@ -33,3 +33,9 @@ export type {
 	ScriptActionServices,
 	WorkflowInputValues,
 } from "./script";
+export { gitTreeMatch } from "./git-tree-match";
+export type {
+	GitTreeMatchOptions,
+	GitTreeMatchResult,
+	WorkflowRunInfo,
+} from "./git-tree-match";
