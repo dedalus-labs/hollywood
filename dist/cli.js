@@ -6338,6 +6338,14 @@ const createCli = (io = processIo()) => {
 			...options.lima === void 0 ? {} : { lima: options.lima }
 		}, io);
 	});
+	program.command("init").description("Scaffold a minimal action or workflow source file").argument("<name>", "Name for the generated source file").option("-o, --output <dir>", "Repository root", ".").option("--source-root <dir>", "Source root directory").option("--workflow", "Scaffold a workflow instead of an action", false).action(async (name, options) => {
+		await init({
+			name,
+			output: options.output,
+			workflow: options.workflow,
+			...options.sourceRoot === void 0 ? {} : { sourceRoot: options.sourceRoot }
+		}, io);
+	});
 	return program;
 };
 const generate = async (options, io) => {
@@ -6346,6 +6354,52 @@ const generate = async (options, io) => {
 	for (const result of results) io.writeOut(`${result.status}\t${result.path}\n`);
 	if (results.length === 0) io.writeOut("unchanged	(no generated files)\n");
 };
+const init = async (options, io) => {
+	const output = resolve(options.output);
+	const path = resolve(output, await resolveSourceRoot({
+		output,
+		...options.sourceRoot === void 0 ? {} : { sourceRoot: options.sourceRoot },
+		sources: []
+	}), `${options.name}.ts`);
+	if (await pathExists(path)) throw new Error(`file already exists: ${relative(output, path).split(sep).join("/")}`);
+	await mkdir(dirname(path), { recursive: true });
+	const identifier = toIdentifier(options.name);
+	await writeFile(path, options.workflow ? workflowTemplate(identifier) : actionTemplate(identifier), "utf8");
+	io.writeOut(`created\t${relative(output, path).split(sep).join("/")}\n`);
+};
+const toIdentifier = (name) => {
+	const camel = name.split(/[^a-zA-Z0-9]+/).filter((part) => part.length > 0).map((part, index) => index === 0 ? part.charAt(0).toLowerCase() + part.slice(1) : part.charAt(0).toUpperCase() + part.slice(1)).join("");
+	return /^[a-zA-Z_]/.test(camel) ? camel : `_${camel}`;
+};
+const actionTemplate = (identifier) => `import { action, stringInput, stringOutput } from "@dedalus-labs/hollywood";
+
+export const ${identifier} = action({
+	name: "${identifier}",
+	description: "Example Hollywood action.",
+	inputs: {
+		message: stringInput({ description: "Message to transform." }),
+	},
+	outputs: {
+		result: stringOutput({ description: "Transformed message." }),
+	},
+	run: async ({ input }) => {
+		return { result: input.message.toUpperCase() };
+	},
+});
+`;
+const workflowTemplate = (identifier) => `import { job, workflow } from "@dedalus-labs/hollywood";
+
+export const ${identifier} = workflow({
+	name: "${identifier}",
+	on: { push: { branches: ["main"] } },
+	jobs: {
+		${identifier}: job({
+			"runs-on": "ubuntu-latest",
+			steps: [{ name: "Say hello", run: "echo Hello from Hollywood" }],
+		}),
+	},
+});
+`;
 const run = async (options, io) => {
 	const scriptAction = selectScriptAction(await loadHollywoodModule(options.source), options);
 	const runtime = await runRuntime(options);
