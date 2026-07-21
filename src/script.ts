@@ -71,6 +71,27 @@ export type ScriptLog = Readonly<{
 	group: <Value>(name: string, run: () => Promise<Value>) => Promise<Value>;
 }>;
 
+export type SummaryText = Readonly<{
+	format: "text";
+	value: string;
+}>;
+
+export type SummaryCode = Readonly<{
+	format: "code";
+	value: string;
+}>;
+
+export type SummaryCell = SummaryCode | SummaryText;
+
+export type SummaryTableRow = Readonly<{
+	label: string;
+	value: SummaryCell;
+}>;
+
+export type ScriptSummary = Readonly<{
+	table: (title: string, rows: readonly SummaryTableRow[]) => Promise<void>;
+}>;
+
 export type RunnerContext = Readonly<{
 	uidGid: string;
 }>;
@@ -137,6 +158,7 @@ export type ScriptActionServices = Readonly<{
 	fs: ScriptFs;
 	log: ScriptLog;
 	runner: RunnerContext;
+	summary: ScriptSummary;
 }>;
 
 export type ScriptActionContext<Inputs extends InputDefinitions> = ScriptActionServices &
@@ -163,6 +185,7 @@ export type RunActionOptions<Inputs extends InputDefinitions> = Readonly<{
 	fs: ScriptFs;
 	log?: ScriptLog;
 	runner: RunnerContext;
+	summary?: ScriptSummary;
 }>;
 
 export const action = <
@@ -184,6 +207,7 @@ export const runAction = async <
 		fs: options.fs,
 		log: options.log ?? silentLog,
 		runner: options.runner,
+		summary: options.summary ?? silentSummary,
 	};
 	return scriptAction.run({
 		...services,
@@ -231,6 +255,10 @@ export const choiceInput = <
 });
 
 export const stringOutput = (definition: OutputDefinition): OutputDefinition => definition;
+
+export const summaryCode = (value: string): SummaryCode => ({ format: "code", value });
+
+export const summaryText = (value: string): SummaryText => ({ format: "text", value });
 
 const parseActionInputs = <const Inputs extends InputDefinitions>(
 	inputs: Inputs,
@@ -366,4 +394,8 @@ const silentLog: ScriptLog = {
 	info: () => {},
 	warning: () => {},
 	group: async (_name, run) => run(),
+};
+
+const silentSummary: ScriptSummary = {
+	table: async () => {},
 };

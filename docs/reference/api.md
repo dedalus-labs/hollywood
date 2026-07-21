@@ -5,18 +5,29 @@ intentionally small.
 
 ## Script authoring
 
-| API            | Purpose                                               |
-| -------------- | ----------------------------------------------------- |
-| `action`       | Define a typed script action.                         |
-| `stringInput`  | Read a required or defaulted string input.            |
-| `integerInput` | Parse a string input into an integer.                 |
-| `booleanInput` | Parse a string input into a boolean.                  |
-| `choiceInput`  | Restrict a string input to a closed set of values.    |
-| `pathInput`    | Mark an input as a filesystem path.                   |
-| `stringOutput` | Declare a string output.                              |
-| `call`         | Invoke a child action with typed inputs inside `run`. |
-| `exec`         | Run an executable plus argument array inside `run`.   |
-| `expr`         | Validate and wrap a GitHub Actions expression.        |
+| API             | Purpose                                                   |
+| --------------- | --------------------------------------------------------- |
+| `action`        | Define a typed script action.                             |
+| `stringInput`   | Read a required or defaulted string input.                |
+| `integerInput`  | Parse a string input into an integer.                     |
+| `booleanInput`  | Parse a string input into a boolean.                      |
+| `choiceInput`   | Restrict a string input to a closed set of values.        |
+| `pathInput`     | Mark an input as a filesystem path.                       |
+| `stringOutput`  | Declare a string output.                                  |
+| `call`          | Invoke a child action with typed inputs inside `run`.     |
+| `exec`          | Run an executable plus argument array inside `run`.       |
+| `summary.table` | Write a sanitized GitHub step-summary table inside `run`. |
+| `summaryCode`   | Render a summary cell as escaped inline code.             |
+| `summaryText`   | Render a summary cell as escaped plain text.              |
+| `expr`          | Validate and wrap a GitHub Actions expression.            |
+
+## Step Summary Tables
+
+`summary.table(title, rows)` writes one table to the GitHub step summary. The
+title and each row label are escaped plain text. Row values must be
+`summaryText(value)` for plain text or `summaryCode(value)` for inline code.
+Hollywood does not accept raw HTML, Markdown, or bare string values in table
+cells.
 
 ## Expressions
 

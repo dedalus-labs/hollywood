@@ -78,7 +78,8 @@ const runAction = async (scriptAction, options) => {
 		exec: options.exec,
 		fs: options.fs,
 		log: options.log ?? silentLog,
-		runner: options.runner
+		runner: options.runner,
+		summary: options.summary ?? silentSummary
 	};
 	return scriptAction.run({
 		...services,
@@ -107,6 +108,14 @@ const choiceInput = (definition) => ({
 	kind: "choice"
 });
 const stringOutput = (definition) => definition;
+const summaryCode = (value) => ({
+	format: "code",
+	value
+});
+const summaryText = (value) => ({
+	format: "text",
+	value
+});
 const parseActionInputs = (inputs, values) => {
 	const rawValues = values;
 	const parsed = /* @__PURE__ */ new Map();
@@ -185,6 +194,7 @@ const silentLog = {
 	warning: () => {},
 	group: async (_name, run) => run()
 };
+const silentSummary = { table: async () => {} };
 //#endregion
 //#region src/github.ts
 const runGitHubAction = async (scriptAction, options = {}) => {
@@ -201,7 +211,8 @@ const runGitHubAction = async (scriptAction, options = {}) => {
 			exec: githubScriptExec(runtime.exec, runtime.core),
 			fs: runtime.fs,
 			log: githubScriptLog(runtime.core),
-			runner: runtime.runner
+			runner: runtime.runner,
+			summary: githubScriptSummary(runtime.core)
 		});
 		for (const [name, value] of Object.entries(outputs)) runtime.core.setOutput(toGitHubName(name), value);
 		return outputs;
@@ -297,9 +308,30 @@ const githubScriptLog = (githubCore) => ({
 	},
 	group: (name, run) => githubCore.group(name, run)
 });
+const githubScriptSummary = (githubCore) => ({ table: async (title, rows) => {
+	if (githubCore.summary === void 0) throw new Error("GitHub step summary is unavailable");
+	githubCore.summary.addRaw(renderSummaryTable(title, rows), true);
+	await githubCore.summary.write();
+} });
+const renderSummaryTable = (title, rows) => [
+	`<h2>${escapeHtml(title)}</h2>`,
+	"<table>",
+	"<thead><tr><th>Detail</th><th>Value</th></tr></thead>",
+	"<tbody>",
+	...rows.map(summaryTableRow),
+	"</tbody>",
+	"</table>"
+].join("\n");
+const summaryTableRow = (row) => `<tr><td>${escapeHtml(row.label)}</td><td>${formatSummaryCell(row.value)}</td></tr>`;
+const formatSummaryCell = (cell) => {
+	if (cell.format === "text") return escapeHtml(cell.value);
+	if (cell.format === "code") return `<code>${escapeHtml(cell.value)}</code>`;
+	return cell;
+};
 const errorMessage = (error) => {
 	if (error instanceof Error) return error.message;
 	return String(error);
 };
+const escapeHtml = (value) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll("\"", "&quot;");
 //#endregion
-export { integerInput as a, stringInput as c, currentRunner as d, nodeExec as f, choiceInput as i, stringOutput as l, nodeLog as m, action as n, pathInput as o, nodeFs as p, booleanInput as r, runAction as s, runGitHubAction as t, toGitHubName as u };
+export { integerInput as a, stringInput as c, summaryText as d, toGitHubName as f, nodeLog as g, nodeFs as h, choiceInput as i, stringOutput as l, nodeExec as m, action as n, pathInput as o, currentRunner as p, booleanInput as r, runAction as s, runGitHubAction as t, summaryCode as u };

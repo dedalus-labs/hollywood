@@ -12,6 +12,9 @@ import type {
 	ScriptAction,
 	ScriptFs,
 	ScriptLog,
+	ScriptSummary,
+	SummaryCell,
+	SummaryTableRow,
 	WorkflowInputValues,
 } from "./script";
 import { currentRunner, nodeFs } from "./local";
@@ -29,7 +32,13 @@ export type GitHubCore = Readonly<{
 	info: (message: string) => void;
 	setOutput: (name: string, value: string) => void;
 	setFailed: (message: string) => void;
+	summary?: GitHubSummary;
 	warning: (message: string) => void;
+}>;
+
+export type GitHubSummary = Readonly<{
+	addRaw: (text: string, addEOL?: boolean) => GitHubSummary;
+	write: () => Promise<unknown>;
 }>;
 
 export type GitHubExecOptions = Readonly<{
@@ -74,6 +83,7 @@ export const runGitHubAction = async <
 			fs: runtime.fs,
 			log: githubScriptLog(runtime.core),
 			runner: runtime.runner,
+			summary: githubScriptSummary(runtime.core),
 		});
 		for (const [name, value] of Object.entries(outputs)) {
 			runtime.core.setOutput(toGitHubName(name), value);
@@ -237,9 +247,50 @@ const githubScriptLog = (githubCore: GitHubCore): ScriptLog => ({
 	group: (name, run) => githubCore.group(name, run),
 });
 
+const githubScriptSummary = (githubCore: GitHubCore): ScriptSummary => ({
+	table: async (title, rows) => {
+		if (githubCore.summary === undefined) {
+			throw new Error("GitHub step summary is unavailable");
+		}
+		githubCore.summary.addRaw(renderSummaryTable(title, rows), true);
+		await githubCore.summary.write();
+	},
+});
+
+const renderSummaryTable = (title: string, rows: readonly SummaryTableRow[]): string => [
+	`<h2>${escapeHtml(title)}</h2>`,
+	"<table>",
+	"<thead><tr><th>Detail</th><th>Value</th></tr></thead>",
+	"<tbody>",
+	...rows.map(summaryTableRow),
+	"</tbody>",
+	"</table>",
+].join("\n");
+
+const summaryTableRow = (row: SummaryTableRow): string =>
+	`<tr><td>${escapeHtml(row.label)}</td><td>${formatSummaryCell(row.value)}</td></tr>`;
+
+const formatSummaryCell = (cell: SummaryCell): string => {
+	if (cell.format === "text") {
+		return escapeHtml(cell.value);
+	}
+	if (cell.format === "code") {
+		return `<code>${escapeHtml(cell.value)}</code>`;
+	}
+	const exhaustive: never = cell;
+	return exhaustive;
+};
+
 const errorMessage = (error: unknown): string => {
 	if (error instanceof Error) {
 		return error.message;
 	}
 	return String(error);
 };
+
+const escapeHtml = (value: string): string =>
+	value
+		.replaceAll("&", "&amp;")
+		.replaceAll("<", "&lt;")
+		.replaceAll(">", "&gt;")
+		.replaceAll('"', "&quot;");
