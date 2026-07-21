@@ -7,7 +7,15 @@ import {
 	type GitHubExec,
 	type GitHubExecOptions,
 } from "./github";
-import { action, integerInput, pathInput, stringInput, stringOutput } from "./script";
+import {
+	action,
+	integerInput,
+	pathInput,
+	stringInput,
+	stringOutput,
+	summaryCode,
+	summaryText,
+} from "./script";
 
 const publishArtifact = action({
 	name: "publish-artifact",
@@ -30,6 +38,20 @@ const publishArtifact = action({
 			},
 		);
 		return { artifactUrl: result.stdout.trim() };
+	},
+});
+
+const deploymentSummary = action({
+	name: "deployment-summary",
+	description: "Write a typed deployment summary.",
+	inputs: {},
+	outputs: {},
+	run: async ({ summary }) => {
+		await summary.table("Integration <test>", [
+			{ label: "Environment & scope", value: summaryCode("preview|prod") },
+			{ label: "Result", value: summaryText("PASS") },
+		]);
+		return {};
 	},
 });
 
@@ -249,6 +271,75 @@ test("runGitHubAction tells the GitHub exec toolkit when nonzero exits are expec
 
 	assert.deepEqual(commands, [{ file: "probe", args: [], options: { ignoreReturnCode: true } }]);
 	assert.deepEqual([...outputs], [["status", "7"]]);
+});
+
+test("runGitHubAction provides a typed step summary table", async () => {
+	let summaryBuffer = "";
+	const summaries: string[] = [];
+	const summary = {
+		addRaw: (text: string, addEOL = false) => {
+			summaryBuffer += text;
+			if (addEOL) {
+				summaryBuffer += "\n";
+			}
+			return summary;
+		},
+		write: async () => {
+			summaries.push(summaryBuffer);
+			summaryBuffer = "";
+			return summary;
+		},
+	};
+
+	await runGitHubAction(deploymentSummary, {
+		core: {
+			getInput: () => "",
+			group: async (_name, run) => run(),
+			info: () => {},
+			setFailed: (message) => {
+				throw new Error(`unexpected failure: ${message}`);
+			},
+			setOutput: () => {},
+			summary,
+			warning: () => {},
+		},
+		exec: { getExecOutput: async () => ({ exitCode: 0, stdout: "", stderr: "" }) },
+		fs: { readText: async () => "" },
+		runner: { uidGid: "1001:1001" },
+	});
+
+	assert.equal(summaries.length, 1);
+	assert.match(summaries[0] ?? "", /<h2>Integration &lt;test&gt;<\/h2>/);
+	assert.match(
+		summaries[0] ?? "",
+		/<td>Environment &amp; scope<\/td><td><code>preview\|prod<\/code><\/td>/,
+	);
+	assert.match(summaries[0] ?? "", /<td>Result<\/td><td>PASS<\/td>/);
+});
+
+test("runGitHubAction fails when a requested step summary is unavailable", async () => {
+	let failed = "";
+
+	await assert.rejects(
+		() =>
+			runGitHubAction(deploymentSummary, {
+				core: {
+					getInput: () => "",
+					group: async (_name, run) => run(),
+					info: () => {},
+					setFailed: (message) => {
+						failed = message;
+					},
+					setOutput: () => {},
+					warning: () => {},
+				},
+				exec: { getExecOutput: async () => ({ exitCode: 0, stdout: "", stderr: "" }) },
+				fs: { readText: async () => "" },
+				runner: { uidGid: "1001:1001" },
+			}),
+		/GitHub step summary is unavailable/,
+	);
+	assert.equal(failed, "GitHub step summary is unavailable");
 });
 
 test("runGitHubAction maps script logs to GitHub core", async () => {

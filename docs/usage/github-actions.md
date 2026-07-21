@@ -77,7 +77,32 @@ export const release = action({
 ```
 
 `call` does not create nested workflow steps. It invokes the child action in the
-same runtime with the same `exec`, `fs`, `log`, and `runner` services.
+same runtime with the same `exec`, `fs`, `log`, `runner`, and `summary` services.
+
+## Step summaries
+
+Use `summary.table` for GitHub step summaries. Titles and labels are escaped
+plain text. Values must be explicitly formatted with `summaryText` or
+`summaryCode`. There is no raw HTML or Markdown cell format.
+
+```typescript
+import { action, summaryCode, summaryText } from "@dedalus-labs/hollywood/action-runtime";
+
+export const integrationTest = action({
+	name: "integration-test",
+	description: "Run a live integration test.",
+	inputs,
+	outputs: {},
+	run: async ({ input, summary }) => {
+		await summary.table("Integration test", [
+			{ label: "Environment", value: summaryCode(input.environment) },
+			{ label: "API base", value: summaryCode(input.apiBase) },
+			{ label: "Result", value: summaryText("PASS") },
+		]);
+		return {};
+	},
+});
+```
 
 ## Workflow files
 

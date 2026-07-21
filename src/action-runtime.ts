@@ -8,6 +8,8 @@ export {
 	runAction,
 	stringInput,
 	stringOutput,
+	summaryCode,
+	summaryText,
 } from "./script";
 export type {
 	ActionCallInputValues,
@@ -31,5 +33,10 @@ export type {
 	ScriptFs,
 	ScriptLog,
 	ScriptActionServices,
+	ScriptSummary,
+	SummaryCell,
+	SummaryCode,
+	SummaryTableRow,
+	SummaryText,
 	WorkflowInputValues,
 } from "./script";

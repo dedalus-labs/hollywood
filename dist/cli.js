@@ -6217,7 +6217,8 @@ const runAction = async (scriptAction, options) => {
 		exec: options.exec,
 		fs: options.fs,
 		log: options.log ?? silentLog,
-		runner: options.runner
+		runner: options.runner,
+		summary: options.summary ?? silentSummary
 	};
 	return scriptAction.run({
 		...services,
@@ -6303,6 +6304,7 @@ const silentLog = {
 	warning: () => {},
 	group: async (_name, run) => run()
 };
+const silentSummary = { table: async () => {} };
 //#endregion
 //#region src/commands.ts
 const createCli = (io = processIo()) => {

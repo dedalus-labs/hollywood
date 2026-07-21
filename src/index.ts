@@ -22,6 +22,11 @@ export type {
 	ScriptFs,
 	ScriptLog,
 	ScriptActionServices,
+	ScriptSummary,
+	SummaryCell,
+	SummaryCode,
+	SummaryTableRow,
+	SummaryText,
 	WorkflowInputValues,
 } from "./script";
 export {
@@ -33,6 +38,8 @@ export {
 	runAction,
 	stringInput,
 	stringOutput,
+	summaryCode,
+	summaryText,
 } from "./script";
 
 export { currentRunner, nodeExec, nodeFs, nodeLog } from "./local";

@@ -44,6 +44,22 @@ type ScriptLog = Readonly<{
   warning: (message: string) => void;
   group: <Value>(name: string, run: () => Promise<Value>) => Promise<Value>;
 }>;
+type SummaryText = Readonly<{
+  format: "text";
+  value: string;
+}>;
+type SummaryCode = Readonly<{
+  format: "code";
+  value: string;
+}>;
+type SummaryCell = SummaryCode | SummaryText;
+type SummaryTableRow = Readonly<{
+  label: string;
+  value: SummaryCell;
+}>;
+type ScriptSummary = Readonly<{
+  table: (title: string, rows: readonly SummaryTableRow[]) => Promise<void>;
+}>;
 type RunnerContext = Readonly<{
   uidGid: string;
 }>;
@@ -68,6 +84,7 @@ type ScriptActionServices = Readonly<{
   fs: ScriptFs;
   log: ScriptLog;
   runner: RunnerContext;
+  summary: ScriptSummary;
 }>;
 type ScriptActionContext<Inputs extends InputDefinitions> = ScriptActionServices & Readonly<{
   call: ScriptActionCall;
@@ -87,6 +104,7 @@ type RunActionOptions<Inputs extends InputDefinitions> = Readonly<{
   fs: ScriptFs;
   log?: ScriptLog;
   runner: RunnerContext;
+  summary?: ScriptSummary;
 }>;
 declare const action: <const Inputs extends InputDefinitions, const Outputs extends OutputDefinitions>(definition: ScriptAction<Inputs, Outputs>) => ScriptAction<Inputs, Outputs>;
 declare const runAction: <const Inputs extends InputDefinitions, const Outputs extends OutputDefinitions>(scriptAction: ScriptAction<Inputs, Outputs>, options: RunActionOptions<Inputs>) => Promise<ActionOutputValues<Outputs>>;
@@ -106,6 +124,8 @@ declare const choiceInput: <const Options extends readonly [string, ...string[]]
   kind: "choice";
 };
 declare const stringOutput: (definition: OutputDefinition) => OutputDefinition;
+declare const summaryCode: (value: string) => SummaryCode;
+declare const summaryText: (value: string) => SummaryText;
 //#endregion
 //#region src/github.d.ts
 type GitHubInputOptions = Readonly<{
@@ -118,7 +138,12 @@ type GitHubCore = Readonly<{
   info: (message: string) => void;
   setOutput: (name: string, value: string) => void;
   setFailed: (message: string) => void;
+  summary?: GitHubSummary;
   warning: (message: string) => void;
+}>;
+type GitHubSummary = Readonly<{
+  addRaw: (text: string, addEOL?: boolean) => GitHubSummary;
+  write: () => Promise<unknown>;
 }>;
 type GitHubExecOptions = Readonly<{
   cwd?: string;
@@ -136,4 +161,4 @@ type RunGitHubActionOptions = Readonly<{
 }>;
 declare const runGitHubAction: <const Inputs extends InputDefinitions, const Outputs extends OutputDefinitions>(scriptAction: ScriptAction<Inputs, Outputs>, options?: RunGitHubActionOptions) => Promise<ActionOutputValues<Outputs>>;
 //#endregion
-export { ScriptLog as A, RunnerContext as C, ScriptActionServices as D, ScriptActionContext as E, integerInput as F, pathInput as I, runAction as L, action as M, booleanInput as N, ScriptExec as O, choiceInput as P, stringInput as R, RunActionOptions as S, ScriptActionCall as T, InputDefinitions as _, RunGitHubActionOptions as a, OutputDefinitions as b, ActionInputValues as c, Command as d, CommandEnvironment as f, InputDefinition as g, CommandResult as h, GitHubInputOptions as i, WorkflowInputValues as j, ScriptFs as k, ActionOutputValues as l, CommandOptions as m, GitHubExec as n, runGitHubAction as o, CommandExitPolicy as p, GitHubExecOptions as r, ActionCallInputValues as s, GitHubCore as t, ChoiceInputDefinition as u, InputKind as v, ScriptAction as w, RequiredInputName as x, OutputDefinition as y, stringOutput as z };
+export { ScriptLog as A, integerInput as B, RunnerContext as C, ScriptActionServices as D, ScriptActionContext as E, SummaryText as F, summaryCode as G, runAction as H, WorkflowInputValues as I, summaryText as K, action as L, SummaryCell as M, SummaryCode as N, ScriptExec as O, SummaryTableRow as P, booleanInput as R, RunActionOptions as S, ScriptActionCall as T, stringInput as U, pathInput as V, stringOutput as W, InputDefinitions as _, RunGitHubActionOptions as a, OutputDefinitions as b, ActionInputValues as c, Command as d, CommandEnvironment as f, InputDefinition as g, CommandResult as h, GitHubInputOptions as i, ScriptSummary as j, ScriptFs as k, ActionOutputValues as l, CommandOptions as m, GitHubExec as n, runGitHubAction as o, CommandExitPolicy as p, GitHubExecOptions as r, ActionCallInputValues as s, GitHubCore as t, ChoiceInputDefinition as u, InputKind as v, ScriptAction as w, RequiredInputName as x, OutputDefinition as y, choiceInput as z };
