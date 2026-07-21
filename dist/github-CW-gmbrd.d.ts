@@ -145,10 +145,16 @@ type GitHubSummary = Readonly<{
   addRaw: (text: string, addEOL?: boolean) => GitHubSummary;
   write: () => Promise<unknown>;
 }>;
+type GitHubExecListeners = Readonly<{
+  stderr?: (data: Buffer) => void;
+  stdout?: (data: Buffer) => void;
+}>;
 type GitHubExecOptions = Readonly<{
   cwd?: string;
   env?: CommandEnvironment;
   ignoreReturnCode?: boolean;
+  listeners?: GitHubExecListeners;
+  silent?: boolean;
 }>;
 type GitHubExec = Readonly<{
   getExecOutput: (file: string, args?: string[], options?: GitHubExecOptions) => Promise<CommandResult>;
@@ -159,6 +165,6 @@ type RunGitHubActionOptions = Readonly<{
   fs?: ScriptFs;
   runner?: RunnerContext;
 }>;
-declare const runGitHubAction: <const Inputs extends InputDefinitions, const Outputs extends OutputDefinitions>(scriptAction: ScriptAction<Inputs, Outputs>, options?: RunGitHubActionOptions) => Promise<ActionOutputValues<Outputs>>;
+declare const runGitHubAction: <const Inputs extends InputDefinitions, const Outputs extends OutputDefinitions>(scriptAction: ScriptAction<Inputs, Outputs>, options?: RunGitHubActionOptions) => Promise<ActionOutputValues<Outputs> | undefined>;
 //#endregion
 export { ScriptLog as A, integerInput as B, RunnerContext as C, ScriptActionServices as D, ScriptActionContext as E, SummaryText as F, summaryCode as G, runAction as H, WorkflowInputValues as I, summaryText as K, action as L, SummaryCell as M, SummaryCode as N, ScriptExec as O, SummaryTableRow as P, booleanInput as R, RunActionOptions as S, ScriptActionCall as T, stringInput as U, pathInput as V, stringOutput as W, InputDefinitions as _, RunGitHubActionOptions as a, OutputDefinitions as b, ActionInputValues as c, Command as d, CommandEnvironment as f, InputDefinition as g, CommandResult as h, GitHubInputOptions as i, ScriptSummary as j, ScriptFs as k, ActionOutputValues as l, CommandOptions as m, GitHubExec as n, runGitHubAction as o, CommandExitPolicy as p, GitHubExecOptions as r, ActionCallInputValues as s, GitHubCore as t, ChoiceInputDefinition as u, InputKind as v, ScriptAction as w, RequiredInputName as x, OutputDefinition as y, choiceInput as z };

@@ -199,6 +199,7 @@ const silentSummary = { table: async () => {} };
 //#region src/github.ts
 const runGitHubAction = async (scriptAction, options = {}) => {
 	const githubCore = options.core ?? core;
+	const report = createCommandReport(scriptAction.name);
 	try {
 		const runtime = {
 			core: githubCore,
@@ -208,17 +209,19 @@ const runGitHubAction = async (scriptAction, options = {}) => {
 		};
 		const outputs = await runAction(scriptAction, {
 			with: readGitHubInputs(scriptAction.inputs, runtime.core),
-			exec: githubScriptExec(runtime.exec, runtime.core),
+			exec: githubScriptExec(runtime.exec, runtime.core, report),
 			fs: runtime.fs,
 			log: githubScriptLog(runtime.core),
 			runner: runtime.runner,
 			summary: githubScriptSummary(runtime.core)
 		});
 		for (const [name, value] of Object.entries(outputs)) runtime.core.setOutput(toGitHubName(name), value);
+		await writeCommandSummary(runtime.core, report);
 		return outputs;
 	} catch (error) {
+		await writeCommandSummary(githubCore, report);
 		githubCore.setFailed(errorMessage(error));
-		throw error;
+		return;
 	}
 };
 const readGitHubInputs = (inputs, githubCore) => {
@@ -235,15 +238,35 @@ const readGitHubInputs = (inputs, githubCore) => {
 	}
 	return Object.fromEntries(values);
 };
-const githubScriptExec = (githubExec, githubCore) => async (file, args, commandOptions = {}) => {
+const githubScriptExec = (githubExec, githubCore, report) => async (file, args, commandOptions = {}) => {
 	const options = githubExecOptions(commandOptions);
-	const command = formatCommand(file, args);
+	const command = formatCommandLabel(file, args);
 	return githubCore.group(command, async () => {
 		logCommandMetadata(githubCore, commandOptions);
 		const startedAt = Date.now();
-		const result = await githubExec.getExecOutput(file, [...args], options);
-		logCommandStatus(githubCore, command, result, formatElapsed(Date.now() - startedAt));
-		if (result.exitCode !== 0 && commandOptions.exitPolicy !== "any") throw new Error(commandFailureMessage(command, result));
+		let result;
+		try {
+			result = await githubExec.getExecOutput(file, [...args], options);
+		} catch (error) {
+			const elapsed = formatElapsed(Date.now() - startedAt);
+			report.commands.push({
+				elapsed,
+				label: command,
+				status: "fail"
+			});
+			logCommandStatus(githubCore, command, elapsed, "fail");
+			throw error;
+		}
+		const elapsed = formatElapsed(Date.now() - startedAt);
+		const status = commandStatus(result, commandOptions);
+		const label = commandStatusLabel(command, result);
+		report.commands.push({
+			elapsed,
+			label,
+			status
+		});
+		logCommandStatus(githubCore, label, elapsed, status);
+		if (result.exitCode !== 0 && commandOptions.exitPolicy !== "any") throw new Error(`${command} exited ${result.exitCode}`);
 		return result;
 	});
 };
@@ -254,44 +277,117 @@ const logCommandMetadata = (githubCore, commandOptions) => {
 		if (names.length > 0) githubCore.info(dim(`  env  ${names.join(", ")}`));
 	}
 };
-const logCommandStatus = (githubCore, command, result, elapsed) => {
-	if (result.exitCode === 0) {
-		githubCore.info(statusLine("ok", elapsed, command));
-		return;
+const logCommandStatus = (githubCore, label, elapsed, status) => {
+	githubCore.info(statusLine(status, elapsed, label));
+};
+const commandStatus = (result, commandOptions) => {
+	if (result.exitCode === 0) return "ok";
+	if (commandOptions.exitPolicy === "any") return "exit";
+	return "fail";
+};
+const commandStatusLabel = (label, result) => {
+	if (result.exitCode === 0) return label;
+	return `${label} (exit ${result.exitCode})`;
+};
+const createCommandReport = (actionName) => ({
+	actionName,
+	commands: []
+});
+const writeCommandSummary = async (githubCore, report) => {
+	if (githubCore.summary === void 0 || report.commands.length === 0) return;
+	try {
+		githubCore.summary.addRaw(renderCommandSummary(report), true);
+		await githubCore.summary.write();
+	} catch (error) {
+		githubCore.warning(`could not write Hollywood step summary: ${errorMessage(error)}`);
 	}
-	githubCore.info(statusLine("fail", elapsed, `${command} (exit ${result.exitCode})`));
 };
-const commandFailureMessage = (command, result) => {
-	const output = [formatOutputSection("stderr", result.stderr), formatOutputSection("stdout", result.stdout)].filter((section) => section.length > 0).join("\n");
-	if (output.length === 0) return `${command} exited ${result.exitCode}`;
-	return `${command} exited ${result.exitCode}\n${output}`;
+const renderCommandSummary = (report) => [
+	`### Hollywood: ${escapeHtml(report.actionName)}`,
+	"",
+	"<table>",
+	"<thead><tr><th>Status</th><th>Time</th><th>Command</th></tr></thead>",
+	"<tbody>",
+	...report.commands.map(summaryRow),
+	"</tbody>",
+	"</table>"
+].join("\n");
+const summaryRow = (command) => [
+	"<tr>",
+	`<td><code>${command.status}</code></td>`,
+	`<td align="right"><code>${escapeHtml(command.elapsed)}</code></td>`,
+	`<td><code>${escapeHtml(command.label)}</code></td>`,
+	"</tr>"
+].join("");
+const formatCommandLabel = (file, args) => formatCompactCommand(file, args);
+const formatCompactCommand = (file, args) => {
+	const shownArgs = args.slice(0, 6).map(compactArgument);
+	const hidden = args.length - shownArgs.length;
+	const command = [file, ...shownArgs].map(displayQuote).join(" ");
+	return hidden > 0 ? `${command} ... +${hidden} args` : command;
 };
-const formatOutputSection = (name, output) => {
-	const trimmed = output.trimEnd();
-	if (trimmed.length === 0) return "";
-	return `${name}:\n${trimmed}`;
+const compactArgument = (value) => compactUri(value) ?? compactPath(value);
+const compactUri = (value) => {
+	const match = /^([A-Za-z][A-Za-z0-9+.-]*):\/\/([^/]+)\/?(.*)$/.exec(value);
+	if (match === null) return;
+	const [, scheme, authority, path] = match;
+	if (scheme === void 0 || authority === void 0) return;
+	if (path === void 0 || path.length === 0) return `${scheme}://${authority}`;
+	const trailingSlash = path.endsWith("/");
+	const parts = path.split("/").filter((part) => part.length > 0);
+	if (parts.length <= 2 && value.length <= 96) return value;
+	return `${scheme}://${authority}/.../${parts.slice(-2).map(compactSegment).join("/")}${trailingSlash ? "/" : ""}`;
 };
-const formatCommand = (file, args) => [file, ...args].map(shellQuote).join(" ");
+const compactPath = (value) => {
+	if (value.includes("\n") || value.includes("\r")) return "<inline script>";
+	if (value.length <= 96) return value;
+	const parts = value.split("/").filter((part) => part.length > 0);
+	if (parts.length >= 3 && value.startsWith("/")) return `/.../${parts.slice(-2).map(compactSegment).join("/")}`;
+	return compactSegment(value);
+};
+const compactSegment = (value) => {
+	if (value.length <= 48) return value;
+	return `${value.slice(0, 20)}...${value.slice(-20)}`;
+};
 const shellQuote = (value) => {
 	if (value.length === 0) return "''";
 	if (/^[A-Za-z0-9_/@%+=:,./-]+$/.test(value)) return value;
 	return `'${value.replaceAll("'", "'\\''")}'`;
+};
+const displayQuote = (value) => {
+	if (value.startsWith("<") && value.endsWith(">")) return value;
+	return shellQuote(value);
 };
 const formatElapsed = (elapsedMs) => {
 	if (elapsedMs < 1e3) return `${elapsedMs}ms`;
 	return `${(elapsedMs / 1e3).toFixed(2)}s`;
 };
 const statusLine = (status, elapsed, message) => `  ${statusColor(status)(status)}${" ".repeat(4 - status.length)}  ${elapsed.padStart(7)}  ${message}`;
-const statusColor = (status) => status === "ok" ? green : red;
+const statusColor = (status) => {
+	if (status === "ok") return green;
+	if (status === "exit") return yellow;
+	return red;
+};
 const color = (code, message) => `\u001B[${code}m${message}\u001B[0m`;
 const dim = (message) => color(2, message);
 const green = (message) => color(32, message);
 const red = (message) => color(31, message);
+const yellow = (message) => color(33, message);
 const githubExecOptions = (commandOptions) => {
-	const options = {};
+	const options = {
+		ignoreReturnCode: true,
+		listeners: {
+			stderr: (data) => {
+				process.stderr.write(data);
+			},
+			stdout: (data) => {
+				process.stdout.write(data);
+			}
+		},
+		silent: true
+	};
 	if (commandOptions.cwd !== void 0) options.cwd = commandOptions.cwd;
 	if (commandOptions.env !== void 0) options.env = commandEnvironment(commandOptions.env);
-	if (commandOptions.exitPolicy === "any") options.ignoreReturnCode = true;
 	return options;
 };
 const commandEnvironment = (overrides) => ({
