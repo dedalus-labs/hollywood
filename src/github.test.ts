@@ -1,5 +1,5 @@
 import * as assert from "node:assert/strict";
-import { test } from "vitest";
+import { test, vi } from "vitest";
 
 import {
 	runGitHubAction,
@@ -41,20 +41,6 @@ const publishArtifact = action({
 	},
 });
 
-const deploymentSummary = action({
-	name: "deployment-summary",
-	description: "Write a typed deployment summary.",
-	inputs: {},
-	outputs: {},
-	run: async ({ summary }) => {
-		await summary.table("Integration <test>", [
-			{ label: "Environment & scope", value: summaryCode("preview|prod") },
-			{ label: "Result", value: summaryText("PASS") },
-		]);
-		return {};
-	},
-});
-
 type CapturedCommand = Readonly<{
 	file: string;
 	args?: string[];
@@ -73,6 +59,23 @@ const restoreEnv = (name: string, value: string | undefined): void => {
 		return;
 	}
 	process.env[name] = value;
+};
+
+const captureSummary = () => {
+	let buffer = "";
+	const writes: string[] = [];
+	const summary = {
+		addRaw: (text: string, addEOL = false) => {
+			buffer += `${text}${addEOL ? "\n" : ""}`;
+			return summary;
+		},
+		write: async () => {
+			writes.push(buffer);
+			buffer = "";
+			return summary;
+		},
+	};
+	return { summary, writes };
 };
 
 test("runGitHubAction binds core inputs, execs commands, and sets outputs", async () => {
@@ -186,18 +189,25 @@ test("runGitHubAction groups exec logs with command metadata and status", async 
 	assert.equal(events[4], "output:status:ok");
 });
 
-test("runGitHubAction marks the action failed before rethrowing", async () => {
-	let failed = "";
-	const core: GitHubCore = {
-		getInput: (name) => {
-			if (name === "artifact-path") {
-				return "/tmp/artifact.tgz";
-			}
-			if (name === "retry-count") {
-				return "3";
-			}
-			return "";
+test("runGitHubAction streams failed command output once and reports a concise failure", async () => {
+	const failingAction = action({
+		name: "failing-action",
+		description: "Exercise command failure reporting.",
+		inputs: {},
+		outputs: {},
+		run: async ({ exec }) => {
+			await exec("tool", ["test"]);
+			return {};
 		},
+	});
+	let failed = "";
+	let streamed = "";
+	const stderr = vi.spyOn(process.stderr, "write").mockImplementation((chunk) => {
+		streamed += chunk.toString();
+		return true;
+	});
+	const core: GitHubCore = {
+		getInput: () => "",
 		group: async (_name, run) => run(),
 		info: () => {},
 		setOutput: () => {},
@@ -207,20 +217,29 @@ test("runGitHubAction marks the action failed before rethrowing", async () => {
 		warning: () => {},
 	};
 	const exec: GitHubExec = {
-		getExecOutput: async () => ({ exitCode: 1, stdout: "", stderr: "denied" }),
+		getExecOutput: async (_file, _args, options) => {
+			const output = Buffer.from("native reporter failure\n");
+			options?.listeners?.stderr?.(output);
+			return { exitCode: 1, stdout: "", stderr: output.toString() };
+		},
 	};
 
-	await assert.rejects(
-		() =>
-			runGitHubAction(publishArtifact, {
-				core,
-				exec,
-				fs: { readText: async () => "" },
-				runner: { uidGid: "1001:1001" },
-			}),
-		/publish \/tmp\/artifact.tgz 3 dev exited 1\nstderr:\ndenied/,
-	);
-	assert.equal(failed, "publish /tmp/artifact.tgz 3 dev exited 1\nstderr:\ndenied");
+	try {
+		const result = await runGitHubAction(failingAction, {
+			core,
+			exec,
+			fs: { readText: async () => "" },
+			runner: { uidGid: "1001:1001" },
+		});
+		assert.equal(result, undefined);
+	} finally {
+		stderr.mockRestore();
+	}
+
+	assert.equal(streamed, "native reporter failure\n");
+	assert.match(failed, /exited 1$/);
+	assert.doesNotMatch(failed, /native reporter failure/);
+	assert.equal(`${streamed}${failed}`.match(/native reporter failure/g)?.length, 1);
 });
 
 test("runGitHubAction tells the GitHub exec toolkit when nonzero exits are expected", async () => {
@@ -237,13 +256,19 @@ test("runGitHubAction tells the GitHub exec toolkit when nonzero exits are expec
 		},
 	});
 	const commands: CapturedCommand[] = [];
+	const events: string[] = [];
 	const outputs = new Map<string, string>();
 
 	await runGitHubAction(exitProbe, {
 		core: {
 			getInput: () => "",
-			group: async (_name, run) => run(),
-			info: () => {},
+			group: async (name, run) => {
+				events.push(`group:${name}`);
+				return run();
+			},
+			info: (message) => {
+				events.push(`info:${message}`);
+			},
 			setOutput: (name, value) => {
 				outputs.set(name, value);
 			},
@@ -269,33 +294,112 @@ test("runGitHubAction tells the GitHub exec toolkit when nonzero exits are expec
 		runner: { uidGid: "1001:1001" },
 	});
 
-	assert.deepEqual(commands, [{ file: "probe", args: [], options: { ignoreReturnCode: true } }]);
+	assert.equal(commands.length, 1);
+	assert.deepEqual(commands[0]?.file, "probe");
+	assert.deepEqual(commands[0]?.args, []);
+	assert.equal(commands[0]?.options?.ignoreReturnCode, true);
+	assert.equal(commands[0]?.options?.silent, true);
+	assert.equal(typeof commands[0]?.options?.listeners?.stderr, "function");
+	assert.equal(typeof commands[0]?.options?.listeners?.stdout, "function");
+	assert.equal(events[0], "group:probe");
+	assert.ok((events[1] ?? "").startsWith("info:  \u001B[33mexit\u001B[0m"));
+	assert.match(events[1] ?? "", /\s+\d+ms  probe \(exit 7\)$/);
 	assert.deepEqual([...outputs], [["status", "7"]]);
 });
 
-test("runGitHubAction provides a typed step summary table", async () => {
-	let summaryBuffer = "";
-	const summaries: string[] = [];
-	const summary = {
-		addRaw: (text: string, addEOL = false) => {
-			summaryBuffer += text;
-			if (addEOL) {
-				summaryBuffer += "\n";
-			}
-			return summary;
-		},
-		write: async () => {
-			summaries.push(summaryBuffer);
-			summaryBuffer = "";
-			return summary;
-		},
-	};
+test("runGitHubAction keeps long command reports bounded and recognizable", async () => {
+	const events: string[] = [];
+	const { summary, writes } = captureSummary();
+	const longKey = `linux-arm64-${"a".repeat(64)}`;
+	const source = `artifact://cache/builds/dev/${longKey}/`;
+	const destination = `artifact://releases/dev/${longKey}-package-${"b".repeat(64)}/runs/build-123/`;
+	const args = [
+		"sync",
+		source,
+		destination,
+		"--exclude",
+		"images/source.img.zst",
+		"--region",
+		"test-1",
+		"--quiet",
+	];
 
-	await runGitHubAction(deploymentSummary, {
+	await runGitHubAction(action({
+		name: "publish-artifacts",
+		description: "Exercise compact command logs.",
+		inputs: {},
+		outputs: {
+			status: stringOutput({ description: "Command status." }),
+		},
+		run: async ({ exec }) => {
+			await exec("artifact", args);
+			return { status: "ok" };
+		},
+	}), {
 		core: {
 			getInput: () => "",
-			group: async (_name, run) => run(),
-			info: () => {},
+			group: async (name, run) => {
+				events.push(`group:${name}`);
+				return run();
+			},
+			info: (message) => {
+				events.push(`info:${message}`);
+			},
+			setOutput: (name, value) => {
+				events.push(`output:${name}:${value}`);
+			},
+			setFailed: (message) => {
+				throw new Error(`unexpected failure: ${message}`);
+			},
+			summary,
+			warning: (message) => {
+				events.push(`warning:${message}`);
+			},
+		},
+		exec: { getExecOutput: async () => ({ exitCode: 0, stdout: "", stderr: "" }) },
+		fs: { readText: async () => "" },
+		runner: { uidGid: "1001:1001" },
+	});
+
+	const group = events[0] ?? "";
+	assert.match(group, /^group:artifact sync /);
+	assert.ok(group.length < ["artifact", ...args].join(" ").length);
+	assert.ok(!group.includes(source));
+	assert.ok(!group.includes(destination));
+	assert.match(group, /\.\.\. \+2 args$/);
+	assert.match(events[1] ?? "", /\s+\d+ms  artifact sync /);
+	assert.equal(events[2], "output:status:ok");
+	assert.equal(writes.length, 1);
+	assert.match(writes[0] ?? "", /### Hollywood: publish-artifacts/);
+	assert.match(writes[0] ?? "", /artifact sync/);
+	assert.ok(!(writes[0] ?? "").includes(source));
+	assert.ok(!(writes[0] ?? "").includes(destination));
+});
+
+test("runGitHubAction compacts multiline command arguments", async () => {
+	const events: string[] = [];
+	const { summary, writes } = captureSummary();
+	const inlineScript = "console.log('first');\nconsole.log('second');";
+
+	await runGitHubAction(action({
+		name: "summary-script",
+		description: "Exercise multiline script command logs.",
+		inputs: {},
+		outputs: {},
+		run: async ({ exec }) => {
+			await exec("node", ["-e", inlineScript]);
+			return {};
+		},
+	}), {
+		core: {
+			getInput: () => "",
+			group: async (name, run) => {
+				events.push(`group:${name}`);
+				return run();
+			},
+			info: (message) => {
+				events.push(`info:${message}`);
+			},
 			setFailed: (message) => {
 				throw new Error(`unexpected failure: ${message}`);
 			},
@@ -308,37 +412,84 @@ test("runGitHubAction provides a typed step summary table", async () => {
 		runner: { uidGid: "1001:1001" },
 	});
 
-	assert.equal(summaries.length, 1);
-	assert.match(summaries[0] ?? "", /<h2>Integration &lt;test&gt;<\/h2>/);
-	assert.match(
-		summaries[0] ?? "",
-		/<td>Environment &amp; scope<\/td><td><code>preview\|prod<\/code><\/td>/,
-	);
-	assert.match(summaries[0] ?? "", /<td>Result<\/td><td>PASS<\/td>/);
+	assert.equal(events[0], "group:node -e <inline script>");
+	assert.match(events[1] ?? "", /\s+\d+ms  node -e <inline script>$/);
+	assert.equal(writes.length, 1);
+	assert.match(writes[0] ?? "", /node -e &lt;inline script&gt;/);
+	assert.ok(!(writes[0] ?? "").includes(inlineScript));
 });
 
-test("runGitHubAction fails when a requested step summary is unavailable", async () => {
+test("runGitHubAction provides a typed step summary table", async () => {
+	const { summary, writes } = captureSummary();
+
+	await runGitHubAction(action({
+		name: "summary-action",
+		description: "Exercise typed summaries.",
+		inputs: {},
+		outputs: {},
+		run: async ({ exec, summary }) => {
+			await summary.table("Integration test", [
+				{ label: "Environment", value: summaryCode("preview|prod") },
+				{ label: "Result", value: summaryText("PASS") },
+			]);
+			await exec("go", ["test", "./e2e"], { exitPolicy: "any" });
+			return {};
+		},
+	}), {
+		core: {
+			getInput: () => "",
+			group: async (_name, run) => run(),
+			info: () => {},
+			setFailed: (message) => {
+				throw new Error(`unexpected failure: ${message}`);
+			},
+			setOutput: () => {},
+			summary,
+			warning: () => {},
+		},
+		exec: { getExecOutput: async () => ({ exitCode: 1, stdout: "", stderr: "" }) },
+		fs: { readText: async () => "" },
+		runner: { uidGid: "1001:1001" },
+	});
+
+	assert.equal(writes.length, 2);
+	assert.match(writes[0] ?? "", /<h2>Integration test<\/h2>/);
+	assert.match(writes[0] ?? "", /<td>Environment<\/td><td><code>preview\|prod<\/code><\/td>/);
+	assert.match(writes[0] ?? "", /<td>Result<\/td><td>PASS<\/td>/);
+	assert.match(writes[1] ?? "", /### Hollywood: summary-action/);
+});
+
+test("runGitHubAction reports when a requested step summary is unavailable", async () => {
 	let failed = "";
 
-	await assert.rejects(
-		() =>
-			runGitHubAction(deploymentSummary, {
-				core: {
-					getInput: () => "",
-					group: async (_name, run) => run(),
-					info: () => {},
-					setFailed: (message) => {
-						failed = message;
-					},
-					setOutput: () => {},
-					warning: () => {},
+	const result = await runGitHubAction(
+		action({
+			name: "summary-action",
+			description: "Exercise unavailable step summaries.",
+			inputs: {},
+			outputs: {},
+			run: async ({ summary }) => {
+				await summary.table("Summary", []);
+				return {};
+			},
+		}),
+		{
+			core: {
+				getInput: () => "",
+				group: async (_name, run) => run(),
+				info: () => {},
+				setFailed: (message) => {
+					failed = message;
 				},
-				exec: { getExecOutput: async () => ({ exitCode: 0, stdout: "", stderr: "" }) },
-				fs: { readText: async () => "" },
-				runner: { uidGid: "1001:1001" },
-			}),
-		/GitHub step summary is unavailable/,
+				setOutput: () => {},
+				warning: () => {},
+			},
+			exec: { getExecOutput: async () => ({ exitCode: 0, stdout: "", stderr: "" }) },
+			fs: { readText: async () => "" },
+			runner: { uidGid: "1001:1001" },
+		},
 	);
+	assert.equal(result, undefined);
 	assert.equal(failed, "GitHub step summary is unavailable");
 });
 
