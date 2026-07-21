@@ -1,11 +1,25 @@
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+
 import { action, job, summaryCode, summaryText, uses, workflow } from "../src/index";
 import {
-	actionlintAction,
 	checkHollywoodStateCommand,
 	checkoutAction,
 	setupNodeAction,
 } from "./actions";
 import { trustedCiRun } from "./guards";
+
+const actionlintVersion = "1.7.12";
+const actionlintArchiveSha256 =
+	"8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8";
+
+export const assertSha256 = (contents: Uint8Array, expected: string): void => {
+	const actual = createHash("sha256").update(contents).digest("hex");
+	if (actual !== expected) {
+		throw new Error(`artifact checksum mismatch: expected ${expected}, received ${actual}`);
+	}
+};
 
 const setupNode = {
 	uses: setupNodeAction,
@@ -26,6 +40,37 @@ export const checkRuntime = action({
 			{ label: "Node", value: summaryCode(result.stdout.trim()) },
 			{ label: "Result", value: summaryText("PASS") },
 		]);
+		return {};
+	},
+});
+
+export const lintWorkflows = action({
+	name: "Lint GitHub Actions workflows",
+	description: "Run a checksum-verified Actionlint binary.",
+	localActionPath: "lint-workflows",
+	inputs: {},
+	outputs: {},
+	run: async ({ exec }) => {
+		const runnerTemp = process.env["RUNNER_TEMP"];
+		const workspace = process.env["GITHUB_WORKSPACE"];
+		if (runnerTemp === undefined || workspace === undefined) {
+			throw new Error("RUNNER_TEMP and GITHUB_WORKSPACE are required");
+		}
+
+		const archive = join(runnerTemp, `actionlint_${actionlintVersion}_linux_amd64.tar.gz`);
+		const executable = join(runnerTemp, "actionlint");
+		await exec("curl", [
+			"--fail",
+			"--location",
+			"--silent",
+			"--show-error",
+			"--output",
+			archive,
+			`https://github.com/rhysd/actionlint/releases/download/v${actionlintVersion}/actionlint_${actionlintVersion}_linux_amd64.tar.gz`,
+		]);
+		assertSha256(await readFile(archive), actionlintArchiveSha256);
+		await exec("tar", ["--extract", "--gzip", "--file", archive, "--directory", runnerTemp, "actionlint"]);
+		await exec(executable, ["-color"], { cwd: workspace });
 		return {};
 	},
 });
@@ -67,7 +112,7 @@ export const ci = workflow({
 				{ name: "Build Hollywood", run: "npm run build" },
 				{ name: "Build local actions", run: "npm run actions" },
 				uses(checkRuntime, { name: "Check Hollywood runtime" }),
-				{ uses: actionlintAction },
+				uses(lintWorkflows, { name: "Lint GitHub Actions workflows" }),
 			],
 		}),
 	},

@@ -7,9 +7,6 @@ export const setupNodeAction =
 export const setupPythonAction =
 	"actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405"; // v6.2.0
 
-export const actionlintAction =
-	"rhysd/actionlint@a443f344ff32813837fa49f7aa6cbc478d770e62"; // v1.7.9
-
 export const createGitHubAppTokenAction =
 	"actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1"; // v3.2.0
 
