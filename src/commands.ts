@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { mkdtemp, readdir, readFile, rm, stat, symlink } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -63,6 +63,13 @@ export type BuildActionsOptions = Readonly<{
 	actionsDir: string;
 	output: string;
 	target: string;
+}>;
+
+export type InitOptions = Readonly<{
+	name: string;
+	output: string;
+	sourceRoot?: string;
+	workflow: boolean;
 }>;
 
 export type CliIo = Readonly<{
@@ -145,6 +152,25 @@ export const createCli = (io: CliIo = processIo()): Command => {
 			await run(runOptions, io);
 		});
 
+	program
+		.command("init")
+		.description("Scaffold a minimal action or workflow source file")
+		.argument("<name>", "Name for the generated source file")
+		.option("-o, --output <dir>", "Repository root", ".")
+		.option("--source-root <dir>", "Source root directory")
+		.option("--workflow", "Scaffold a workflow instead of an action", false)
+		.action(async (name, options) => {
+			await init(
+				{
+					name,
+					output: options.output,
+					workflow: options.workflow,
+					...(options.sourceRoot === undefined ? {} : { sourceRoot: options.sourceRoot }),
+				},
+				io,
+			);
+		});
+
 	return program;
 };
 
@@ -160,6 +186,66 @@ export const generate = async (options: GenerateOptions, io: CliIo): Promise<voi
 		io.writeOut("unchanged\t(no generated files)\n");
 	}
 };
+
+export const init = async (options: InitOptions, io: CliIo): Promise<void> => {
+	const output = resolve(options.output);
+	const sourceRoot = await resolveSourceRoot({
+		output,
+		...(options.sourceRoot === undefined ? {} : { sourceRoot: options.sourceRoot }),
+		sources: [],
+	});
+	const path = resolve(output, sourceRoot, `${options.name}.ts`);
+	if (await pathExists(path)) {
+		throw new Error(`file already exists: ${relative(output, path).split(sep).join("/")}`);
+	}
+	await mkdir(dirname(path), { recursive: true });
+	const identifier = toIdentifier(options.name);
+	const content = options.workflow ? workflowTemplate(identifier) : actionTemplate(identifier);
+	await writeFile(path, content, "utf8");
+	io.writeOut(`created\t${relative(output, path).split(sep).join("/")}\n`);
+};
+
+const toIdentifier = (name: string): string => {
+	const camel = name
+		.split(/[^a-zA-Z0-9]+/)
+		.filter((part) => part.length > 0)
+		.map((part, index) =>
+			index === 0 ? part.charAt(0).toLowerCase() + part.slice(1) : part.charAt(0).toUpperCase() + part.slice(1),
+		)
+		.join("");
+	return /^[a-zA-Z_]/.test(camel) ? camel : `_${camel}`;
+};
+
+const actionTemplate = (identifier: string): string => `import { action, stringInput, stringOutput } from "@dedalus-labs/hollywood";
+
+export const ${identifier} = action({
+	name: "${identifier}",
+	description: "Example Hollywood action.",
+	inputs: {
+		message: stringInput({ description: "Message to transform." }),
+	},
+	outputs: {
+		result: stringOutput({ description: "Transformed message." }),
+	},
+	run: async ({ input }) => {
+		return { result: input.message.toUpperCase() };
+	},
+});
+`;
+
+const workflowTemplate = (identifier: string): string => `import { job, workflow } from "@dedalus-labs/hollywood";
+
+export const ${identifier} = workflow({
+	name: "${identifier}",
+	on: { push: { branches: ["main"] } },
+	jobs: {
+		${identifier}: job({
+			"runs-on": "ubuntu-latest",
+			steps: [{ name: "Say hello", run: "echo Hello from Hollywood" }],
+		}),
+	},
+});
+`;
 
 export const run = async (options: RunOptions, io: CliIo): Promise<void> => {
 	const module = await loadHollywoodModule(options.source);
