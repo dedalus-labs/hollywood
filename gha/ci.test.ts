@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
 
-import { assertSha256 } from "../gha/ci";
+import { assertSha256 } from "./ci";
 
 test("artifact checksum verification accepts only matching contents", () => {
 	const contents = Buffer.from("Hollywood");
