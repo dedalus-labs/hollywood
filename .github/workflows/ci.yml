@@ -58,4 +58,6 @@ jobs:
         run: npm run build
       - name: Build local actions
         run: npm run actions
+      - name: Check Hollywood runtime
+        uses: ./.github/actions/check-runtime
       - uses: rhysd/actionlint@a443f344ff32813837fa49f7aa6cbc478d770e62

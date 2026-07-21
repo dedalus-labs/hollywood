@@ -1,4 +1,4 @@
-import { job, workflow } from "../src/index";
+import { action, job, summaryCode, summaryText, uses, workflow } from "../src/index";
 import {
 	actionlintAction,
 	checkHollywoodStateCommand,
@@ -13,6 +13,22 @@ const setupNode = {
 		"node-version": "24",
 	},
 } as const;
+
+export const checkRuntime = action({
+	name: "Check Hollywood runtime",
+	description: "Exercise Hollywood's command logs and step summaries.",
+	localActionPath: "check-runtime",
+	inputs: {},
+	outputs: {},
+	run: async ({ exec, summary }) => {
+		const result = await exec("node", ["--version"]);
+		await summary.table("Hollywood runtime", [
+			{ label: "Node", value: summaryCode(result.stdout.trim()) },
+			{ label: "Result", value: summaryText("PASS") },
+		]);
+		return {};
+	},
+});
 
 export const ci = workflow({
 	name: "CI",
@@ -50,6 +66,7 @@ export const ci = workflow({
 				{ name: "Install dependencies", run: "npm ci" },
 				{ name: "Build Hollywood", run: "npm run build" },
 				{ name: "Build local actions", run: "npm run actions" },
+				uses(checkRuntime, { name: "Check Hollywood runtime" }),
 				{ uses: actionlintAction },
 			],
 		}),
