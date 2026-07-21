@@ -159,12 +159,14 @@ type GitHubExecOptions = Readonly<{
 type GitHubExec = Readonly<{
   getExecOutput: (file: string, args?: string[], options?: GitHubExecOptions) => Promise<CommandResult>;
 }>;
+type GitHubLogColor = "always" | "auto" | "never";
 type RunGitHubActionOptions = Readonly<{
   core?: GitHubCore;
   exec?: GitHubExec;
   fs?: ScriptFs;
+  logColor?: GitHubLogColor;
   runner?: RunnerContext;
 }>;
 declare const runGitHubAction: <const Inputs extends InputDefinitions, const Outputs extends OutputDefinitions>(scriptAction: ScriptAction<Inputs, Outputs>, options?: RunGitHubActionOptions) => Promise<ActionOutputValues<Outputs> | undefined>;
 //#endregion
-export { ScriptLog as A, integerInput as B, RunnerContext as C, ScriptActionServices as D, ScriptActionContext as E, SummaryText as F, summaryCode as G, runAction as H, WorkflowInputValues as I, summaryText as K, action as L, SummaryCell as M, SummaryCode as N, ScriptExec as O, SummaryTableRow as P, booleanInput as R, RunActionOptions as S, ScriptActionCall as T, stringInput as U, pathInput as V, stringOutput as W, InputDefinitions as _, RunGitHubActionOptions as a, OutputDefinitions as b, ActionInputValues as c, Command as d, CommandEnvironment as f, InputDefinition as g, CommandResult as h, GitHubInputOptions as i, ScriptSummary as j, ScriptFs as k, ActionOutputValues as l, CommandOptions as m, GitHubExec as n, runGitHubAction as o, CommandExitPolicy as p, GitHubExecOptions as r, ActionCallInputValues as s, GitHubCore as t, ChoiceInputDefinition as u, InputKind as v, ScriptAction as w, RequiredInputName as x, OutputDefinition as y, choiceInput as z };
+export { ScriptFs as A, choiceInput as B, RunActionOptions as C, ScriptActionContext as D, ScriptActionCall as E, SummaryTableRow as F, stringOutput as G, pathInput as H, SummaryText as I, summaryCode as K, WorkflowInputValues as L, ScriptSummary as M, SummaryCell as N, ScriptActionServices as O, SummaryCode as P, action as R, RequiredInputName as S, ScriptAction as T, runAction as U, integerInput as V, stringInput as W, InputDefinition as _, GitHubLogColor as a, OutputDefinition as b, ActionCallInputValues as c, ChoiceInputDefinition as d, Command as f, CommandResult as g, CommandOptions as h, GitHubInputOptions as i, ScriptLog as j, ScriptExec as k, ActionInputValues as l, CommandExitPolicy as m, GitHubExec as n, RunGitHubActionOptions as o, CommandEnvironment as p, summaryText as q, GitHubExecOptions as r, runGitHubAction as s, GitHubCore as t, ActionOutputValues as u, InputDefinitions as v, RunnerContext as w, OutputDefinitions as x, InputKind as y, booleanInput as z };

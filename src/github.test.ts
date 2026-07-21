@@ -78,6 +78,8 @@ const captureSummary = () => {
 	return { summary, writes };
 };
 
+const ansiPattern = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`);
+
 test("runGitHubAction binds core inputs, execs commands, and sets outputs", async () => {
 	const inputs = new Map([
 		["artifact-path", "/tmp/artifact.tgz"],
@@ -177,16 +179,73 @@ test("runGitHubAction groups exec logs with command metadata and status", async 
 		},
 		exec: { getExecOutput: async () => ({ exitCode: 0, stdout: "", stderr: "" }) },
 		fs: { readText: async () => "" },
+		logColor: "never",
 		runner: { uidGid: "1001:1001" },
 	});
 
 	assert.equal(events[0], "group:tool 'hello world' 'it'\\''s'");
-	assert.equal(events[1], "info:\u001B[2m  cwd  /repo\u001B[0m");
-	assert.equal(events[2], "info:\u001B[2m  env  ALPHA, ZETA\u001B[0m");
+	assert.equal(events[1], "info:  cwd  /repo");
+	assert.equal(events[2], "info:  env  ALPHA, ZETA");
 	const status = events[3] ?? "";
-	assert.ok(status.startsWith("info:  \u001B[32mok\u001B[0m"));
+	assert.ok(status.startsWith("info:  ok"));
 	assert.match(status, /\s+\d+ms  tool 'hello world' 'it'\\''s'$/);
+	assert.doesNotMatch(events.join("\n"), ansiPattern);
 	assert.equal(events[4], "output:status:ok");
+});
+
+test("runGitHubAction applies explicit and conventional color policy", async () => {
+	const probe = action({
+		name: "color-probe",
+		description: "Exercise command-log color policy.",
+		inputs: {},
+		outputs: {},
+		run: async ({ exec }) => {
+			await exec("tool", []);
+			return {};
+		},
+	});
+	const environmentNames = ["FORCE_COLOR", "GITHUB_ACTIONS", "NODE_DISABLE_COLORS", "NO_COLOR"] as const;
+	const previous = new Map(environmentNames.map((name) => [name, process.env[name]]));
+	const cases = [
+		{ name: "explicit color", mode: "always", env: { NO_COLOR: "1" }, colored: true },
+		{ name: "explicit plain text", mode: "never", env: { FORCE_COLOR: "1" }, colored: false },
+		{ name: "GitHub rendering", mode: "auto", env: { GITHUB_ACTIONS: "true" }, colored: true },
+		{ name: "NO_COLOR", mode: "auto", env: { GITHUB_ACTIONS: "true", NO_COLOR: "1" }, colored: false },
+		{ name: "forced plain text", mode: "auto", env: { FORCE_COLOR: "0", GITHUB_ACTIONS: "true" }, colored: false },
+	] as const;
+
+	try {
+		for (const testCase of cases) {
+			for (const name of environmentNames) {
+				delete process.env[name];
+			}
+			Object.assign(process.env, testCase.env);
+			const events: string[] = [];
+			await runGitHubAction(probe, {
+				core: {
+					getInput: () => "",
+					group: async (_name, run) => run(),
+					info: (message) => {
+						events.push(message);
+					},
+					setFailed: (message) => {
+						throw new Error(`unexpected failure: ${message}`);
+					},
+					setOutput: () => {},
+					warning: () => {},
+				},
+				exec: { getExecOutput: async () => ({ exitCode: 0, stdout: "", stderr: "" }) },
+				fs: { readText: async () => "" },
+				logColor: testCase.mode,
+				runner: { uidGid: "1001:1001" },
+			});
+			assert.equal(ansiPattern.test(events.join("\n")), testCase.colored, testCase.name);
+		}
+	} finally {
+		for (const name of environmentNames) {
+			restoreEnv(name, previous.get(name));
+		}
+	}
 });
 
 test("runGitHubAction streams failed command output once and reports a concise failure", async () => {
@@ -291,6 +350,7 @@ test("runGitHubAction tells the GitHub exec toolkit when nonzero exits are expec
 			},
 		},
 		fs: { readText: async () => "" },
+		logColor: "never",
 		runner: { uidGid: "1001:1001" },
 	});
 
@@ -302,7 +362,7 @@ test("runGitHubAction tells the GitHub exec toolkit when nonzero exits are expec
 	assert.equal(typeof commands[0]?.options?.listeners?.stderr, "function");
 	assert.equal(typeof commands[0]?.options?.listeners?.stdout, "function");
 	assert.equal(events[0], "group:probe");
-	assert.ok((events[1] ?? "").startsWith("info:  \u001B[33mexit\u001B[0m"));
+	assert.ok((events[1] ?? "").startsWith("info:  exit"));
 	assert.match(events[1] ?? "", /\s+\d+ms  probe \(exit 7\)$/);
 	assert.deepEqual([...outputs], [["status", "7"]]);
 });

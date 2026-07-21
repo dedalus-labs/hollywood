@@ -82,6 +82,22 @@ export const release = action({
 `call` does not create nested workflow steps. It invokes the child action in the
 same runtime with the same `exec`, `fs`, `log`, `runner`, and `summary` services.
 
+## Command log color
+
+`runGitHubAction` colors command status lines in `auto` mode in GitHub Actions
+and interactive terminals. `NO_COLOR`, `NODE_DISABLE_COLORS`,
+`FORCE_COLOR=0`, and `FORCE_COLOR=false` disable automatic color. Other
+`FORCE_COLOR` values enable it. Set `logColor: "never"` when another log
+collector renders terminal color codes literally, or `logColor: "always"` when
+testing colored output.
+
+```typescript
+await runGitHubAction(integrationTest, { logColor: "never" });
+```
+
+GitHub step summaries do not use terminal color codes. They are rendered as
+escaped HTML.
+
 ## Step summaries
 
 Use `summary.table` for GitHub step summaries. Titles and labels are escaped

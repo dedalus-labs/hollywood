@@ -1,4 +1,5 @@
 export { runGitHubAction } from "./github";
+export type { GitHubLogColor, RunGitHubActionOptions } from "./github";
 export {
 	action,
 	booleanInput,
