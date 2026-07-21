@@ -1,5 +1,10 @@
-import { action, booleanInput, job, pathInput, workflow } from "../src/index";
-import { checkHollywoodStateCommand, checkoutAction, setupNodeAction } from "./actions";
+import { action, booleanInput, job, pathInput, stringInput, workflow } from "../src/index";
+import {
+	checkHollywoodStateCommand,
+	checkoutAction,
+	createGitHubAppTokenAction,
+	setupNodeAction,
+} from "./actions";
 
 export const publishNpmPackage = action({
 	name: "Publish npm package",
@@ -29,11 +34,49 @@ export const publishNpmPackage = action({
 	},
 });
 
+export const createGitHubRelease = action({
+	name: "Create GitHub release",
+	description: "Create the GitHub release after npm publication succeeds.",
+	localActionPath: "create-github-release",
+	inputs: {
+		packageJson: pathInput({ description: "Path to package.json.", default: "package.json" }),
+		repository: stringInput({ description: "GitHub owner/repository name." }),
+		target: stringInput({ description: "Git commit to tag." }),
+		token: stringInput({ description: "GitHub token with release permissions." }),
+	},
+	outputs: {},
+	run: async ({ exec, fs, input }) => {
+		const packageJson = JSON.parse(await fs.readText(input.packageJson)) as unknown;
+		const version = requiredString(recordField(packageJson, "version"), "package.json version");
+		const prerelease = publishTagForVersion(version) !== "latest";
+		const tag = `v${version}`;
+
+		await exec(
+			"gh",
+			[
+				"release",
+				"create",
+				tag,
+				"--repo",
+				input.repository,
+				"--target",
+				input.target,
+				"--title",
+				tag,
+				"--generate-notes",
+				...(prerelease ? ["--prerelease"] : []),
+			],
+			{ env: { GH_TOKEN: input.token } },
+		);
+
+		return {};
+	},
+});
+
 export const publishNpm = workflow({
 	name: "Publish NPM",
 	on: {
-		workflow_dispatch: {},
-		release: { types: ["published"] },
+		push: { branches: ["main"], paths: [".release-please-manifest.json"] },
 	},
 	permissions: { contents: "read" },
 	jobs: {
@@ -53,7 +96,6 @@ export const publishNpm = workflow({
 				{
 					uses: checkoutAction,
 					with: {
-						ref: "${{ github.event.release.tag_name || github.ref }}",
 						"persist-credentials": false,
 					},
 				},
@@ -73,6 +115,37 @@ export const publishNpm = workflow({
 				{
 					name: "Publish to npm",
 					run: "node dist/cli.js run gha/publish-npm.ts",
+				},
+			],
+		}),
+		release: job({
+			name: "Create GitHub Release",
+			needs: "publish",
+			if: "github.repository == 'dedalus-labs/hollywood'",
+			"runs-on": "ubuntu-latest",
+			permissions: { contents: "read" },
+			steps: [
+				{ uses: checkoutAction, with: { "persist-credentials": false } },
+				{ uses: setupNodeAction, with: { "node-version": "24" } },
+				{ name: "Install dependencies", run: "npm ci" },
+				{ name: "Build Hollywood", run: "npm run build" },
+				{
+					id: "cind-token",
+					name: "Create Cind app token",
+					uses: createGitHubAppTokenAction,
+					with: {
+						"client-id": "${{ secrets.CIND_BOT_CLIENT_ID }}",
+						"private-key": "${{ secrets.CIND_BOT_APP_PRIVATE_KEY }}",
+						owner: "${{ github.repository_owner }}",
+						repositories: "hollywood",
+						"permission-contents": "write",
+						"permission-metadata": "read",
+					},
+				},
+				{
+					name: "Create GitHub release",
+					env: { GITHUB_TOKEN: "${{ steps.cind-token.outputs.token }}" },
+					run: 'node dist/cli.js run gha/publish-npm.ts --export createGitHubRelease --with repository="$GITHUB_REPOSITORY" --with target="$GITHUB_SHA" --with token="$GITHUB_TOKEN"',
 				},
 			],
 		}),
