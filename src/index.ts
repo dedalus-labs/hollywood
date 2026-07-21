@@ -48,6 +48,7 @@ export type {
 	GitHubExec,
 	GitHubExecOptions,
 	GitHubInputOptions,
+	GitHubLogColor,
 	RunGitHubActionOptions,
 } from "./github";
 export { runGitHubAction } from "./github";

@@ -58,15 +58,16 @@ authoring can keep orchestration imports separate from script/action imports.
 
 ## Runtime adapters
 
-| API               | Purpose                                                                      |
-| ----------------- | ---------------------------------------------------------------------------- |
-| `runAction`       | Run a script with explicit filesystem, executor, logger, and runner context. |
-| `runGitHubAction` | Run a script through `@actions/core` and `@actions/exec`.                    |
-| `nodeExec`        | Execute commands on the local machine.                                       |
-| `nodeFs`          | Read local files.                                                            |
-| `nodeLog`         | Write local logs to stdout and stderr.                                       |
-| `limaExec`        | Route command execution through `limactl shell`.                             |
-| `limaRunner`      | Read the guest runner uid/gid from a Lima VM.                                |
+| API                               | Purpose                                                                      |
+| --------------------------------- | ---------------------------------------------------------------------------- |
+| `runAction`                       | Run a script with explicit filesystem, executor, logger, and runner context. |
+| `runGitHubAction`                 | Run a script through `@actions/core` and `@actions/exec`.                    |
+| `RunGitHubActionOptions.logColor` | Control command-log color: `auto`, `always`, or `never`.                    |
+| `nodeExec`                        | Execute commands on the local machine.                                       |
+| `nodeFs`                          | Read local files.                                                            |
+| `nodeLog`                         | Write local logs to stdout and stderr.                                       |
+| `limaExec`                        | Route command execution through `limactl shell`.                             |
+| `limaRunner`                      | Read the guest runner uid/gid from a Lima VM.                                |
 
 ## Action runtime import
 

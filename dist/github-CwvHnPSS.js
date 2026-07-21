@@ -200,6 +200,7 @@ const silentSummary = { table: async () => {} };
 const runGitHubAction = async (scriptAction, options = {}) => {
 	const githubCore = options.core ?? core;
 	const report = createCommandReport(scriptAction.name);
+	const logStyle = createLogStyle(options.logColor ?? "auto");
 	try {
 		const runtime = {
 			core: githubCore,
@@ -209,7 +210,7 @@ const runGitHubAction = async (scriptAction, options = {}) => {
 		};
 		const outputs = await runAction(scriptAction, {
 			with: readGitHubInputs(scriptAction.inputs, runtime.core),
-			exec: githubScriptExec(runtime.exec, runtime.core, report),
+			exec: githubScriptExec(runtime.exec, runtime.core, report, logStyle),
 			fs: runtime.fs,
 			log: githubScriptLog(runtime.core),
 			runner: runtime.runner,
@@ -238,11 +239,11 @@ const readGitHubInputs = (inputs, githubCore) => {
 	}
 	return Object.fromEntries(values);
 };
-const githubScriptExec = (githubExec, githubCore, report) => async (file, args, commandOptions = {}) => {
+const githubScriptExec = (githubExec, githubCore, report, logStyle) => async (file, args, commandOptions = {}) => {
 	const options = githubExecOptions(commandOptions);
 	const command = formatCommandLabel(file, args);
 	return githubCore.group(command, async () => {
-		logCommandMetadata(githubCore, commandOptions);
+		logCommandMetadata(githubCore, commandOptions, logStyle);
 		const startedAt = Date.now();
 		let result;
 		try {
@@ -254,7 +255,7 @@ const githubScriptExec = (githubExec, githubCore, report) => async (file, args, 
 				label: command,
 				status: "fail"
 			});
-			logCommandStatus(githubCore, command, elapsed, "fail");
+			logCommandStatus(githubCore, command, elapsed, "fail", logStyle);
 			throw error;
 		}
 		const elapsed = formatElapsed(Date.now() - startedAt);
@@ -265,20 +266,20 @@ const githubScriptExec = (githubExec, githubCore, report) => async (file, args, 
 			label,
 			status
 		});
-		logCommandStatus(githubCore, label, elapsed, status);
+		logCommandStatus(githubCore, label, elapsed, status, logStyle);
 		if (result.exitCode !== 0 && commandOptions.exitPolicy !== "any") throw new Error(`${command} exited ${result.exitCode}`);
 		return result;
 	});
 };
-const logCommandMetadata = (githubCore, commandOptions) => {
-	if (commandOptions.cwd !== void 0) githubCore.info(dim(`  cwd  ${commandOptions.cwd}`));
+const logCommandMetadata = (githubCore, commandOptions, logStyle) => {
+	if (commandOptions.cwd !== void 0) githubCore.info(logStyle.dim(`  cwd  ${commandOptions.cwd}`));
 	if (commandOptions.env !== void 0) {
 		const names = Object.keys(commandOptions.env).sort();
-		if (names.length > 0) githubCore.info(dim(`  env  ${names.join(", ")}`));
+		if (names.length > 0) githubCore.info(logStyle.dim(`  env  ${names.join(", ")}`));
 	}
 };
-const logCommandStatus = (githubCore, label, elapsed, status) => {
-	githubCore.info(statusLine(status, elapsed, label));
+const logCommandStatus = (githubCore, label, elapsed, status, logStyle) => {
+	githubCore.info(statusLine(status, elapsed, label, logStyle));
 };
 const commandStatus = (result, commandOptions) => {
 	if (result.exitCode === 0) return "ok";
@@ -362,17 +363,27 @@ const formatElapsed = (elapsedMs) => {
 	if (elapsedMs < 1e3) return `${elapsedMs}ms`;
 	return `${(elapsedMs / 1e3).toFixed(2)}s`;
 };
-const statusLine = (status, elapsed, message) => `  ${statusColor(status)(status)}${" ".repeat(4 - status.length)}  ${elapsed.padStart(7)}  ${message}`;
+const statusLine = (status, elapsed, message, logStyle) => `  ${logStyle.status(status)}${" ".repeat(4 - status.length)}  ${elapsed.padStart(7)}  ${message}`;
+const createLogStyle = (mode) => logColorEnabled(mode) ? {
+	dim: (message) => color(2, message),
+	status: (status) => color(statusColor(status), status)
+} : {
+	dim: (message) => message,
+	status: (status) => status
+};
+const logColorEnabled = (mode) => {
+	if (mode === "always") return true;
+	if (mode === "never" || process.env["NO_COLOR"] !== void 0 || process.env["NODE_DISABLE_COLORS"] !== void 0) return false;
+	const forceColor = process.env["FORCE_COLOR"];
+	if (forceColor !== void 0) return forceColor !== "0" && forceColor !== "false";
+	return process.env["GITHUB_ACTIONS"] === "true" || process.stdout.isTTY === true;
+};
 const statusColor = (status) => {
-	if (status === "ok") return green;
-	if (status === "exit") return yellow;
-	return red;
+	if (status === "ok") return 32;
+	if (status === "exit") return 33;
+	return 31;
 };
 const color = (code, message) => `\u001B[${code}m${message}\u001B[0m`;
-const dim = (message) => color(2, message);
-const green = (message) => color(32, message);
-const red = (message) => color(31, message);
-const yellow = (message) => color(33, message);
 const githubExecOptions = (commandOptions) => {
 	const options = {
 		ignoreReturnCode: true,
