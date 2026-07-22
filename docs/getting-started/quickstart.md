@@ -132,7 +132,23 @@ This writes:
 .github/actions/publish-container-image/src/index.ts
 ```
 
-## 4. Call it from workflow YAML
+## 4. Bundle the action
+
+```bash
+npx hollywood build
+```
+
+This writes the JavaScript entrypoint that GitHub executes:
+
+```text
+.github/actions/publish-container-image/dist/index.js
+```
+
+Commit the generated metadata, entrypoint, and bundle together. A workflow may
+instead build an ignored bundle in an earlier step, but the bundle must exist
+before a local `uses:` step runs.
+
+## 5. Call it from workflow YAML
 
 ```yaml
 jobs:

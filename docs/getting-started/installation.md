@@ -56,9 +56,13 @@ npx hollywood run gha/s3-cache.ts --with mode=restore
 `tsconfig.json` is for typechecking and should not be read as the package's
 runtime support contract.
 
-GitHub JavaScript actions need a bundled entrypoint. Hollywood generates the
-TypeScript entrypoint, but the bundling command is still explicit. Until
-Hollywood owns that build step, use the repository's chosen bundler to turn:
+GitHub JavaScript actions need a bundled entrypoint. After generation, run:
+
+```bash
+npx hollywood build
+```
+
+Hollywood bundles:
 
 ```text
 .github/actions/<action-name>/src/index.ts
@@ -71,7 +75,9 @@ into:
 ```
 
 The generated `action.yml` points at `dist/index.js` because that is the normal
-GitHub Actions JavaScript action contract.
+GitHub Actions JavaScript action contract. Commit the bundle with the generated
+metadata, or build an ignored bundle in an earlier workflow step before the
+local action is used.
 
 ## Documentation site
 
