@@ -93,18 +93,12 @@ pulling workflow generation or YAML validation code into every bundled action.
 | `generateWorkflowFile`         | Produce a flattened workflow file object.                  |
 | `workflow`                     | Type a GitHub workflow definition without extra runtime.   |
 | `job`                          | Type a GitHub workflow job without extra runtime.          |
-| `pathDependencies`             | Define typed path-gated jobs and their detector job.       |
-| `matchPathDependency`          | Test a path dependency pattern list locally.               |
 | `writeGeneratedFiles`          | Write generated files under an explicit output directory.  |
 
 `GitHubWorkflow` types cover the orchestration fields Hollywood emits today:
 `permissions`, `concurrency`, job `needs`, matrix `strategy`, `services`,
 `env`, `if`, and mutually exclusive `run`/`uses` steps. `queue: max` is typed
 so it cannot be combined with `cancel-in-progress`.
-
-`pathDependencies` models the standard required-check-safe path gating shape:
-run the workflow, detect changed paths once, then guard downstream jobs with
-typed `needs.<job>.outputs.<name> == 'true'` expressions.
 
 ## CLI
 

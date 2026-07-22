@@ -183,67 +183,6 @@ becomes:
 GitHub gets the flat shape it requires. The source tree keeps the nested shape
 humans want.
 
-## Path-dependent CI jobs
-
-Use `pathDependencies` when a workflow should stay scheduled but specific jobs
-should only run for relevant files. This is the safe shape for required checks:
-GitHub path filters can leave skipped workflows pending, while job guards keep
-the workflow result explicit.
-
-```typescript
-import {
-	generateWorkflowFile,
-	job,
-	pathDependencies,
-	workflow,
-} from "@dedalus-labs/hollywood";
-
-const changes = pathDependencies("changes", {
-	terraform: [
-		"infra/terraform/**",
-		".github/actions/terraform/**",
-	],
-	web: [
-		"apps/web/**",
-		"packages/ui/**",
-		"!apps/web/docs/**",
-	],
-});
-
-generateWorkflowFile({
-	sourcePath: "gha/platform/static-validation.ts",
-	sourceRoot: "gha",
-	workflowsDir: ".github/workflows",
-	workflow: workflow({
-		name: "Platform Static Validation",
-		on: {
-			pull_request: { paths: changes.workflowPaths },
-		},
-		jobs: {
-			[changes.jobId]: changes.job(),
-			infracost: job({
-				name: "Terraform cost",
-				needs: changes.jobId,
-				if: changes.terraform.changed,
-				"runs-on": "ubuntu-24.04",
-				steps: [{ uses: "./.github/actions/terraform/infracost" }],
-			}),
-			web_checks: job({
-				name: "Web checks",
-				needs: changes.jobId,
-				if: changes.web.changed,
-				"runs-on": "ubuntu-24.04",
-				steps: [{ run: "npm test" }],
-			}),
-		},
-	}),
-});
-```
-
-`workflowPaths` contains positive patterns only. Negative patterns still apply
-inside the generated detector job, so a workflow can start conservatively
-without accidentally skipping another dependency.
-
 ## Validation
 
 Generated workflow YAML and action metadata pass through upstream GitHub
@@ -287,8 +226,15 @@ can generate:
     workflows-cache-example.yml
 ```
 
-The generated action still needs bundling to `dist/index.js` before GitHub can
-run it. The workflow YAML can be committed as-is.
+Bundle generated actions before GitHub runs them:
+
+```bash
+npx hollywood build
+```
+
+Commit `dist/index.js` with the generated action, or build an ignored bundle in
+an earlier workflow step before calling the local action. The workflow YAML can
+be committed as-is.
 
 The CLI prints one line per generated file:
 
