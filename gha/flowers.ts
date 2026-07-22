@@ -1,4 +1,4 @@
-import { action, job, pathInput, stringInput, workflow, type ScriptExec } from "../src/index";
+import { action, job, pathInput, stringInput, uses, workflow, type ScriptExec } from "../src/index";
 import { checkoutAction, createGitHubAppTokenAction, setupNodeAction } from "./actions";
 
 const flowerBody = "Here's a flower for all your hard work! 🌸";
@@ -159,6 +159,7 @@ export const flowers = workflow({
 				{ uses: setupNodeAction, with: { "node-version": "24" } },
 				{ name: "Install dependencies", run: "npm ci" },
 				{ name: "Build Hollywood", run: "npm run build" },
+				{ name: "Build local actions", run: "npm run actions" },
 				{
 					id: "cind-token",
 					name: "Create Cind app token",
@@ -172,13 +173,14 @@ export const flowers = workflow({
 						"permission-pull-requests": "write",
 					},
 				},
-				{
+				uses(leaveFlower, {
 					name: "Leave flower comment",
-					env: {
-						GITHUB_TOKEN: "${{ steps.cind-token.outputs.token }}",
+					with: {
+						eventPath: "${{ github.event_path }}",
+						repository: "${{ github.repository }}",
+						token: "${{ steps.cind-token.outputs.token }}",
 					},
-					run: 'node dist/cli.js run gha/flowers.ts --with eventPath="$GITHUB_EVENT_PATH" --with repository="$GITHUB_REPOSITORY" --with token="$GITHUB_TOKEN"',
-				},
+				}),
 			],
 		}),
 	},
