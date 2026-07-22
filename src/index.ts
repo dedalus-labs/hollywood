@@ -142,16 +142,6 @@ export {
 } from "./expressions";
 
 export type {
-	GitHubPathDependencies,
-	GitHubPathDependency,
-	GitHubPathDependencyDefinitions,
-	GitHubPathDependencyJobOptions,
-	GitHubPathPattern,
-	GitHubPathPatternList,
-} from "./paths";
-export { matchPathDependency, pathDependencies } from "./paths";
-
-export type {
 	AccountName,
 	EnvironmentAccount,
 	EnvironmentAccounts,
