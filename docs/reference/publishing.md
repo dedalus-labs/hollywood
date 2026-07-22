@@ -72,11 +72,12 @@ merge into `main` first. On each push, Release Please reads the Conventional
 Commit history and opens or updates one release PR with the next version,
 changelog, and package metadata.
 
-Merging that release PR into `main` is the release switch. Release Please then
-creates the GitHub release and tag. The npm workflow runs from the published
-GitHub release, checks out the release tag, reruns lint/typecheck/tests/build,
-and publishes the package with npm provenance.
+Merging that release PR into `main` is the release switch. The manifest change
+reruns lint, typecheck, tests, and the build before publishing the package with
+npm provenance. Only after npm accepts the package does a dependent job create
+the matching GitHub tag and release. A failed npm publish therefore cannot
+leave behind a release tag.
 
-The current prerelease channel publishes with the `alpha` npm dist-tag.
-Release Please owns `package.json`, `CHANGELOG.md`, and
-`.release-please-manifest.json` during normal releases.
+Stable releases publish with the `latest` npm dist-tag. Prereleases use their
+prerelease identifier, such as `alpha`. Release Please owns `package.json`,
+`CHANGELOG.md`, and `.release-please-manifest.json` during normal releases.

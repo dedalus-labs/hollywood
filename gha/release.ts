@@ -1,5 +1,5 @@
 import { job, workflow } from "../src/index";
-import { checkoutAction, createGitHubAppTokenAction, releasePleaseAction } from "./actions";
+import { createGitHubAppTokenAction, releasePleaseAction } from "./actions";
 
 export const release = workflow({
 	name: "Release",
@@ -14,13 +14,7 @@ export const release = workflow({
 		"release-please": job({
 			name: "Release Please",
 			"runs-on": "ubuntu-latest",
-			outputs: {
-				release_created: "${{ steps.release.outputs.release_created }}",
-				tag_name: "${{ steps.release.outputs.tag_name }}",
-				version: "${{ steps.release.outputs.version }}",
-			},
 			steps: [
-				{ uses: checkoutAction, with: { "persist-credentials": false } },
 				{
 					id: "cind-token",
 					name: "Create Cind app token",
@@ -44,6 +38,7 @@ export const release = workflow({
 						token: "${{ steps.cind-token.outputs.token }}",
 						"config-file": "release-please-config.json",
 						"manifest-file": ".release-please-manifest.json",
+						"skip-github-release": "true",
 					},
 				},
 			],
