@@ -26,7 +26,7 @@ export const release = workflow({
 					name: "Create Cind app token",
 					uses: createGitHubAppTokenAction,
 					with: {
-						"app-id": "${{ secrets.CIND_BOT_APP_ID }}",
+						"client-id": "${{ secrets.CIND_BOT_CLIENT_ID }}",
 						"private-key": "${{ secrets.CIND_BOT_APP_PRIVATE_KEY }}",
 						owner: "${{ github.repository_owner }}",
 						repositories: "hollywood",
