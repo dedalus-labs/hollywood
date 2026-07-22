@@ -1,6 +1,6 @@
 {
 	"name": "@dedalus-labs/hollywood",
-	"version": "0.1.0-alpha.1",
+	"version": "0.0.1",
 	"private": false,
 	"description": "AI-native TypeScript scripts for GitHub Actions, without shell-in-YAML.",
 	"keywords": [
