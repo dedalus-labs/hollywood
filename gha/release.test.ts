@@ -42,6 +42,21 @@ test("publishing delegates to typed local actions", () => {
 	});
 });
 
+test("workflows bundle local actions before invoking them", () => {
+	for (const job of [publishNpm.jobs.publish, publishNpm.jobs.release]) {
+		assert.ok(job !== undefined && "steps" in job);
+		const buildIndex = job.steps.findIndex(
+			(step) => "run" in step && step.run === "npm run actions",
+		);
+		const localActionIndex = job.steps.findIndex(
+			(step) => "uses" in step && step.uses.startsWith("./.github/actions/"),
+		);
+
+		assert.ok(buildIndex >= 0);
+		assert.ok(localActionIndex > buildIndex);
+	}
+});
+
 test("GitHub release creation tags the published package commit", async () => {
 	const commands: Command[] = [];
 	await runAction(createGitHubRelease, {

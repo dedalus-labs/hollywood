@@ -111,6 +111,7 @@ export const publishNpm = workflow({
 				{ name: "Typecheck", run: "npm run typecheck" },
 				{ name: "Test", run: "npm test" },
 				{ name: "Build", run: "npm run build" },
+				{ name: "Build local actions", run: "npm run actions" },
 				{ name: "Check Hollywood state", run: checkHollywoodStateCommand },
 				uses(publishNpmPackage, { name: "Publish to npm" }),
 			],
@@ -123,6 +124,10 @@ export const publishNpm = workflow({
 			permissions: { contents: "read" },
 			steps: [
 				{ uses: checkoutAction, with: { "persist-credentials": false } },
+				{ uses: setupNodeAction, with: { "node-version": "24" } },
+				{ name: "Install dependencies", run: "npm ci" },
+				{ name: "Build Hollywood", run: "npm run build" },
+				{ name: "Build local actions", run: "npm run actions" },
 				{
 					id: "cind-token",
 					name: "Create Cind app token",
