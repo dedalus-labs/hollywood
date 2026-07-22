@@ -1,4 +1,4 @@
-import { action, booleanInput, job, pathInput, stringInput, workflow } from "../src/index";
+import { action, booleanInput, job, pathInput, stringInput, uses, workflow } from "../src/index";
 import {
 	checkHollywoodStateCommand,
 	checkoutAction,
@@ -112,10 +112,7 @@ export const publishNpm = workflow({
 				{ name: "Test", run: "npm test" },
 				{ name: "Build", run: "npm run build" },
 				{ name: "Check Hollywood state", run: checkHollywoodStateCommand },
-				{
-					name: "Publish to npm",
-					run: "node dist/cli.js run gha/publish-npm.ts",
-				},
+				uses(publishNpmPackage, { name: "Publish to npm" }),
 			],
 		}),
 		release: job({
@@ -126,9 +123,6 @@ export const publishNpm = workflow({
 			permissions: { contents: "read" },
 			steps: [
 				{ uses: checkoutAction, with: { "persist-credentials": false } },
-				{ uses: setupNodeAction, with: { "node-version": "24" } },
-				{ name: "Install dependencies", run: "npm ci" },
-				{ name: "Build Hollywood", run: "npm run build" },
 				{
 					id: "cind-token",
 					name: "Create Cind app token",
@@ -142,11 +136,14 @@ export const publishNpm = workflow({
 						"permission-metadata": "read",
 					},
 				},
-				{
+				uses(createGitHubRelease, {
 					name: "Create GitHub release",
-					env: { GITHUB_TOKEN: "${{ steps.cind-token.outputs.token }}" },
-					run: 'node dist/cli.js run gha/publish-npm.ts --export createGitHubRelease --with repository="$GITHUB_REPOSITORY" --with target="$GITHUB_SHA" --with token="$GITHUB_TOKEN"',
-				},
+					with: {
+						repository: "${{ github.repository }}",
+						target: "${{ github.sha }}",
+						token: "${{ steps.cind-token.outputs.token }}",
+					},
+				}),
 			],
 		}),
 	},

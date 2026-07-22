@@ -21,6 +21,27 @@ test("GitHub releases require a successful npm publish", () => {
 	assert.equal(publishNpm.jobs.release?.needs, "publish");
 });
 
+test("publishing delegates to typed local actions", () => {
+	const publish = publishNpm.jobs.publish;
+	const releaseJob = publishNpm.jobs.release;
+	assert.ok("steps" in publish);
+	assert.ok(releaseJob !== undefined && "steps" in releaseJob);
+
+	assert.deepEqual(publish.steps.at(-1), {
+		name: "Publish to npm",
+		uses: "./.github/actions/publish-npm",
+	});
+	assert.deepEqual(releaseJob.steps.at(-1), {
+		name: "Create GitHub release",
+		uses: "./.github/actions/create-github-release",
+		with: {
+			repository: "${{ github.repository }}",
+			target: "${{ github.sha }}",
+			token: "${{ steps.cind-token.outputs.token }}",
+		},
+	});
+});
+
 test("GitHub release creation tags the published package commit", async () => {
 	const commands: Command[] = [];
 	await runAction(createGitHubRelease, {
