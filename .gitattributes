@@ -1,0 +1,15 @@
+# Hollywood generates its own CI from `gha/**`. The emitted workflows and local
+# action scaffolding must be tracked because GitHub reads them straight from the
+# repo tree and cannot run a build first. Marking them collapses the diffs in
+# review, drops them from language stats, and keeps `git log -p` on `gha/**`,
+# which is the only place these files are ever authored.
+#
+# Regenerate with `npm run generate`; never hand-edit an output.
+.github/workflows/*.yml linguist-generated=true -whitespace
+.github/actions/**/action.yml linguist-generated=true -whitespace
+.github/actions/**/src/** linguist-generated=true -whitespace
+
+# JS action bundles are built in-job by `npm run actions` and stay gitignored.
+# The rule is here so that if a bootstrap case ever forces one to be committed,
+# it lands collapsed and undiffed rather than as a megabyte of minified noise.
+.github/actions/**/dist/** linguist-generated=true -whitespace -diff
