@@ -430,7 +430,7 @@ test("runGitHubAction keeps long command reports bounded and recognizable", asyn
 	assert.match(events[1] ?? "", /\s+\d+ms  artifact sync /);
 	assert.equal(events[2], "output:status:ok");
 	assert.equal(writes.length, 1);
-	assert.match(writes[0] ?? "", /### Hollywood: publish-artifacts/);
+	assert.match(writes[0] ?? "", /<h3>Hollywood: publish-artifacts<\/h3>/);
 	assert.match(writes[0] ?? "", /artifact sync/);
 	assert.ok(!(writes[0] ?? "").includes(source));
 	assert.ok(!(writes[0] ?? "").includes(destination));
@@ -479,7 +479,7 @@ test("runGitHubAction compacts multiline command arguments", async () => {
 	assert.ok(!(writes[0] ?? "").includes(inlineScript));
 });
 
-test("runGitHubAction provides a typed step summary table", async () => {
+test("runGitHubAction composes typed and command summaries", async () => {
 	const { summary, writes } = captureSummary();
 
 	await runGitHubAction(action({
@@ -513,10 +513,11 @@ test("runGitHubAction provides a typed step summary table", async () => {
 	});
 
 	assert.equal(writes.length, 2);
-	assert.match(writes[0] ?? "", /<h2>Integration test<\/h2>/);
-	assert.match(writes[0] ?? "", /<td>Environment<\/td><td><code>preview\|prod<\/code><\/td>/);
-	assert.match(writes[0] ?? "", /<td>Result<\/td><td>PASS<\/td>/);
-	assert.match(writes[1] ?? "", /### Hollywood: summary-action/);
+	const document = writes.join("");
+	assert.match(document, /<h2>Integration test<\/h2>/);
+	assert.match(document, /<td>Environment<\/td><td><code>preview\|prod<\/code><\/td>/);
+	assert.match(document, /<td>Result<\/td><td>PASS<\/td>/);
+	assert.match(document, /<h3>Hollywood: summary-action<\/h3>/);
 });
 
 test("runGitHubAction reports when a requested step summary is unavailable", async () => {

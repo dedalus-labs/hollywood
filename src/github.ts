@@ -248,7 +248,7 @@ const writeCommandSummary = async (
 };
 
 const renderCommandSummary = (report: CommandReport): string => [
-	`### Hollywood: ${escapeHtml(report.actionName)}`,
+	`<h3>Hollywood: ${escapeHtml(report.actionName)}</h3>`,
 	"",
 	"<table>",
 	"<thead><tr><th>Status</th><th>Time</th><th>Command</th></tr></thead>",
