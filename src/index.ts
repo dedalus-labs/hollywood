@@ -44,6 +44,12 @@ export {
 
 export { currentRunner, nodeExec, nodeFs, nodeLog } from "./local";
 export type {
+	ContainerOptions,
+	ContainerProvider,
+	ContainerServices,
+} from "./container";
+export { githubActionsRunnerImage, withContainer, withLocalContainer } from "./container";
+export type {
 	GitHubCore,
 	GitHubExec,
 	GitHubExecOptions,

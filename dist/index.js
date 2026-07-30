@@ -2,11 +2,13 @@
 import { a as integerInput, c as stringInput, d as summaryText, f as toGitHubName, g as nodeLog, h as nodeFs, i as choiceInput, l as stringOutput, m as nodeExec, n as action, o as pathInput, p as currentRunner, r as booleanInput, s as runAction, t as runGitHubAction, u as summaryCode } from "./github-cUK0davD.js";
 import { defineEnvironmentRegistry, resolveEnvironment, selectEnvironmentName } from "./environments.js";
 import { A as success, C as needsResultIs, D as secret, E as runner, O as selectString, S as needsResultIn, T as or, _ as isGitHubTypedMatrix, a as contains, b as needsOutput, c as eq, d as format, f as gh, g as input, h as hashFiles, i as cancelled, j as valueOr, k as stepOutput, l as expr, m as githubTypedMatrixValues, n as always, o as defineMatrix, p as github, r as and, s as envVar, t as GitHubJobResult, u as failure, v as matrix, w as not, x as needsResult, y as ne } from "./expressions-BPTcb6xM.js";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, relative } from "node:path/posix";
+import { chmod, copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { tmpdir } from "node:os";
+import { dirname, isAbsolute, join, posix, relative, resolve, sep } from "node:path";
+import { dirname as dirname$1, relative as relative$1 } from "node:path/posix";
 import { stringify } from "yaml";
 import { readFileSync } from "node:fs";
-import { dirname as dirname$1, isAbsolute, join, relative as relative$1, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ACTION_ROOT } from "@actions/workflow-parser/actions/action-constants";
 import { JSONObjectReader } from "@actions/workflow-parser/templates/json-object-reader";
@@ -16,6 +18,178 @@ import { TemplateSchema } from "@actions/workflow-parser/templates/schema/index"
 import { NoOperationTraceWriter } from "@actions/workflow-parser/templates/trace-writer";
 import { WORKFLOW_ROOT } from "@actions/workflow-parser/workflows/workflow-constants";
 import { YamlObjectReader } from "@actions/workflow-parser/workflows/yaml-object-reader";
+//#region src/container.ts
+const githubActionsRunnerImage = "ghcr.io/actions/actions-runner@sha256:0cfdcc701ce933c6d243c6b0b2da767366dc9f2e99961d4c3754b0b78084cdda";
+const githubWorkspace = "/github/workspace";
+const githubEnvironment = {
+	CI: "true",
+	GITHUB_ACTIONS: "true",
+	GITHUB_ENV: "/github/file_commands/env",
+	GITHUB_EVENT_PATH: "/github/workflow/event.json",
+	GITHUB_OUTPUT: "/github/file_commands/output",
+	GITHUB_PATH: "/github/file_commands/path",
+	GITHUB_STEP_SUMMARY: "/github/file_commands/step_summary",
+	GITHUB_WORKSPACE: githubWorkspace,
+	HOME: "/github/home",
+	PATH: "/home/runner/externals/node24/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+	RUNNER_OS: "Linux",
+	RUNNER_TEMP: "/github/temp"
+};
+const withContainer = async (options, run) => {
+	assertImmutableImage(options.image);
+	return withContainerSession(options, run);
+};
+const withLocalContainer = async (options, run) => withContainerSession(options, run);
+const withContainerSession = async (options, run) => {
+	const workspace = resolve(options.workspace);
+	const root = await prepareGitHubRoot(options.actionBundle);
+	const runtime = containerRuntime(options.provider);
+	const hostExec = options.hostExec ?? nodeExec;
+	const name = `hollywood-${randomUUID()}`;
+	let created = false;
+	let result;
+	let failure;
+	try {
+		await hostExec(runtime.binary, createArgs({
+			image: options.image,
+			name,
+			root,
+			workspace
+		}));
+		created = true;
+		await hostExec(runtime.binary, ["start", name]);
+		result = await run(await containerServices({
+			hostExec,
+			name,
+			runtime,
+			workspace
+		}));
+	} catch (error) {
+		failure = error;
+	}
+	const cleanupFailures = await cleanup({
+		created,
+		hostExec,
+		name,
+		root,
+		runtime
+	});
+	if (failure !== void 0 && cleanupFailures.length > 0) throw new AggregateError([failure, ...cleanupFailures], "container action and cleanup failed");
+	if (failure !== void 0) throw failure;
+	if (cleanupFailures.length > 0) throw new AggregateError(cleanupFailures, "container cleanup failed");
+	return result;
+};
+const containerServices = async (options) => {
+	const exec = containerExec(options);
+	const [uid, gid] = await Promise.all([exec("id", ["-u"]), exec("id", ["-g"])]);
+	return {
+		exec,
+		fs: { readText: async (path) => (await exec("cat", [containerPath(options.workspace, path)])).stdout },
+		runner: { uidGid: `${uid.stdout.trim()}:${gid.stdout.trim()}` }
+	};
+};
+const containerExec = (options) => (file, args, commandOptions = {}) => {
+	const command = [
+		"exec",
+		"--workdir",
+		containerPath(options.workspace, commandOptions.cwd ?? options.workspace)
+	];
+	for (const [name, value] of Object.entries(commandOptions.env ?? {}).sort()) command.push("--env", `${name}=${value}`);
+	command.push(options.name, file, ...args);
+	return options.hostExec(options.runtime.binary, command, commandOptions.exitPolicy === void 0 ? void 0 : { exitPolicy: commandOptions.exitPolicy });
+};
+const createArgs = (options) => {
+	const args = [
+		"create",
+		"--name",
+		options.name,
+		"--workdir",
+		githubWorkspace
+	];
+	for (const [name, value] of Object.entries(githubEnvironment)) args.push("--env", `${name}=${value}`);
+	args.push("--volume", `${options.root}:/github`, "--volume", `${options.workspace}:${githubWorkspace}`, "--entrypoint", "sleep", options.image, "infinity");
+	return args;
+};
+const prepareGitHubRoot = async (actionBundle) => {
+	const root = await mkdtemp(`${tmpdir()}/hollywood-github-`);
+	await Promise.all([
+		"file_commands",
+		"home",
+		"temp",
+		"workflow"
+	].map((directory) => mkdir(`${root}/${directory}`, { recursive: true })));
+	await Promise.all([
+		"env",
+		"output",
+		"path",
+		"step_summary"
+	].map((file) => writeFile(`${root}/file_commands/${file}`, "")));
+	await writeFile(`${root}/workflow/event.json`, "{}\n");
+	if (actionBundle !== void 0) await copyFile(actionBundle, `${root}/workflow/action.mjs`);
+	await Promise.all([
+		chmod(root, 511),
+		...[
+			"file_commands",
+			"home",
+			"temp",
+			"workflow"
+		].map((directory) => chmod(`${root}/${directory}`, 511)),
+		...[
+			"env",
+			"output",
+			"path",
+			"step_summary"
+		].map((file) => chmod(`${root}/file_commands/${file}`, 438))
+	]);
+	return root;
+};
+const cleanup = async (options) => {
+	const operations = [];
+	if (options.created) operations.push(() => options.hostExec(options.runtime.binary, [
+		options.runtime.remove,
+		"--force",
+		options.name
+	]));
+	operations.push(() => rm(options.root, {
+		force: true,
+		recursive: true
+	}));
+	const failures = [];
+	for (const operation of operations) try {
+		await operation();
+	} catch (error) {
+		failures.push(error);
+	}
+	return failures;
+};
+const containerPath = (workspace, path) => {
+	if (path === githubWorkspace || path.startsWith(`${githubWorkspace}/`)) {
+		const normalized = posix.normalize(path);
+		if (normalized === githubWorkspace || normalized.startsWith(`${githubWorkspace}/`)) return normalized;
+		throw new Error(`path is outside container workspace: ${path}`);
+	}
+	const child = relative(workspace, resolve(workspace, path));
+	if (child === ".." || child.startsWith(`..${sep}`) || child.startsWith(sep)) throw new Error(`path is outside container workspace: ${path}`);
+	return child === "" ? githubWorkspace : posix.join(githubWorkspace, ...child.split(sep));
+};
+const containerRuntime = (provider) => {
+	switch (provider) {
+		case "container": return {
+			binary: "container",
+			remove: "delete"
+		};
+		case "docker":
+		case "podman": return {
+			binary: provider,
+			remove: "rm"
+		};
+		default: throw new Error(`unsupported container provider: ${String(provider)}`);
+	}
+};
+const assertImmutableImage = (image) => {
+	if (!/(?:@sha256:|^sha256:)[0-9a-f]{64}$/.test(image)) throw new Error("container image must use a sha256 digest or image id");
+};
+//#endregion
 //#region src/validation.ts
 const validateWorkflowContent = (file) => validateContent(file, workflowSchema(), WORKFLOW_ROOT);
 const validateActionMetadataContent = (file) => validateContent(file, actionSchema(), ACTION_ROOT);
@@ -57,7 +231,7 @@ const loadSchema = (schemaFileName) => {
 	const json = readFileSync(join(workflowParserDistDir(), schemaFileName), "utf8");
 	return TemplateSchema.load(new JSONObjectReader(void 0, json));
 };
-const workflowParserDistDir = () => dirname$1(dirname$1(fileURLToPath(import.meta.resolve("@actions/workflow-parser/workflows/workflow-constants"))));
+const workflowParserDistDir = () => dirname(dirname(fileURLToPath(import.meta.resolve("@actions/workflow-parser/workflows/workflow-constants"))));
 //#endregion
 //#region src/generate.ts
 var InvalidWorkflowFilenameError = class extends Error {
@@ -282,7 +456,7 @@ const renderYaml = (header, value) => `${header}\n\n${stringify(value, {
 	lineWidth: 0
 })}`;
 const relativeImportPath = (fromPath, toPath) => {
-	const path = relative(dirname(fromPath), toPath);
+	const path = relative$1(dirname$1(fromPath), toPath);
 	if (path.startsWith(".")) return path;
 	return `./${path}`;
 };
@@ -345,7 +519,7 @@ const generatedFileContent = (file) => {
 const writeGeneratedFile = async (outputPath, content) => {
 	const existing = await readExisting(outputPath);
 	if (existing === content) return "unchanged";
-	await mkdir(dirname$1(outputPath), { recursive: true });
+	await mkdir(dirname(outputPath), { recursive: true });
 	await writeFile(outputPath, content);
 	return existing === null ? "created" : "updated";
 };
@@ -361,7 +535,7 @@ const resolveOutputPath = (outputDir, path) => {
 	if (isAbsolute(path)) throw new Error(`generated file path escapes outputDir: ${path}`);
 	const root = resolve(outputDir);
 	const outputPath = resolve(root, path);
-	const relativePath = relative$1(root, outputPath);
+	const relativePath = relative(root, outputPath);
 	if (relativePath.startsWith("..") || isAbsolute(relativePath)) throw new Error(`generated file path escapes outputDir: ${path}`);
 	return outputPath;
 };
@@ -451,4 +625,4 @@ const reject = (name, reason) => ({
 	reason
 });
 //#endregion
-export { GeneratedFilePathCollisionError, GitHubJobResult, InvalidWorkflowFilenameError, action, always, and, assertValidActionMetadataContent, assertValidWorkflowContent, booleanInput, cancelled, choiceInput, contains, currentRunner, defineEnvironmentRegistry, defineMatrix, envVar, eq, expr, failure, format, generateActionEntrypointFile, generateActionFile, generateActionFiles, generateActionMetadata, generateUsesStep, generateWorkflowFile, gh, github, hashFiles, input, integerInput, job, limaExec, limaRunner, localAction, matrix, ne, needsOutput, needsResult, needsResultIn, needsResultIs, nodeExec, nodeFs, nodeLog, not, or, pathInput, probeLimaEnvironment, renderActionFile, renderGeneratedFile, renderWorkflowFile, resolveEnvironment, runAction, runGitHubAction, runner, secret, selectEnvironmentName, selectString, stepOutput, stringInput, stringOutput, success, summaryCode, summaryText, uses, validateActionMetadataContent, validateWorkflowContent, valueOr, workflow, writeGeneratedFiles };
+export { GeneratedFilePathCollisionError, GitHubJobResult, InvalidWorkflowFilenameError, action, always, and, assertValidActionMetadataContent, assertValidWorkflowContent, booleanInput, cancelled, choiceInput, contains, currentRunner, defineEnvironmentRegistry, defineMatrix, envVar, eq, expr, failure, format, generateActionEntrypointFile, generateActionFile, generateActionFiles, generateActionMetadata, generateUsesStep, generateWorkflowFile, gh, github, githubActionsRunnerImage, hashFiles, input, integerInput, job, limaExec, limaRunner, localAction, matrix, ne, needsOutput, needsResult, needsResultIn, needsResultIs, nodeExec, nodeFs, nodeLog, not, or, pathInput, probeLimaEnvironment, renderActionFile, renderGeneratedFile, renderWorkflowFile, resolveEnvironment, runAction, runGitHubAction, runner, secret, selectEnvironmentName, selectString, stepOutput, stringInput, stringOutput, success, summaryCode, summaryText, uses, validateActionMetadataContent, validateWorkflowContent, valueOr, withContainer, withLocalContainer, workflow, writeGeneratedFiles };
