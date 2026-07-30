@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "architectures": [
+    "arm64",
+    "x64"
+  ],
+  "environment": {
+    "CI": "true",
+    "GITHUB_ACTIONS": "true",
+    "RUNNER_OS": "Linux"
+  },
+  "os": {
+    "id": "ubuntu",
+    "versionId": "24.04"
+  },
+  "paths": [
+    "GITHUB_ENV",
+    "GITHUB_EVENT_PATH",
+    "GITHUB_OUTPUT",
+    "GITHUB_PATH",
+    "GITHUB_STEP_SUMMARY",
+    "GITHUB_WORKSPACE"
+  ],
+  "tools": [
+    {
+      "name": "bash"
+    },
+    {
+      "name": "curl"
+    },
+    {
+      "name": "docker"
+    },
+    {
+      "name": "git"
+    },
+    {
+      "name": "jq"
+    },
+    {
+      "name": "node",
+      "versionPrefix": "v24."
+    },
+    {
+      "name": "npm"
+    },
+    {
+      "name": "python3"
+    },
+    {
+      "name": "tar"
+    }
+  ]
+}

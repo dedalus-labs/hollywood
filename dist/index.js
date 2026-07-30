@@ -21,6 +21,7 @@ import { WORKFLOW_ROOT } from "@actions/workflow-parser/workflows/workflow-const
 import { YamlObjectReader } from "@actions/workflow-parser/workflows/yaml-object-reader";
 //#region src/runner-schema.ts
 const runnerProbeSchemaVersion = 1;
+const runnerArchitectures = ["arm64", "x64"];
 const runnerEnvironmentNames = [
 	"CI",
 	"GITHUB_ACTIONS",
@@ -125,6 +126,7 @@ const runnerProbeSchema = z.strictObject({
 });
 const runnerContractSchema = z.strictObject({
 	schemaVersion: z.literal(1),
+	architectures: z.array(z.enum(runnerArchitectures)).min(1),
 	environment,
 	os: z.strictObject({
 		id: text,
@@ -139,6 +141,7 @@ const runnerContractSchema = z.strictObject({
 //#endregion
 //#region src/runner-contract.ts
 const defineRunnerContract = (contract) => {
+	assertUnique(contract.architectures, "runner contract architectures");
 	assertUnique(contract.paths, "runner contract paths");
 	assertUniqueNames(contract.tools, "runner contract tools");
 	return contract;
@@ -148,6 +151,12 @@ const verifyRunner = (contract, probe) => {
 	difference(differences, "schemaVersion", contract.schemaVersion, probe.schemaVersion);
 	difference(differences, "platform.os.id", contract.os.id, probe.platform.os.id);
 	difference(differences, "platform.os.versionId", contract.os.versionId, probe.platform.os.versionId);
+	if (!contract.architectures.includes(probe.platform.architecture)) differences.push({
+		category: "contract",
+		actual: probe.platform.architecture,
+		expected: contract.architectures,
+		path: "platform.architecture"
+	});
 	for (const [name, expected] of Object.entries(contract.environment)) difference(differences, `environment.${name}`, expected, probe.environment[name]);
 	for (const name of contract.paths) {
 		const path = probe.paths.find((candidate) => candidate.name === name);
@@ -217,7 +226,7 @@ const compareValues = (path, expected, actual) => {
 };
 const differenceCategory = (path) => {
 	if (/^(identity|platform\.(architecture|capabilities|cgroup|kernel))/.test(path)) return "provider";
-	if (/^(packages|toolCache)/.test(path) || /^tools\.[^.]+\.(path|version)$/.test(path) || path === "environment.ImageVersion" || /^paths\.[^.]+\.value$/.test(path)) return "inventory";
+	if (/^(packages|toolCache)/.test(path) || /^tools\.[^.]+\.(path|version)$/.test(path) || /^environment\.Image(?:OS|Version)$/.test(path) || /^paths\.[^.]+\.value$/.test(path)) return "inventory";
 	return "contract";
 };
 const difference = (differences, path, expected, actual) => {

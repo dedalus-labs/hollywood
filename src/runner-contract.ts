@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
 	runnerContractSchema,
 	runnerProbeSchema,
+	type RunnerArchitecture,
 	type RunnerContract,
 	type RunnerDifference,
 	type RunnerEnvironmentName,
@@ -19,6 +20,7 @@ export type {
 } from "./runner-schema";
 
 export const defineRunnerContract = (contract: RunnerContract): RunnerContract => {
+	assertUnique(contract.architectures, "runner contract architectures");
 	assertUnique(contract.paths, "runner contract paths");
 	assertUniqueNames(contract.tools, "runner contract tools");
 	return contract;
@@ -37,6 +39,14 @@ export const verifyRunner = (
 		contract.os.versionId,
 		probe.platform.os.versionId,
 	);
+	if (!contract.architectures.includes(probe.platform.architecture as RunnerArchitecture)) {
+		differences.push({
+			category: "contract",
+			actual: probe.platform.architecture,
+			expected: contract.architectures,
+			path: "platform.architecture",
+		});
+	}
 	for (const [name, expected] of Object.entries(contract.environment)) {
 		difference(
 			differences,
@@ -150,7 +160,7 @@ const differenceCategory = (path: string): RunnerDifference["category"] => {
 	if (
 		/^(packages|toolCache)/.test(path) ||
 		/^tools\.[^.]+\.(path|version)$/.test(path) ||
-		path === "environment.ImageVersion" ||
+		/^environment\.Image(?:OS|Version)$/.test(path) ||
 		/^paths\.[^.]+\.value$/.test(path)
 	) {
 		return "inventory";

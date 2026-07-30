@@ -1,0 +1,14 @@
+FROM ghcr.io/actions/actions-runner@sha256:0cfdcc701ce933c6d243c6b0b2da767366dc9f2e99961d4c3754b0b78084cdda
+
+ARG SOURCE_REVISION
+RUN test -n "${SOURCE_REVISION}"
+
+ENV PATH="/home/runner/externals/node24/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+LABEL org.opencontainers.image.description="GitHub-shaped userspace for Hollywood actions" \
+      org.opencontainers.image.documentation="https://oss.dedaluslabs.ai/hollywood/backends/runner-image/" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.revision="${SOURCE_REVISION}" \
+      org.opencontainers.image.source="https://github.com/dedalus-labs/hollywood" \
+      org.opencontainers.image.title="Hollywood Runner" \
+      org.opencontainers.image.vendor="Dedalus Labs"

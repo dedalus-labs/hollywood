@@ -13,6 +13,7 @@ import {
 
 const contract: RunnerContract = {
 	schemaVersion: 1,
+	architectures: ["arm64", "x64"],
 	environment: { CI: "true", RUNNER_OS: "Linux" },
 	os: { id: "ubuntu", versionId: "24.04" },
 	paths: ["GITHUB_WORKSPACE"],
@@ -21,7 +22,7 @@ const contract: RunnerContract = {
 
 const probe: RunnerProbe = {
 	schemaVersion: 1,
-	environment: { CI: "true", RUNNER_OS: "Linux" },
+	environment: { CI: "true", ImageOS: "ubuntu24-arm64", RUNNER_OS: "Linux" },
 	identity: { gid: 1001, groups: ["runner"], uid: 1001 },
 	packages: { manager: "dpkg", packages: [{ name: "bash", version: "5.2" }] },
 	paths: [{
@@ -55,12 +56,24 @@ test("runner contract verifies semantic requirements", () => {
 			path: "tools.node.status",
 		}],
 	);
+	assert.deepEqual(
+		verifyRunner(contract, {
+			...probe,
+			platform: { ...probe.platform, architecture: "riscv64" },
+		}),
+		[{
+			category: "contract",
+			actual: "riscv64",
+			expected: ["arm64", "x64"],
+			path: "platform.architecture",
+		}],
+	);
 });
 
 test("runner comparison classifies drift by ownership", () => {
 	const actual = {
 		...probe,
-		environment: { ...probe.environment, CI: "false" },
+		environment: { ...probe.environment, CI: "false", ImageOS: "ubuntu24" },
 		packages: { manager: "dpkg", packages: [{ name: "bash", version: "5.3" }] },
 		platform: { ...probe.platform, kernelRelease: "different" },
 	} satisfies RunnerProbe;
@@ -69,6 +82,7 @@ test("runner comparison classifies drift by ownership", () => {
 		compareRunnerProbes(probe, actual).map(({ category, path }) => ({ category, path })),
 		[
 			{ category: "contract", path: "environment.CI" },
+			{ category: "inventory", path: "environment.ImageOS" },
 			{ category: "inventory", path: "packages.packages.bash.version" },
 			{ category: "provider", path: "platform.kernelRelease" },
 		],
@@ -85,6 +99,10 @@ test("runner schemas reject malformed and undeclared state", () => {
 	assert.throws(
 		() => parseRunnerProbe(JSON.stringify({ ...probe, identity: { ...probe.identity, secret: "nope" } })),
 		/runner probe is invalid at identity: Unrecognized key/,
+	);
+	assert.throws(
+		() => parseRunnerContract(JSON.stringify({ ...contract, architectures: ["arm64", "arm64"] })),
+		/runner contract architectures must be unique/,
 	);
 	assert.throws(
 		() => parseRunnerProbe(JSON.stringify({ ...probe, tools: [probe.tools[0], probe.tools[0]] })),
