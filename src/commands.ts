@@ -22,6 +22,7 @@ import {
 	githubActionsRunnerImage,
 	type ContainerProvider,
 } from "./container";
+import { createRunnerCommand } from "./runner-cli";
 import {
 	type InputDefinitions,
 	type OutputDefinitions,
@@ -156,6 +157,8 @@ export const createCli = (
 			};
 			await services.run(runOptions, io);
 		});
+
+	program.addCommand(createRunnerCommand(io));
 
 	return program;
 };

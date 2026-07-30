@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "vitest";
 
-import { probeRunner, type RunnerProbeSource } from "./runner";
+import type { RunnerContract } from "./runner-contract";
+import { createRunnerCommand } from "./runner-cli";
+import {
+	probeRunner,
+	type RunnerProbeSource,
+} from "./runner";
 
 const environment = {
 	CI: "true",
@@ -61,6 +69,34 @@ test("probeRunner rejects non-Linux environments", async () => {
 		probeRunner({ ...probeSource(), operatingSystem: "darwin" }),
 		/requires Linux, received darwin/,
 	);
+});
+
+test("runner CLI writes and verifies a typed probe", async () => {
+	const directory = await mkdtemp(join(tmpdir(), "hollywood-runner-cli-"));
+	const contractPath = join(directory, "contract.json");
+	const probePath = join(directory, "probe.json");
+	const output: string[] = [];
+	const contract: RunnerContract = {
+		schemaVersion: 1,
+		environment: { CI: "true", RUNNER_OS: "Linux" },
+		os: { id: "ubuntu", versionId: "24.04" },
+		paths: ["GITHUB_WORKSPACE"],
+		tools: [{ name: "node", versionPrefix: "v24." }],
+	};
+	try {
+		const probe = await probeRunner(probeSource());
+		const command = createRunnerCommand(
+			{ writeOut: (message) => output.push(message) },
+			{ probe: async () => probe },
+		);
+		await command.parseAsync(["node", "runner", "probe", "--output", probePath]);
+		await writeFile(contractPath, `${JSON.stringify(contract)}\n`);
+		await command.parseAsync(["node", "runner", "verify", contractPath, probePath]);
+		assert.equal((await readFile(probePath, "utf8")).endsWith("\n"), true);
+		assert.deepEqual(output, [`wrote\t${probePath}\n`, "ok\trunner contract\n"]);
+	} finally {
+		await rm(directory, { force: true, recursive: true });
+	}
 });
 
 const probeSource = (): RunnerProbeSource => ({
