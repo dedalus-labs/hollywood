@@ -53,6 +53,10 @@ declare const github: {
   };
   readonly eventName: GitHubExpression<string>;
   readonly headRef: GitHubExpression<string>;
+  readonly mergeGroup: {
+    readonly baseSha: GitHubExpression<string>;
+    readonly headSha: GitHubExpression<string>;
+  };
   readonly ref: GitHubExpression<string>;
   readonly refName: GitHubExpression<string>;
   readonly repositoryOwner: GitHubExpression<string>;
@@ -83,6 +87,10 @@ declare const gh: {
     };
     readonly eventName: GitHubExpression<string>;
     readonly headRef: GitHubExpression<string>;
+    readonly mergeGroup: {
+      readonly baseSha: GitHubExpression<string>;
+      readonly headSha: GitHubExpression<string>;
+    };
     readonly ref: GitHubExpression<string>;
     readonly refName: GitHubExpression<string>;
     readonly repositoryOwner: GitHubExpression<string>;

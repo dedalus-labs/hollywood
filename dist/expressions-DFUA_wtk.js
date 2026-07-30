@@ -23,6 +23,10 @@ const github = {
 	},
 	eventName: expr("github.event_name"),
 	headRef: expr("github.head_ref"),
+	mergeGroup: {
+		baseSha: expr("github.event.merge_group.base_sha"),
+		headSha: expr("github.event.merge_group.head_sha")
+	},
 	ref: expr("github.ref"),
 	refName: expr("github.ref_name"),
 	repositoryOwner: expr("github.repository_owner"),

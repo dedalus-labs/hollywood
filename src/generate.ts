@@ -282,7 +282,14 @@ export type GitHubWorkflow = Readonly<{
 	jobs: GitHubWorkflowJobs;
 }>;
 
+export type GitHubMergeGroupTrigger = Readonly<{
+	branches?: readonly string[];
+	"branches-ignore"?: readonly string[];
+	types?: "checks_requested" | readonly "checks_requested"[];
+}>;
+
 export type GitHubWorkflowTriggers = {
+	readonly merge_group?: GitHubMergeGroupTrigger;
 	readonly [name: string]: unknown;
 };
 

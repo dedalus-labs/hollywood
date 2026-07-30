@@ -621,7 +621,7 @@ test("renderWorkflowFile supports common GitHub orchestration fields", () => {
 		generatedAt: new Date("2026-05-14T00:00:00.000Z"),
 		workflow: workflow({
 			name: "Go S3 Cache",
-			on: { workflow_dispatch: {} },
+			on: { merge_group: { types: ["checks_requested"] }, workflow_dispatch: {} },
 			permissions: { contents: "read", "id-token": "write" },
 			concurrency: {
 				group: expr("format('go-s3-cache-{0}', github.ref)"),
@@ -673,6 +673,7 @@ test("renderWorkflowFile supports common GitHub orchestration fields", () => {
 	const content = renderWorkflowFile(workflowFile);
 
 	assert.match(content, /queue: max/);
+	assert.match(content, /merge_group:\n    types:\n      - checks_requested/);
 	assert.match(content, /max-parallel: 2/);
 	assert.match(content, /cancel-in-progress: \$\{\{ !contains\(github.ref, 'release\/'\) \}\}/);
 	assert.match(content, /id-token: write/);

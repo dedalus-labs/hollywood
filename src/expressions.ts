@@ -87,6 +87,10 @@ export const github = {
 	},
 	eventName: expr<string>("github.event_name"),
 	headRef: expr<string>("github.head_ref"),
+	mergeGroup: {
+		baseSha: expr<string>("github.event.merge_group.base_sha"),
+		headSha: expr<string>("github.event.merge_group.head_sha"),
+	},
 	ref: expr<string>("github.ref"),
 	refName: expr<string>("github.ref_name"),
 	repositoryOwner: expr<string>("github.repository_owner"),
