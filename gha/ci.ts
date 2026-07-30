@@ -119,6 +119,8 @@ export const ci = workflow({
 				{ uses: checkoutAction, with: { "persist-credentials": false } },
 				setupNode,
 				{ name: "Install dependencies", run: "npm ci" },
+				{ name: "Audit dependencies", run: "npm audit --audit-level=high" },
+				{ name: "Verify registry signatures", run: "npm audit signatures" },
 				{ name: "Lint", run: "npm run lint" },
 				{ name: "Typecheck", run: "npm run typecheck" },
 				{ name: "Test", run: "npm test" },

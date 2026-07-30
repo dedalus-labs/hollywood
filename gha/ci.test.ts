@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { test } from "vitest";
 
 import { currentRunner, nodeFs, runAction, type Command } from "../src/index";
@@ -44,4 +45,8 @@ test("container provider integration files share one runtime at a time", async (
 			],
 		},
 	]);
+});
+
+test("repository installs cannot run dependency lifecycle scripts", async () => {
+	assert.equal(await readFile(".npmrc", "utf8"), "ignore-scripts=true\n");
 });
