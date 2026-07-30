@@ -76,10 +76,7 @@ plugins:
           - usage/local-services.md
         Backends:
           - backends/index.md
-          - backends/container.md
-          - backends/docker.md
-          - backends/smolmachines.md
-          - backends/pacman.md
+          - backends/runner-image.md
         Recipes:
           - recipes/s3-cache.md
           - recipes/publish-container-image.md
@@ -146,10 +143,7 @@ nav:
       - Local Services: usage/local-services.md
   - Backends:
       - Overview: backends/index.md
-      - Apple Container: backends/container.md
-      - Docker: backends/docker.md
-      - smolmachines: backends/smolmachines.md
-      - Arch / pacman: backends/pacman.md
+      - Runner Image: backends/runner-image.md
   - Recipes:
       - Overview: recipes/index.md
       - S3 Cache: recipes/s3-cache.md

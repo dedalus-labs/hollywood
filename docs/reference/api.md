@@ -67,6 +67,10 @@ authoring can keep orchestration imports separate from script/action imports.
 | `nodeFs`                          | Read local files.                                                            |
 | `nodeLog`                         | Write local logs to stdout and stderr.                                       |
 | `withContainer`                   | Own one Docker, Podman, or Apple container action session.                   |
+| `probeRunner`                     | Capture a sanitized, typed runner inventory.                                 |
+| `defineRunnerContract`            | Define the required operating system, paths, and tools.                      |
+| `verifyRunner`                    | Compare a runner probe with its required contract.                           |
+| `compareRunnerProbes`             | Classify contract, inventory, and provider drift.                            |
 
 ## Action runtime import
 
@@ -101,10 +105,13 @@ so it cannot be combined with `cancel-in-progress`.
 
 ## CLI
 
-| Command              | Purpose                                                    |
-| -------------------- | ---------------------------------------------------------- |
-| `hollywood generate` | Discover exported actions and workflows from source files. |
-| `hollywood run`      | Run one exported Hollywood action locally.                 |
+| Command                   | Purpose                                                    |
+| ------------------------- | ---------------------------------------------------------- |
+| `hollywood generate`      | Discover exported actions and workflows from source files. |
+| `hollywood run`           | Run one exported Hollywood action locally.                 |
+| `hollywood runner probe`  | Write a sanitized runner inventory.                        |
+| `hollywood runner verify` | Verify a probe against a runner contract.                   |
+| `hollywood runner compare` | Classify drift between two runner probes.                  |
 
 The command infers `gha/**/*.ts` or `ci/**/*.ts` from the repository:
 
@@ -144,7 +151,8 @@ npx hollywood run gha/s3-cache.ts \
 ```
 
 The exact lifecycle and compatibility boundary are documented in [Execution
-Backends](../backends/index.md).
+Backends](../backends/index.md). The reproducible image and its publication
+contract are documented in [Runner Image](../backends/runner-image.md).
 
 ## Validation
 

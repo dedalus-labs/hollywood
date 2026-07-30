@@ -331,6 +331,10 @@ file-command paths. The default image is GitHub's official minimal Actions
 runner image, pinned by digest. See the [execution provider
 docs](docs/backends/index.md) for the exact boundary.
 
+For repeatable local and CI execution, Hollywood also defines a
+[verified runner image](docs/backends/runner-image.md), a secret-safe runner
+probe, and a machine-readable compatibility contract.
+
 ## Generate Actions
 
 Generate local action metadata and entrypoints:
@@ -436,3 +440,7 @@ python3 -m venv .venv
 python -m pip install -r docs/requirements.txt
 python -m mkdocs build --strict -f mkdocs.yml
 ```
+
+Repository installs disable dependency lifecycle scripts. Every required build
+step is explicit instead of running code during `npm ci`. CI also rejects
+high-severity advisories and [missing or invalid registry signatures](https://docs.npmjs.com/verifying-registry-signatures/).
