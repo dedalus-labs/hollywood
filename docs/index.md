@@ -50,7 +50,7 @@ no YAML quoting puzzle.
 
 - Write GitHub Actions logic as typed TypeScript scripts.
 - Test scripts locally with fake executors or real executors.
-- Run scripts through [Lima](backends/lima.md) when the script needs a Linux VM.
+- Run scripts through Docker, Podman, or Apple's `container`.
 - Test scripts against local services such as MinIO, an S3-compatible object
   store, or LocalStack, a local Amazon Web Services emulator.
 - Generate ordinary `.github/actions/**/action.yml` files.
@@ -62,7 +62,7 @@ no YAML quoting puzzle.
   GitHub action packages.
 
 Hollywood does not emulate the private GitHub runner worker protocol. It keeps
-the loop smaller: write the script, run it locally or through Lima, generate
+the loop smaller: write the script, run it in a local container, generate
 GitHub-compatible files, and let GitHub run the generated action.
 
 ## First real targets
@@ -77,7 +77,7 @@ programs:
 | GitOps manifest promotion       | Validate promotion inputs before mutating deployment state.                  |
 | S3-compatible cache actions     | Exercise real object-storage behavior in local tests.                        |
 | Path-dependent CI jobs          | Keep required checks explicit while skipping irrelevant expensive jobs.       |
-| Lima action runs                | Prove Linux command execution locally before expensive GitHub pushes.         |
+| Container action runs           | Prove Linux action behavior locally before expensive GitHub pushes.           |
 
 ## Next steps
 

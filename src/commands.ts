@@ -16,13 +16,15 @@ import {
 	type GitHubWorkflow,
 } from "./generate";
 import { writeGeneratedFiles, type GeneratedFile } from "./files";
-import { currentRunner, nodeExec, nodeFs, nodeLog } from "./local";
-import { limaExec, limaRunner, probeLimaEnvironment } from "./lima";
+import { nodeExec } from "./local";
+import { runContainerAction } from "./container-action";
 import {
-	runAction,
+	githubActionsRunnerImage,
+	type ContainerProvider,
+} from "./container";
+import {
 	type InputDefinitions,
 	type OutputDefinitions,
-	type RunnerContext,
 	type ScriptAction,
 	type ScriptExec,
 } from "./script";
@@ -41,13 +43,14 @@ export type GenerateOptions = Readonly<{
 }>;
 
 export type RunOptions = Readonly<{
-	exportName?: string;
+	actionRuntime?: string;
+	exportName: string;
+	hostExec?: ScriptExec;
+	image: string;
 	inputs: readonly string[];
-	lima?: string;
-	requireContainerd: boolean;
-	requireKvm: boolean;
+	provider: ContainerProvider;
 	source: string;
-	startVm: boolean;
+	workspace: string;
 }>;
 
 export type CheckOptions = Readonly<{
@@ -66,10 +69,18 @@ export type BuildActionsOptions = Readonly<{
 }>;
 
 export type CliIo = Readonly<{
+	writeErr?: (message: string) => void;
 	writeOut: (message: string) => void;
 }>;
 
-export const createCli = (io: CliIo = processIo()): Command => {
+export type CliServices = Readonly<{
+	run: typeof run;
+}>;
+
+export const createCli = (
+	io: CliIo = processIo(),
+	services: CliServices = { run },
+): Command => {
 	const program = new Command()
 		.name("hollywood")
 		.description("Lights, cameras, Actions!")
@@ -126,23 +137,24 @@ export const createCli = (io: CliIo = processIo()): Command => {
 		.command("run")
 		.description("Run an exported Hollywood action locally")
 		.argument("<source>", "Source file exporting a Hollywood action")
-		.option("--export <name>", "Action export name")
+		.requiredOption("--export <name>", "Action export name")
+		.option("--image <reference>", "Digest-pinned runner image", githubActionsRunnerImage)
+		.requiredOption(
+			"--provider <provider>",
+			"Container provider: container, docker, or podman",
+			parseContainerProvider,
+		)
 		.option("--with <name=value>", "Action input", collect, [] as string[])
-		.option("--lima <name>", "Run commands inside the named Lima VM")
-		.option("--require-containerd", "Require containerd and nerdctl in the Lima VM", false)
-		.option("--require-kvm", "Require readable and writable /dev/kvm in the Lima VM", false)
-		.option("--start-vm", "Start the Lima VM before running", false)
 		.action(async (source, options) => {
 			const runOptions = {
+				image: options.image,
 				inputs: options.with,
-				requireContainerd: options.requireContainerd,
-				requireKvm: options.requireKvm,
+				provider: options.provider,
 				source,
-				startVm: options.startVm,
-				...(options.export === undefined ? {} : { exportName: options.export }),
-				...(options.lima === undefined ? {} : { lima: options.lima }),
+				workspace: process.cwd(),
+				exportName: options.export,
 			};
-			await run(runOptions, io);
+			await services.run(runOptions, io);
 		});
 
 	return program;
@@ -162,18 +174,26 @@ export const generate = async (options: GenerateOptions, io: CliIo): Promise<voi
 };
 
 export const run = async (options: RunOptions, io: CliIo): Promise<void> => {
-	const module = await loadHollywoodModule(options.source);
-	const scriptAction = selectScriptAction(module, options);
-
-	const runtime = await runRuntime(options);
-	const outputs = await runAction(scriptAction, {
+	const result = await runContainerAction({
+		...(options.actionRuntime === undefined ? {} : { actionRuntime: options.actionRuntime }),
+		exportName: options.exportName,
+		image: options.image,
+		provider: options.provider,
+		source: options.source,
 		with: parseInputPairs(options.inputs),
-		exec: runtime.exec,
-		fs: nodeFs,
-		log: nodeLog,
-		runner: runtime.runner,
+		workspace: options.workspace,
+		...(options.hostExec === undefined ? {} : { hostExec: options.hostExec }),
 	});
-	const entries = Object.entries(outputs);
+	if (result.stdout.length > 0) {
+		io.writeOut(result.stdout);
+	}
+	if (result.stderr.length > 0) {
+		if (io.writeErr === undefined) {
+			throw new Error("container action wrote stderr without a configured stderr sink");
+		}
+		io.writeErr(result.stderr);
+	}
+	const entries = Object.entries(result.outputs);
 	if (entries.length === 0) {
 		io.writeOut("ok\t(no outputs)\n");
 		return;
@@ -181,42 +201,6 @@ export const run = async (options: RunOptions, io: CliIo): Promise<void> => {
 	for (const [name, value] of entries) {
 		io.writeOut(`output\t${name}=${value}\n`);
 	}
-};
-
-const selectScriptAction = (
-	module: HollywoodModule,
-	options: RunOptions,
-): ScriptAction<InputDefinitions, OutputDefinitions> => {
-	if (options.exportName !== undefined) {
-		const scriptAction = module[options.exportName];
-		if (!isScriptAction(scriptAction)) {
-			throw new Error(`Hollywood action export not found: ${options.exportName}`);
-		}
-		return scriptAction;
-	}
-
-	const defaultAction = module["default"];
-	if (isScriptAction(defaultAction)) {
-		return defaultAction;
-	}
-
-	const actions = Object.entries(module).filter((entry): entry is [
-		string,
-		ScriptAction<InputDefinitions, OutputDefinitions>,
-	] => isScriptAction(entry[1]));
-	if (actions.length === 1) {
-		const action = actions[0];
-		if (action === undefined) {
-			throw new Error("Hollywood action export not found");
-		}
-		return action[1];
-	}
-	if (actions.length === 0) {
-		throw new Error("Hollywood action export not found");
-	}
-	throw new Error(
-		`multiple Hollywood actions exported: ${actions.map(([name]) => name).sort().join(", ")}; pass --export`,
-	);
 };
 
 export const check = async (options: CheckOptions, io: CliIo): Promise<void> => {
@@ -720,26 +704,6 @@ const isDirectory = async (path: string): Promise<boolean> => {
 	}
 };
 
-const runRuntime = async (
-	options: RunOptions,
-): Promise<Readonly<{ exec: ScriptExec; runner: RunnerContext }>> => {
-	if (options.lima === undefined) {
-		return { exec: nodeExec, runner: currentRunner() };
-	}
-	const probe = await probeLimaEnvironment({
-		name: options.lima,
-		exec: nodeExec,
-		requireContainerd: options.requireContainerd,
-		requireKvm: options.requireKvm,
-		start: options.startVm,
-	});
-	if (probe.status !== "ready") {
-		throw new Error(probe.reason);
-	}
-	const lima = { name: options.lima, exec: nodeExec, start: options.startVm };
-	return { exec: limaExec(lima), runner: await limaRunner(lima) };
-};
-
 const parseInputPairs = (inputs: readonly string[]): { readonly [name: string]: string } => {
 	const parsed = new Map<string, string>();
 	for (const input of inputs) {
@@ -757,6 +721,17 @@ const parseInputPairs = (inputs: readonly string[]): { readonly [name: string]: 
 };
 
 const collect = (value: string, previous: string[]): string[] => [...previous, value];
+
+const parseContainerProvider = (value: string): ContainerProvider => {
+	switch (value) {
+		case "container":
+		case "docker":
+		case "podman":
+			return value;
+		default:
+			throw new Error(`unsupported container provider: ${value}`);
+	}
+};
 
 const relativeSourcePath = (outputDir: string, sourceFile: string): string => {
 	const path = relative(resolve(outputDir), resolve(sourceFile));
@@ -789,6 +764,9 @@ const isGitHubWorkflow = (value: unknown): value is GitHubWorkflow =>
 	(value as { readonly jobs?: unknown }).jobs !== null;
 
 const processIo = (): CliIo => ({
+	writeErr: (message) => {
+		process.stderr.write(message);
+	},
 	writeOut: (message) => {
 		process.stdout.write(message);
 	},

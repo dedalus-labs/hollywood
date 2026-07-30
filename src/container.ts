@@ -8,6 +8,23 @@ import type { RunnerContext, ScriptExec, ScriptFs } from "./script";
 
 export type ContainerProvider = "container" | "docker" | "podman";
 
+export class ContainerProviderUnavailableError extends Error {
+	readonly binary: string;
+	readonly provider: ContainerProvider;
+
+	constructor(provider: ContainerProvider, binary: string, cause: unknown) {
+		const requirement =
+			provider === "container" ? " Apple container requires Apple silicon and macOS 26 or newer." : "";
+		super(
+			`container provider ${provider} is unavailable: expected executable ${binary} on PATH.${requirement}`,
+			{ cause },
+		);
+		this.name = "ContainerProviderUnavailableError";
+		this.binary = binary;
+		this.provider = provider;
+	}
+}
+
 export const githubActionsRunnerImage =
 	"ghcr.io/actions/actions-runner@sha256:0cfdcc701ce933c6d243c6b0b2da767366dc9f2e99961d4c3754b0b78084cdda";
 
@@ -27,6 +44,7 @@ export type ContainerServices = Readonly<{
 
 type ContainerRuntime = Readonly<{
 	binary: string;
+	createOptions: readonly string[];
 	remove: string;
 }>;
 
@@ -73,12 +91,17 @@ const withContainerSession = async <Value>(
 	let failure: unknown;
 
 	try {
-		await hostExec(runtime.binary, createArgs({ image: options.image, name, root, workspace }));
+		await hostExec(
+			runtime.binary,
+			createArgs({ image: options.image, name, root, runtime, workspace }),
+		);
 		created = true;
 		await hostExec(runtime.binary, ["start", name]);
 		result = await run(await containerServices({ hostExec, name, runtime, workspace }));
 	} catch (error: unknown) {
-		failure = error;
+		failure = isMissingExecutable(error)
+			? new ContainerProviderUnavailableError(options.provider, runtime.binary, error)
+			: error;
 	}
 
 	const cleanupFailures = await cleanup({ created, hostExec, name, root, runtime });
@@ -135,12 +158,19 @@ const containerExec =
 	};
 
 const createArgs = (
-	options: Readonly<{ image: string; name: string; root: string; workspace: string }>,
+	options: Readonly<{
+		image: string;
+		name: string;
+		root: string;
+		runtime: ContainerRuntime;
+		workspace: string;
+	}>,
 ): readonly string[] => {
 	const args = ["create", "--name", options.name, "--workdir", githubWorkspace];
 	for (const [name, value] of Object.entries(githubEnvironment)) {
 		args.push("--env", `${name}=${value}`);
 	}
+	args.push(...options.runtime.createOptions);
 	args.push(
 		"--volume",
 		`${options.root}:/github`,
@@ -228,10 +258,11 @@ const containerPath = (workspace: string, path: string): string => {
 const containerRuntime = (provider: ContainerProvider): ContainerRuntime => {
 	switch (provider) {
 		case "container":
-			return { binary: "container", remove: "delete" };
+			return { binary: "container", createOptions: [], remove: "delete" };
 		case "docker":
+			return { binary: "docker", createOptions: [], remove: "rm" };
 		case "podman":
-			return { binary: provider, remove: "rm" };
+			return { binary: "podman", createOptions: ["--userns=keep-id"], remove: "rm" };
 		default:
 			throw new Error(`unsupported container provider: ${String(provider)}`);
 	}
@@ -242,3 +273,6 @@ const assertImmutableImage = (image: string): void => {
 		throw new Error("container image must use a sha256 digest or image id");
 	}
 };
+
+const isMissingExecutable = (error: unknown): boolean =>
+	typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";

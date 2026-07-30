@@ -66,8 +66,7 @@ authoring can keep orchestration imports separate from script/action imports.
 | `nodeExec`                        | Execute commands on the local machine.                                       |
 | `nodeFs`                          | Read local files.                                                            |
 | `nodeLog`                         | Write local logs to stdout and stderr.                                       |
-| `limaExec`                        | Route command execution through `limactl shell`.                             |
-| `limaRunner`                      | Read the guest runner uid/gid from a Lima VM.                                |
+| `withContainer`                   | Own one Docker, Podman, or Apple container action session.                   |
 
 ## Action runtime import
 
@@ -127,22 +126,25 @@ The source root, root import alias, and generated output directories are CLI
 options, not hardcoded paths. Hollywood infers `@` from a `tsconfig.json`
 `@/*` path alias when present.
 
-Run an action on the host:
+Run an action with an explicit provider:
 
 ```bash
-npx hollywood run gha/s3-cache.ts --with mode=restore
+npx hollywood run gha/s3-cache.ts --export s3Cache --provider docker --with mode=restore
 ```
 
-Run the same action with command execution routed through Lima:
+The default image is GitHub's official minimal Actions runner image, pinned by
+digest. Override it only with another digest-pinned image:
 
 ```bash
-npx hollywood run gha/s3-cache.ts --lima kvm --start-vm --with mode=restore
+npx hollywood run gha/s3-cache.ts \
+  --export s3Cache \
+  --provider podman \
+  --image ghcr.io/acme/runner@sha256:<digest> \
+  --with mode=restore
 ```
 
-`--require-containerd` checks `containerd` and `nerdctl` before the action
-starts. `--require-kvm` checks readable and writable `/dev/kvm` before the
-action starts. The exact backend command shape is documented in
-[Lima](../backends/lima.md).
+The exact lifecycle and compatibility boundary are documented in [Execution
+Backends](../backends/index.md).
 
 ## Validation
 
@@ -152,9 +154,3 @@ action starts. The exact backend command shape is documented in
 | `validateWorkflowContent`          | Return parser diagnostics for a workflow file.         |
 | `assertValidActionMetadataContent` | Throw if action metadata is invalid.                   |
 | `assertValidWorkflowContent`       | Throw if workflow YAML is invalid.                     |
-
-## Environment probing
-
-| API                    | Purpose                                             |
-| ---------------------- | --------------------------------------------------- |
-| `probeLimaEnvironment` | Check whether the named Lima environment is usable. |

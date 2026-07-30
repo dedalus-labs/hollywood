@@ -296,10 +296,12 @@ There is no shell interpolation and no YAML quoting puzzle.
 
 ## Local Runs
 
-Run an exported action directly on your machine:
+Run an exported action in a persistent Linux container:
 
 ```bash
 npx hollywood run gha/containers/publish-image.ts \
+  --export publishImage \
+  --provider container \
   --with image=ghcr.io/acme/api \
   --with tag="$(git rev-parse --short HEAD)" \
   --with context=. \
@@ -308,13 +310,14 @@ npx hollywood run gha/containers/publish-image.ts \
   --with provenance=false
 ```
 
-Route every `exec(file, args)` call through a Lima VM when the script needs a
-Linux environment:
+Choose Docker, Podman, or Apple's `container` explicitly. Docker Desktop users
+select `docker` whether Desktop uses Docker VMM or Apple's virtualization
+framework:
 
 ```bash
 npx hollywood run gha/cache/s3-cache.ts \
-  --lima default \
-  --start-vm \
+  --export s3Cache \
+  --provider podman \
   --with mode=restore \
   --with bucket=ci-cache \
   --with prefix=node \
@@ -323,16 +326,10 @@ npx hollywood run gha/cache/s3-cache.ts \
   --with contentsPath=/tmp/node-cache
 ```
 
-Hollywood invokes Lima with the same argument-array shape:
-
-```text
-limactl shell --tty=false --start default -- <file> <arg>...
-```
-
-No command is rewritten into shell text. If the VM is stopped and `--start-vm`
-was not passed, the run fails before the action starts. See the
-[execution backend docs](docs/backends/index.md) for the supported Lima backend
-and planned backend directions.
+Hollywood runs the complete bundled action with GitHub's standard workspace and
+file-command paths. The default image is GitHub's official minimal Actions
+runner image, pinned by digest. See the [execution provider
+docs](docs/backends/index.md) for the exact boundary.
 
 ## Generate Actions
 

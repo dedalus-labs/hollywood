@@ -19,6 +19,16 @@ import { NoOperationTraceWriter } from "@actions/workflow-parser/templates/trace
 import { WORKFLOW_ROOT } from "@actions/workflow-parser/workflows/workflow-constants";
 import { YamlObjectReader } from "@actions/workflow-parser/workflows/yaml-object-reader";
 //#region src/container.ts
+var ContainerProviderUnavailableError = class extends Error {
+	binary;
+	provider;
+	constructor(provider, binary, cause) {
+		super(`container provider ${provider} is unavailable: expected executable ${binary} on PATH.${provider === "container" ? " Apple container requires Apple silicon and macOS 26 or newer." : ""}`, { cause });
+		this.name = "ContainerProviderUnavailableError";
+		this.binary = binary;
+		this.provider = provider;
+	}
+};
 const githubActionsRunnerImage = "ghcr.io/actions/actions-runner@sha256:0cfdcc701ce933c6d243c6b0b2da767366dc9f2e99961d4c3754b0b78084cdda";
 const githubWorkspace = "/github/workspace";
 const githubEnvironment = {
@@ -54,6 +64,7 @@ const withContainerSession = async (options, run) => {
 			image: options.image,
 			name,
 			root,
+			runtime,
 			workspace
 		}));
 		created = true;
@@ -65,7 +76,7 @@ const withContainerSession = async (options, run) => {
 			workspace
 		}));
 	} catch (error) {
-		failure = error;
+		failure = isMissingExecutable(error) ? new ContainerProviderUnavailableError(options.provider, runtime.binary, error) : error;
 	}
 	const cleanupFailures = await cleanup({
 		created,
@@ -107,6 +118,7 @@ const createArgs = (options) => {
 		githubWorkspace
 	];
 	for (const [name, value] of Object.entries(githubEnvironment)) args.push("--env", `${name}=${value}`);
+	args.push(...options.runtime.createOptions);
 	args.push("--volume", `${options.root}:/github`, "--volume", `${options.workspace}:${githubWorkspace}`, "--entrypoint", "sleep", options.image, "infinity");
 	return args;
 };
@@ -176,11 +188,17 @@ const containerRuntime = (provider) => {
 	switch (provider) {
 		case "container": return {
 			binary: "container",
+			createOptions: [],
 			remove: "delete"
 		};
-		case "docker":
+		case "docker": return {
+			binary: "docker",
+			createOptions: [],
+			remove: "rm"
+		};
 		case "podman": return {
-			binary: provider,
+			binary: "podman",
+			createOptions: ["--userns=keep-id"],
 			remove: "rm"
 		};
 		default: throw new Error(`unsupported container provider: ${String(provider)}`);
@@ -189,6 +207,7 @@ const containerRuntime = (provider) => {
 const assertImmutableImage = (image) => {
 	if (!/(?:@sha256:|^sha256:)[0-9a-f]{64}$/.test(image)) throw new Error("container image must use a sha256 digest or image id");
 };
+const isMissingExecutable = (error) => typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
 //#endregion
 //#region src/validation.ts
 const validateWorkflowContent = (file) => validateContent(file, workflowSchema(), WORKFLOW_ROOT);
@@ -540,89 +559,4 @@ const resolveOutputPath = (outputDir, path) => {
 	return outputPath;
 };
 //#endregion
-//#region src/lima.ts
-const probeLimaEnvironment = async (probe) => {
-	try {
-		if ((await findLimaVm(probe)).status !== "Running") {
-			if (probe.start !== true) return reject(probe.name, `lima vm is stopped: ${probe.name}`);
-			await probe.exec("limactl", ["start", probe.name]);
-		}
-		await requireShell(probe, ["uname", "-s"], "Linux");
-		if (probe.requireContainerd === true) {
-			await requireShell(probe, [
-				"systemctl",
-				"--user",
-				"is-active",
-				"containerd"
-			], "active");
-			await probe.exec("limactl", [
-				"shell",
-				probe.name,
-				"--",
-				"nerdctl",
-				"--version"
-			]);
-		}
-		if (probe.requireKvm === true) await probe.exec("limactl", [
-			"shell",
-			probe.name,
-			"--",
-			"test",
-			"-r",
-			"/dev/kvm",
-			"-a",
-			"-w",
-			"/dev/kvm"
-		]);
-		if (probe.requireContainerd === true) return {
-			status: "ready",
-			name: probe.name,
-			runtime: "nerdctl"
-		};
-		return {
-			status: "ready",
-			name: probe.name
-		};
-	} catch (error) {
-		return reject(probe.name, error instanceof Error ? error.message : String(error));
-	}
-};
-const limaExec = (options) => (file, args, commandOptions = {}) => {
-	const command = ["shell", "--tty=false"];
-	if (options.start === true) command.push("--start");
-	if (commandOptions.cwd !== void 0) command.push("--workdir", commandOptions.cwd);
-	command.push(options.name, "--");
-	if (commandOptions.env !== void 0) command.push("env", ...Object.entries(commandOptions.env).map(([name, value]) => `${name}=${value}`));
-	return options.exec("limactl", [
-		...command,
-		file,
-		...args
-	], commandOptions.exitPolicy === void 0 ? void 0 : { exitPolicy: commandOptions.exitPolicy });
-};
-const limaRunner = async (options) => {
-	const exec = limaExec(options);
-	const [uid, gid] = await Promise.all([exec("id", ["-u"]), exec("id", ["-g"])]);
-	return { uidGid: `${uid.stdout.trim()}:${gid.stdout.trim()}` };
-};
-const findLimaVm = async (probe) => {
-	const vm = parseLimaList((await probe.exec("limactl", ["list", "--json"])).stdout).find((entry) => entry.name === probe.name);
-	if (vm === void 0) throw new Error(`lima vm not found: ${probe.name}`);
-	return vm;
-};
-const parseLimaList = (stdout) => stdout.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
-const requireShell = async (probe, args, expected) => {
-	const result = await probe.exec("limactl", [
-		"shell",
-		probe.name,
-		"--",
-		...args
-	]);
-	if (result.stdout.trim() !== expected) throw new Error(`lima ${args.join(" ")} returned ${result.stdout.trim()}`);
-};
-const reject = (name, reason) => ({
-	status: "rejected",
-	name,
-	reason
-});
-//#endregion
-export { GeneratedFilePathCollisionError, GitHubJobResult, InvalidWorkflowFilenameError, action, always, and, assertValidActionMetadataContent, assertValidWorkflowContent, booleanInput, cancelled, choiceInput, contains, currentRunner, defineEnvironmentRegistry, defineMatrix, envVar, eq, expr, failure, format, generateActionEntrypointFile, generateActionFile, generateActionFiles, generateActionMetadata, generateUsesStep, generateWorkflowFile, gh, github, githubActionsRunnerImage, hashFiles, input, integerInput, job, limaExec, limaRunner, localAction, matrix, ne, needsOutput, needsResult, needsResultIn, needsResultIs, nodeExec, nodeFs, nodeLog, not, or, pathInput, probeLimaEnvironment, renderActionFile, renderGeneratedFile, renderWorkflowFile, resolveEnvironment, runAction, runGitHubAction, runner, secret, selectEnvironmentName, selectString, stepOutput, stringInput, stringOutput, success, summaryCode, summaryText, uses, validateActionMetadataContent, validateWorkflowContent, valueOr, withContainer, withLocalContainer, workflow, writeGeneratedFiles };
+export { ContainerProviderUnavailableError, GeneratedFilePathCollisionError, GitHubJobResult, InvalidWorkflowFilenameError, action, always, and, assertValidActionMetadataContent, assertValidWorkflowContent, booleanInput, cancelled, choiceInput, contains, currentRunner, defineEnvironmentRegistry, defineMatrix, envVar, eq, expr, failure, format, generateActionEntrypointFile, generateActionFile, generateActionFiles, generateActionMetadata, generateUsesStep, generateWorkflowFile, gh, github, githubActionsRunnerImage, hashFiles, input, integerInput, job, localAction, matrix, ne, needsOutput, needsResult, needsResultIn, needsResultIs, nodeExec, nodeFs, nodeLog, not, or, pathInput, renderActionFile, renderGeneratedFile, renderWorkflowFile, resolveEnvironment, runAction, runGitHubAction, runner, secret, selectEnvironmentName, selectString, stepOutput, stringInput, stringOutput, success, summaryCode, summaryText, uses, validateActionMetadataContent, validateWorkflowContent, valueOr, withContainer, withLocalContainer, workflow, writeGeneratedFiles };

@@ -4,7 +4,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "vitest";
 
-import { withContainer, withLocalContainer, type ContainerProvider } from "./index";
+import {
+	ContainerProviderUnavailableError,
+	withContainer,
+	withLocalContainer,
+	type ContainerProvider,
+} from "./index";
 import type { Command, ScriptExec } from "./script";
 
 const image = `ghcr.io/example/runner@sha256:${"a".repeat(64)}`;
@@ -54,6 +59,7 @@ for (const provider of ["container", "docker", "podman"] as const) {
 		]);
 		assert.ok(create?.args.includes("GITHUB_ACTIONS=true"));
 		assert.ok(create?.args.includes("GITHUB_WORKSPACE=/github/workspace"));
+		assert.equal(create?.args.includes("--userns=keep-id"), provider === "podman");
 		assert.ok(create?.args.some((arg) => arg.endsWith(":/github")));
 		assert.ok(create?.args.includes(`${workspace}:/github/workspace`));
 		assert.deepEqual(create?.args.slice(-4), ["--entrypoint", "sleep", image, "infinity"]);
@@ -111,6 +117,28 @@ test("withLocalContainer accepts a freshly built local tag", async () => {
 		async () => undefined,
 	);
 	assert.equal(commands[0]?.args.includes("hollywood-runner:test"), true);
+});
+
+test("withContainer names a missing selected provider", async () => {
+	const cause = Object.assign(new Error("spawn container ENOENT"), { code: "ENOENT" });
+	await assert.rejects(
+		() =>
+			withContainer(
+				{
+					hostExec: async () => Promise.reject(cause),
+					image,
+					provider: "container",
+					workspace: process.cwd(),
+				},
+				async () => undefined,
+			),
+		(error) =>
+			error instanceof ContainerProviderUnavailableError &&
+			error.provider === "container" &&
+			error.binary === "container" &&
+			error.cause === cause &&
+			/Apple silicon and macOS 26 or newer/.test(error.message),
+	);
 });
 
 test("withContainer reports action and cleanup failures", async () => {
