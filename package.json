@@ -79,7 +79,8 @@
 		"@actions/expressions": "0.3.57",
 		"@actions/workflow-parser": "0.3.55",
 		"esbuild": "0.28.1",
-		"yaml": "2.8.4"
+		"yaml": "2.8.4",
+		"zod": "4.4.3"
 	},
 	"devDependencies": {
 		"@commander-js/extra-typings": "14.0.0",

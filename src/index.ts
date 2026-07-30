@@ -44,6 +44,27 @@ export {
 
 export { currentRunner, nodeExec, nodeFs, nodeLog } from "./local";
 export type {
+	RunnerContract,
+	RunnerDifference,
+	RunnerPackageProbe,
+	RunnerPathProbe,
+	RunnerProbe,
+	RunnerToolProbe,
+} from "./runner-contract";
+export {
+	compareRunnerProbes,
+	defineRunnerContract,
+	parseRunnerContract,
+	parseRunnerProbe,
+	verifyRunner,
+} from "./runner-contract";
+export type {
+	RunnerEnvironmentName,
+	RunnerPathEnvironmentName,
+	RunnerToolName,
+} from "./runner-schema";
+export { runnerProbeSchemaVersion } from "./runner-schema";
+export type {
 	ContainerOptions,
 	ContainerProvider,
 	ContainerServices,
