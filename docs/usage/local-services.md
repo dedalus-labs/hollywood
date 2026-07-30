@@ -36,18 +36,16 @@ Use cases:
 Hollywood should not hide which service is active. A script should receive the
 endpoint and credentials explicitly through typed inputs or environment.
 
-## VM providers
+## Linux action containers
 
-Linux action runs on macOS should use Lima first. Lima gives us a real Linux
-virtual machine (VM), and Hollywood routes each script `exec(file, args)` call
-through `limactl shell`. See [Execution Backends](../backends/index.md) for the
-current backend matrix and planned directions.
+Local action runs use an explicitly selected container provider. See
+[Execution Backends](../backends/index.md) for the supported runtimes.
 
 ```bash
-npx hollywood run gha/cache/s3-cache.ts --lima default --start-vm
+npx hollywood run gha/cache/s3-cache.ts --export s3Cache --provider container
 ```
 
-Hollywood's current VM support is action-level, not whole-workflow emulation.
+Hollywood's local support is action-level, not whole-workflow emulation.
 There is no local artifact server, cache server, OIDC issuer, or private GitHub
 runner worker protocol in the package.
 

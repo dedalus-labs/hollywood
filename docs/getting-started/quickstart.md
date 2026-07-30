@@ -69,17 +69,22 @@ The CLI can run the same exported action:
 
 ```bash
 npx hollywood run gha/containers/publish-image.ts \
+  --export publishImage \
+  --provider container \
   --with image=ghcr.io/acme/api \
   --with tag=sha-abc123 \
   --with provenance=false
 ```
 
-For Linux VM execution on macOS, add `--lima <name>`:
+Choose `docker`, `podman`, or Apple's `container` explicitly. Hollywood runs the
+complete action in one persistent, GitHub-shaped Linux container. To use a
+custom runner image, pin it by digest:
 
 ```bash
 npx hollywood run gha/containers/publish-image.ts \
-  --lima default \
-  --start-vm \
+  --export publishImage \
+  --provider docker \
+  --image ghcr.io/acme/runner@sha256:<digest> \
   --with image=ghcr.io/acme/api \
   --with tag=sha-abc123 \
   --with provenance=false

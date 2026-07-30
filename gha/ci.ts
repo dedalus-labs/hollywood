@@ -2,7 +2,14 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { action, job, summaryCode, summaryText, uses, workflow } from "../src/index";
+import {
+	action,
+	job,
+	summaryCode,
+	summaryText,
+	uses,
+	workflow,
+} from "../src/index";
 import {
 	checkHollywoodStateCommand,
 	checkoutAction,
@@ -27,6 +34,8 @@ const setupNode = {
 		"node-version": "24",
 	},
 } as const;
+
+const containerProviders = ["docker", "podman"] as const;
 
 export const checkRuntime = action({
 	name: "Check Hollywood runtime",
@@ -75,6 +84,24 @@ export const lintWorkflows = action({
 	},
 });
 
+export const testContainerProvider = action({
+	name: "Test container provider",
+	description: "Run the real container provider contract tests.",
+	localActionPath: "test-container-provider",
+	inputs: {},
+	outputs: {},
+	run: async ({ exec }) => {
+		await exec("npm", [
+			"test",
+			"--",
+			"--no-file-parallelism",
+			"src/container.test.ts",
+			"src/container-action.test.ts",
+		]);
+		return {};
+	},
+});
+
 export const ci = workflow({
 	name: "CI",
 	on: {
@@ -114,6 +141,21 @@ export const ci = workflow({
 				{ name: "Build local actions", run: "npm run actions" },
 				uses(checkRuntime, { name: "Check Hollywood runtime" }),
 				uses(lintWorkflows, { name: "Lint GitHub Actions workflows" }),
+			],
+		}),
+		container: job({
+			name: "Container provider",
+			if: trustedCiRun,
+			"runs-on": "ubuntu-24.04",
+			env: { HOLLYWOOD_CONTAINER_PROVIDER: "${{ matrix.provider }}" },
+			strategy: { matrix: { provider: containerProviders } },
+			steps: [
+				{ uses: checkoutAction, with: { "persist-credentials": false } },
+				setupNode,
+				{ name: "Install dependencies", run: "npm ci" },
+				{ name: "Build Hollywood", run: "npm run build" },
+				{ name: "Build local actions", run: "npm run actions" },
+				uses(testContainerProvider, { name: "Test provider" }),
 			],
 		}),
 	},

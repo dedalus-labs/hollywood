@@ -40,7 +40,7 @@ npm run generate
 Run an exported action locally:
 
 ```bash
-npx hollywood run gha/s3-cache.ts --with mode=restore
+npx hollywood run gha/s3-cache.ts --export s3Cache --provider docker --with mode=restore
 ```
 
 ## Node requirements

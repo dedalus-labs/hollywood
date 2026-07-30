@@ -1,37 +1,57 @@
 # Execution Backends
 
-Execution backends decide where a Hollywood script command runs.
+Execution providers decide where a Hollywood action runs.
 
-Hollywood's script contract stays the same for every backend:
+`hollywood run` requires one provider:
 
-- `exec(file, args)` receives an executable path and an argument array.
-- `cwd`, environment, and exit policy stay structured.
-- Missing capabilities reject the local run before the action starts.
-- GitHub still runs generated actions on real GitHub runners.
+- `docker`
+- `podman`
+- `container` from Apple
 
-## Backend Matrix
+There is no provider auto-detection or host fallback.
 
-| Backend                              | Status    | Use cases                                                      |
-| ------------------------------------ | --------- | -------------------------------------------------------------- |
-| Host process                         | Supported | Commands that should run on the current developer machine.     |
-| [Lima](lima.md)                      | Supported | Linux command execution from macOS or another host.            |
-| [Apple Container](container.md)      | Planned   | OCI images backed by lightweight macOS virtual machines.       |
-| [Docker](docker.md)                  | Planned   | Containerized tools where the Docker CLI is already available. |
-| [smolmachines](smolmachines.md)      | Candidate | Portable virtual machine images with fast local startup.       |
-| [Arch / pacman](pacman.md)           | Candidate | Arch Linux package workflows and pacman-shaped recipes.        |
+## Provider Matrix
 
-Supported means Hollywood has a public API or CLI flag for that backend today.
-Planned means the backend shape is useful, but the package does not expose it
-yet. Candidate means the page records an integration direction for discussion.
+| Provider    | Runtime | Host boundary |
+| ----------- | ------- | ------------- |
+| `docker`    | Docker Engine or Docker Desktop | Linux, macOS, or Windows supported by Docker |
+| `podman`    | Rootless, daemon-backed, or Podman machine | Linux, macOS, or Windows supported by Podman |
+| `container` | Apple's `container` CLI | Apple silicon and macOS 26 or newer |
+
+Docker VMM is a Docker Desktop virtual machine manager on Apple silicon. It
+still exposes the ordinary `docker` CLI, so select `--provider docker`; no
+Hollywood-specific backend or configuration is required.
+
+All three providers create one persistent container for the action, mount the
+repository at `/github/workspace`, and expose GitHub's standard file-command
+paths. The default is GitHub's official
+[`actions-runner`](https://docs.github.com/en/actions/concepts/runners/actions-runner-controller#software-components)
+container image, pinned by multi-architecture digest. That image publishes
+native Linux `amd64` and `arm64` manifests. Those are the two architectures
+Hollywood can support without replacing GitHub's runner userspace.
+
+This is the closest public image GitHub supports, but it is deliberately
+minimal. A standard
+[GitHub-hosted runner](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)
+is a fresh virtual machine with a much larger tool inventory; GitHub does not
+publish `ubuntu-latest` as a supported OCI image.
+
+Hollywood guarantees that the action bundle, pinned userspace image, workspace
+mount, inputs, and
+[file-command paths](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands)
+are identical across providers. The provider still owns the kernel,
+virtualization, networking, and filesystem implementation. GitHub still owns
+workflow scheduling, service containers, permissions, OIDC, caches, and
+artifacts. Real GitHub CI remains the final conformance test.
 
 ## Why Backends Exist
 
-The backend boundary is intentionally small. A backend only needs to answer:
+The provider boundary is intentionally small. A provider only needs to answer:
 
-1. How do we run `<file> <arg>...` without shell interpolation?
-2. How do we pass structured working directory and environment values?
-3. How do we prove required capabilities before `run` starts?
-4. How do we report the runner user and group when file ownership matters?
+1. How do we create and remove one isolated Linux session?
+2. How do we execute structured commands without shell interpolation?
+3. How do we mount the workspace and GitHub protocol files?
 
-Everything else belongs in the script or the generated GitHub Actions workflow.
-Hollywood should not become a full GitHub Actions emulator.
+The image supplies userspace tools. The provider supplies isolation. GitHub
+still supplies workflow scheduling, services, permissions, and hosted-runner
+infrastructure.

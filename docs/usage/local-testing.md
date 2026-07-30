@@ -28,19 +28,10 @@ await runAction(publishImage, {
 This is the fast path. It proves typed inputs, output shapes, command arguments,
 and explicit nonzero-exit handling.
 
-## Real local commands
+## Direct library execution
 
 Use `nodeExec`, `nodeFs`, and `nodeLog` when the script should run on the local
-machine. The CLI path is:
-
-```bash
-npx hollywood run gha/containers/publish-image.ts \
-  --with image=ghcr.io/acme/api \
-  --with tag=sha-abc123 \
-  --with provenance=false
-```
-
-The library path is:
+machine:
 
 ```typescript
 await runAction(action, {
@@ -55,21 +46,26 @@ await runAction(action, {
 This is useful for scripts that call local tools such as `aws`, `tar`, `zstd`,
 `terraform`, or project-specific binaries.
 
-## Lima commands
+## Container execution
 
-Use `--lima <name>` when the script should run commands inside a Linux VM. The
-full command mapping lives in the [Lima backend docs](../backends/lima.md).
+The CLI requires Docker Engine/Desktop, Podman, or Apple's `container`. Docker
+VMM sits behind Docker Desktop's normal `docker` CLI and therefore uses the
+`docker` provider. Apple's `container` provider requires Apple silicon and
+macOS 26 or newer:
 
 ```bash
 npx hollywood run gha/go/s3-cache.ts \
-  --lima kvm \
-  --start-vm \
+  --export s3Cache \
+  --provider container \
   --with mode=restore
 ```
 
-Every script command is routed through `limactl shell` without turning the
-command into shell text. Add `--require-containerd` or `--require-kvm` when the
-script needs those VM capabilities before it starts.
+Hollywood bundles the action, starts one persistent Linux container, and runs
+the bundle with GitHub's workspace, input, output, event, environment, path, and
+step-summary protocol files. The default is GitHub's digest-pinned minimal
+Actions runner image. The image has native Linux `amd64` and `arm64` manifests;
+GitHub does not publish this runner image for other architectures. It is not
+the much larger `ubuntu-latest` hosted VM.
 
 ## Real local services
 

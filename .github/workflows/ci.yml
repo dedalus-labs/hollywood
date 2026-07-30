@@ -65,3 +65,29 @@ jobs:
         uses: ./.github/actions/check-runtime
       - name: Lint GitHub Actions workflows
         uses: ./.github/actions/lint-workflows
+  container:
+    name: Container provider
+    if: github.repository == 'dedalus-labs/hollywood' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-24.04
+    env:
+      HOLLYWOOD_CONTAINER_PROVIDER: ${{ matrix.provider }}
+    strategy:
+      matrix:
+        provider:
+          - docker
+          - podman
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "24"
+      - name: Install dependencies
+        run: npm ci
+      - name: Build Hollywood
+        run: npm run build
+      - name: Build local actions
+        run: npm run actions
+      - name: Test provider
+        uses: ./.github/actions/test-container-provider

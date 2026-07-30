@@ -71,9 +71,8 @@ Potential work:
 
 - More ergonomic fake executors for tests.
 - Local service examples for MinIO, LocalStack, registries, and databases.
-- Better Lima diagnostics when a requested VM or capability is missing.
-- More execution backends beyond Lima, including Apple Container, Docker,
-  smolmachines, and Arch/pacman-shaped recipes.
+- Better diagnostics when a requested container provider or image is missing.
+- Clearer contracts for container execution and GitHub conformance.
 - Documentation for when local execution is useful and when GitHub must remain
   the source of truth.
 

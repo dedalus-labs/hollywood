@@ -63,8 +63,8 @@ plugins:
         GitHub-compatible action entrypoints.
         Key features: typed inputs, typed outputs, execve-shaped command
         arguments, local script tests, generated GitHub Actions files,
-        upstream GitHub Actions schema validation, MinIO/LocalStack-style
-        service dogfood, and Lima-backed local action runs.
+        upstream GitHub Actions schema validation, MinIO/LocalStack integration
+        tests, and Docker, Podman, or Apple container-backed local action runs.
       sections:
         Getting Started:
           - getting-started/installation.md
@@ -76,7 +76,6 @@ plugins:
           - usage/local-services.md
         Backends:
           - backends/index.md
-          - backends/lima.md
           - backends/container.md
           - backends/docker.md
           - backends/smolmachines.md
@@ -147,7 +146,6 @@ nav:
       - Local Services: usage/local-services.md
   - Backends:
       - Overview: backends/index.md
-      - Lima: backends/lima.md
       - Apple Container: backends/container.md
       - Docker: backends/docker.md
       - smolmachines: backends/smolmachines.md

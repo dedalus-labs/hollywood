@@ -48,7 +48,12 @@ export type {
 	ContainerProvider,
 	ContainerServices,
 } from "./container";
-export { githubActionsRunnerImage, withContainer, withLocalContainer } from "./container";
+export {
+	ContainerProviderUnavailableError,
+	githubActionsRunnerImage,
+	withContainer,
+	withLocalContainer,
+} from "./container";
 export type {
 	GitHubCore,
 	GitHubExec,
@@ -186,11 +191,3 @@ export {
 	validateActionMetadataContent,
 	validateWorkflowContent,
 } from "./validation";
-
-export type {
-	LimaContainerRuntime,
-	LimaEnvironmentProbe,
-	LimaEnvironmentResult,
-	LimaExecOptions,
-} from "./lima";
-export { limaExec, limaRunner, probeLimaEnvironment } from "./lima";
