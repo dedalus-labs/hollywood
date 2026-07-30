@@ -1,0 +1,244 @@
+import { randomUUID } from "node:crypto";
+import { chmod, copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { posix, relative, resolve, sep } from "node:path";
+
+import { nodeExec } from "./local";
+import type { RunnerContext, ScriptExec, ScriptFs } from "./script";
+
+export type ContainerProvider = "container" | "docker" | "podman";
+
+export const githubActionsRunnerImage =
+	"ghcr.io/actions/actions-runner@sha256:0cfdcc701ce933c6d243c6b0b2da767366dc9f2e99961d4c3754b0b78084cdda";
+
+export type ContainerOptions = Readonly<{
+	actionBundle?: string;
+	hostExec?: ScriptExec;
+	image: string;
+	provider: ContainerProvider;
+	workspace: string;
+}>;
+
+export type ContainerServices = Readonly<{
+	exec: ScriptExec;
+	fs: ScriptFs;
+	runner: RunnerContext;
+}>;
+
+type ContainerRuntime = Readonly<{
+	binary: string;
+	remove: string;
+}>;
+
+const githubWorkspace = "/github/workspace";
+const githubEnvironment = {
+	CI: "true",
+	GITHUB_ACTIONS: "true",
+	GITHUB_ENV: "/github/file_commands/env",
+	GITHUB_EVENT_PATH: "/github/workflow/event.json",
+	GITHUB_OUTPUT: "/github/file_commands/output",
+	GITHUB_PATH: "/github/file_commands/path",
+	GITHUB_STEP_SUMMARY: "/github/file_commands/step_summary",
+	GITHUB_WORKSPACE: githubWorkspace,
+	HOME: "/github/home",
+	PATH: "/home/runner/externals/node24/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+	RUNNER_OS: "Linux",
+	RUNNER_TEMP: "/github/temp",
+} as const;
+
+export const withContainer = async <Value>(
+	options: ContainerOptions,
+	run: (services: ContainerServices) => Promise<Value>,
+): Promise<Value> => {
+	assertImmutableImage(options.image);
+	return withContainerSession(options, run);
+};
+
+export const withLocalContainer = async <Value>(
+	options: ContainerOptions,
+	run: (services: ContainerServices) => Promise<Value>,
+): Promise<Value> => withContainerSession(options, run);
+
+const withContainerSession = async <Value>(
+	options: ContainerOptions,
+	run: (services: ContainerServices) => Promise<Value>,
+): Promise<Value> => {
+	const workspace = resolve(options.workspace);
+	const root = await prepareGitHubRoot(options.actionBundle);
+	const runtime = containerRuntime(options.provider);
+	const hostExec = options.hostExec ?? nodeExec;
+	const name = `hollywood-${randomUUID()}`;
+	let created = false;
+	let result: Value | undefined;
+	let failure: unknown;
+
+	try {
+		await hostExec(runtime.binary, createArgs({ image: options.image, name, root, workspace }));
+		created = true;
+		await hostExec(runtime.binary, ["start", name]);
+		result = await run(await containerServices({ hostExec, name, runtime, workspace }));
+	} catch (error: unknown) {
+		failure = error;
+	}
+
+	const cleanupFailures = await cleanup({ created, hostExec, name, root, runtime });
+	if (failure !== undefined && cleanupFailures.length > 0) {
+		throw new AggregateError([failure, ...cleanupFailures], "container action and cleanup failed");
+	}
+	if (failure !== undefined) {
+		throw failure;
+	}
+	if (cleanupFailures.length > 0) {
+		throw new AggregateError(cleanupFailures, "container cleanup failed");
+	}
+	return result as Value;
+};
+
+const containerServices = async (
+	options: Readonly<{
+		hostExec: ScriptExec;
+		name: string;
+		runtime: ContainerRuntime;
+		workspace: string;
+	}>,
+): Promise<ContainerServices> => {
+	const exec = containerExec(options);
+	const [uid, gid] = await Promise.all([exec("id", ["-u"]), exec("id", ["-g"])]);
+	return {
+		exec,
+		fs: {
+			readText: async (path) => (await exec("cat", [containerPath(options.workspace, path)])).stdout,
+		},
+		runner: { uidGid: `${uid.stdout.trim()}:${gid.stdout.trim()}` },
+	};
+};
+
+const containerExec =
+	(options: Readonly<{ hostExec: ScriptExec; name: string; runtime: ContainerRuntime; workspace: string }>): ScriptExec =>
+	(file, args, commandOptions = {}) => {
+		const command = [
+			"exec",
+			"--workdir",
+			containerPath(options.workspace, commandOptions.cwd ?? options.workspace),
+		];
+		for (const [name, value] of Object.entries(commandOptions.env ?? {}).sort()) {
+			command.push("--env", `${name}=${value}`);
+		}
+		command.push(options.name, file, ...args);
+		return options.hostExec(
+			options.runtime.binary,
+			command,
+			commandOptions.exitPolicy === undefined
+				? undefined
+				: { exitPolicy: commandOptions.exitPolicy },
+		);
+	};
+
+const createArgs = (
+	options: Readonly<{ image: string; name: string; root: string; workspace: string }>,
+): readonly string[] => {
+	const args = ["create", "--name", options.name, "--workdir", githubWorkspace];
+	for (const [name, value] of Object.entries(githubEnvironment)) {
+		args.push("--env", `${name}=${value}`);
+	}
+	args.push(
+		"--volume",
+		`${options.root}:/github`,
+		"--volume",
+		`${options.workspace}:${githubWorkspace}`,
+		"--entrypoint",
+		"sleep",
+		options.image,
+		"infinity",
+	);
+	return args;
+};
+
+const prepareGitHubRoot = async (actionBundle?: string): Promise<string> => {
+	const root = await mkdtemp(`${tmpdir()}/hollywood-github-`);
+	await Promise.all(
+		["file_commands", "home", "temp", "workflow"].map((directory) =>
+			mkdir(`${root}/${directory}`, { recursive: true }),
+		),
+	);
+	await Promise.all(
+		["env", "output", "path", "step_summary"].map((file) =>
+			writeFile(`${root}/file_commands/${file}`, ""),
+		),
+	);
+	await writeFile(`${root}/workflow/event.json`, "{}\n");
+	if (actionBundle !== undefined) {
+		await copyFile(actionBundle, `${root}/workflow/action.mjs`);
+	}
+	await Promise.all([
+		chmod(root, 0o777),
+		...["file_commands", "home", "temp", "workflow"].map((directory) =>
+			chmod(`${root}/${directory}`, 0o777),
+		),
+		...["env", "output", "path", "step_summary"].map((file) =>
+			chmod(`${root}/file_commands/${file}`, 0o666),
+		),
+	]);
+	return root;
+};
+
+const cleanup = async (
+	options: Readonly<{
+		created: boolean;
+		hostExec: ScriptExec;
+		name: string;
+		root: string;
+		runtime: ContainerRuntime;
+	}>,
+): Promise<readonly unknown[]> => {
+	const operations: (() => Promise<unknown>)[] = [];
+	if (options.created) {
+		operations.push(() =>
+			options.hostExec(options.runtime.binary, [options.runtime.remove, "--force", options.name]),
+		);
+	}
+	operations.push(() => rm(options.root, { force: true, recursive: true }));
+	const failures: unknown[] = [];
+	for (const operation of operations) {
+		try {
+			await operation();
+		} catch (error: unknown) {
+			failures.push(error);
+		}
+	}
+	return failures;
+};
+
+const containerPath = (workspace: string, path: string): string => {
+	if (path === githubWorkspace || path.startsWith(`${githubWorkspace}/`)) {
+		const normalized = posix.normalize(path);
+		if (normalized === githubWorkspace || normalized.startsWith(`${githubWorkspace}/`)) {
+			return normalized;
+		}
+		throw new Error(`path is outside container workspace: ${path}`);
+	}
+	const absolute = resolve(workspace, path);
+	const child = relative(workspace, absolute);
+	if (child === ".." || child.startsWith(`..${sep}`) || child.startsWith(sep)) {
+		throw new Error(`path is outside container workspace: ${path}`);
+	}
+	return child === "" ? githubWorkspace : posix.join(githubWorkspace, ...child.split(sep));
+};
+
+const containerRuntime = (provider: ContainerProvider): ContainerRuntime => {
+	switch (provider) {
+		case "container":
+			return { binary: "container", remove: "delete" };
+		case "docker":
+		case "podman":
+			return { binary: provider, remove: "rm" };
+		default:
+			throw new Error(`unsupported container provider: ${String(provider)}`);
+	}
+};
+
+const assertImmutableImage = (image: string): void => {
+	if (!/(?:@sha256:|^sha256:)[0-9a-f]{64}$/.test(image)) {
+		throw new Error("container image must use a sha256 digest or image id");
+	}
+};
