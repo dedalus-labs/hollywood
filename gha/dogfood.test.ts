@@ -8,8 +8,17 @@ import { docs } from "./docs";
 import { flowers } from "./flowers";
 import { publishNpm } from "./publish-npm";
 import { release } from "./release";
+import { runnerImageWorkflow } from "./runner-image";
 
-const workflows = [ci, cla, docs, flowers, publishNpm, release] satisfies readonly GitHubWorkflow[];
+const workflows = [
+	ci,
+	cla,
+	docs,
+	flowers,
+	publishNpm,
+	release,
+	runnerImageWorkflow,
+] satisfies readonly GitHubWorkflow[];
 
 test("repository workflows invoke Hollywood actions as local action steps", () => {
 	for (const workflow of workflows) {

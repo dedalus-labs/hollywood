@@ -19,4 +19,22 @@ export const uploadPagesArtifactAction =
 export const deployPagesAction =
 	"actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128"; // v5.0.0
 
+export const uploadArtifactAction =
+	"actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02"; // v4
+
+export const dockerLoginAction =
+	"docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9"; // v3
+
+export const dockerSetupBuildxAction =
+	"docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f"; // v3
+
+export const dockerSetupQemuAction =
+	"docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130"; // v3
+
+export const dockerBuildPushAction =
+	"docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8"; // v6
+
+export const attestBuildProvenanceAction =
+	"actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661"; // v3
+
 export const checkHollywoodStateCommand = "node dist/cli.js check";
