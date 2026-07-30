@@ -67,6 +67,10 @@ Actions runner image. The image has native Linux `amd64` and `arm64` manifests;
 GitHub does not publish this runner image for other architectures. It is not
 the much larger `ubuntu-latest` hosted VM.
 
+Provider selection is explicit. Hollywood throws
+`ContainerProviderUnavailableError` when the selected executable is absent;
+it never detects or falls back to a different runtime.
+
 ## Real local services
 
 Use MinIO or LocalStack when the script talks to cloud-shaped APIs. The current

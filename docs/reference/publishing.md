@@ -81,3 +81,16 @@ leave behind a release tag.
 Stable releases publish with the `latest` npm dist-tag. Prereleases use their
 prerelease identifier, such as `alpha`. Release Please owns `package.json`,
 `CHANGELOG.md`, and `.release-please-manifest.json` during normal releases.
+
+The published GitHub release also drives the public runner image. Its `vX.Y.Z`
+tag must exactly match `package.json` before GHCR receives version tags. Stable
+images publish the exact version, `X.Y`, `latest`, and `ubuntu-24.04` aliases;
+prereleases publish only the exact prerelease version. Main-branch builds use
+the `edge` channel, and every build also receives an immutable
+`sha-<git-sha>` tag.
+
+The image is native on Linux `amd64` and `arm64`, carries an SBOM and BuildKit
+provenance, and receives a GitHub artifact attestation. Publication verifies
+the attestation and an anonymous digest pull before succeeding. Consumers
+should pin the resulting manifest digest even when they discover it through a
+version tag.

@@ -14,13 +14,14 @@ There is no provider auto-detection or host fallback.
 
 | Provider    | Runtime | Host boundary |
 | ----------- | ------- | ------------- |
-| `docker`    | Docker Engine or Docker Desktop | Linux, macOS, or Windows supported by Docker |
-| `podman`    | Rootless, daemon-backed, or Podman machine | Linux, macOS, or Windows supported by Podman |
-| `container` | Apple's `container` CLI | Apple silicon and macOS 26 or newer |
+| `docker`    | [Docker Engine or Docker Desktop](https://docs.docker.com/engine/) | Linux, macOS, or Windows supported by Docker |
+| `podman`    | [Rootless, daemon-backed, or Podman machine](https://podman.io/docs/installation) | Linux, macOS, or Windows supported by Podman |
+| `container` | [Apple's `container` CLI](https://github.com/apple/container) | Apple silicon and macOS 26 or newer |
 
-Docker VMM is a Docker Desktop virtual machine manager on Apple silicon. It
-still exposes the ordinary `docker` CLI, so select `--provider docker`; no
-Hollywood-specific backend or configuration is required.
+[Docker VMM](https://docs.docker.com/desktop/features/vmm/) is a Docker Desktop
+virtual machine manager on Apple silicon. It still exposes the ordinary
+`docker` CLI, so select `--provider docker`; no Hollywood-specific backend or
+configuration is required.
 
 All three providers create one persistent container for the action, mount the
 repository at `/github/workspace`, and expose GitHub's standard file-command
@@ -55,3 +56,6 @@ The provider boundary is intentionally small. A provider only needs to answer:
 The image supplies userspace tools. The provider supplies isolation. GitHub
 still supplies workflow scheduling, services, permissions, and hosted-runner
 infrastructure.
+
+See [Hollywood Runner Image](runner-image.md) for the published image,
+machine-readable runner probe, compatibility contract, and release boundary.
