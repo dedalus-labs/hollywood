@@ -3,6 +3,7 @@ import { a as integerInput, c as stringInput, d as summaryText, f as toGitHubNam
 import { defineEnvironmentRegistry, resolveEnvironment, selectEnvironmentName } from "./environments.js";
 import { A as success, C as needsResultIs, D as secret, E as runner, O as selectString, S as needsResultIn, T as or, _ as isGitHubTypedMatrix, a as contains, b as needsOutput, c as eq, d as format, f as gh, g as input, h as hashFiles, i as cancelled, j as valueOr, k as stepOutput, l as expr, m as githubTypedMatrixValues, n as always, o as defineMatrix, p as github, r as and, s as envVar, t as GitHubJobResult, u as failure, v as matrix, w as not, x as needsResult, y as ne } from "./expressions-BPTcb6xM.js";
 import { chmod, copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, posix, relative, resolve, sep } from "node:path";
@@ -18,6 +19,222 @@ import { TemplateSchema } from "@actions/workflow-parser/templates/schema/index"
 import { NoOperationTraceWriter } from "@actions/workflow-parser/templates/trace-writer";
 import { WORKFLOW_ROOT } from "@actions/workflow-parser/workflows/workflow-constants";
 import { YamlObjectReader } from "@actions/workflow-parser/workflows/yaml-object-reader";
+//#region src/runner-schema.ts
+const runnerProbeSchemaVersion = 1;
+const runnerEnvironmentNames = [
+	"CI",
+	"GITHUB_ACTIONS",
+	"ImageOS",
+	"ImageVersion",
+	"RUNNER_ARCH",
+	"RUNNER_OS"
+];
+const runnerPathEnvironmentNames = [
+	"GITHUB_ENV",
+	"GITHUB_EVENT_PATH",
+	"GITHUB_OUTPUT",
+	"GITHUB_PATH",
+	"GITHUB_STEP_SUMMARY",
+	"GITHUB_WORKSPACE",
+	"HOME",
+	"RUNNER_TEMP",
+	"RUNNER_TOOL_CACHE"
+];
+const runnerToolNames = [
+	"bash",
+	"cargo",
+	"clang",
+	"cmake",
+	"curl",
+	"docker",
+	"gcc",
+	"gh",
+	"git",
+	"go",
+	"java",
+	"jq",
+	"make",
+	"node",
+	"npm",
+	"podman",
+	"python3",
+	"ruby",
+	"rustc",
+	"tar",
+	"zstd"
+];
+const text = z.string().min(1);
+const environment = z.partialRecord(z.enum(runnerEnvironmentNames), z.string());
+const pathName = z.enum(runnerPathEnvironmentNames);
+const toolName = z.enum(runnerToolNames);
+const pathProbe = z.discriminatedUnion("status", [z.strictObject({
+	name: pathName,
+	status: z.literal("absent")
+}), z.strictObject({
+	absolute: z.boolean(),
+	exists: z.boolean(),
+	name: pathName,
+	status: z.literal("ready"),
+	value: text,
+	writable: z.boolean()
+})]);
+const toolProbe = z.discriminatedUnion("status", [z.strictObject({
+	name: toolName,
+	status: z.literal("absent")
+}), z.strictObject({
+	name: toolName,
+	path: text,
+	status: z.literal("ready"),
+	version: text
+})]);
+const packageRecord = z.strictObject({
+	name: text,
+	version: text
+});
+const packageProbe = z.discriminatedUnion("manager", [z.strictObject({
+	manager: z.literal("none"),
+	packages: z.tuple([])
+}), z.strictObject({
+	manager: z.literal("dpkg"),
+	packages: z.array(packageRecord)
+})]);
+const runnerProbeSchema = z.strictObject({
+	schemaVersion: z.literal(1),
+	environment,
+	identity: z.strictObject({
+		gid: z.number().int().nonnegative(),
+		groups: z.array(text),
+		uid: z.number().int().nonnegative()
+	}),
+	packages: packageProbe,
+	paths: z.array(pathProbe),
+	platform: z.strictObject({
+		architecture: text,
+		capabilities: text,
+		cgroup: z.enum(["v1", "v2"]),
+		kernelRelease: text,
+		kernelVersion: text,
+		os: z.strictObject({
+			id: text,
+			prettyName: text,
+			versionId: text
+		})
+	}),
+	tools: z.array(toolProbe),
+	toolCache: z.record(z.string(), z.array(text))
+});
+const runnerContractSchema = z.strictObject({
+	schemaVersion: z.literal(1),
+	environment,
+	os: z.strictObject({
+		id: text,
+		versionId: text
+	}),
+	paths: z.array(pathName),
+	tools: z.array(z.strictObject({
+		name: toolName,
+		versionPrefix: z.string().min(1).optional()
+	}))
+});
+//#endregion
+//#region src/runner-contract.ts
+const defineRunnerContract = (contract) => {
+	assertUnique(contract.paths, "runner contract paths");
+	assertUniqueNames(contract.tools, "runner contract tools");
+	return contract;
+};
+const verifyRunner = (contract, probe) => {
+	const differences = [];
+	difference(differences, "schemaVersion", contract.schemaVersion, probe.schemaVersion);
+	difference(differences, "platform.os.id", contract.os.id, probe.platform.os.id);
+	difference(differences, "platform.os.versionId", contract.os.versionId, probe.platform.os.versionId);
+	for (const [name, expected] of Object.entries(contract.environment)) difference(differences, `environment.${name}`, expected, probe.environment[name]);
+	for (const name of contract.paths) {
+		const path = probe.paths.find((candidate) => candidate.name === name);
+		difference(differences, `paths.${name}.status`, "ready", path?.status);
+		if (path?.status === "ready") {
+			difference(differences, `paths.${name}.absolute`, true, path.absolute);
+			difference(differences, `paths.${name}.exists`, true, path.exists);
+			difference(differences, `paths.${name}.writable`, true, path.writable);
+		}
+	}
+	for (const expected of contract.tools) {
+		const tool = probe.tools.find((candidate) => candidate.name === expected.name);
+		difference(differences, `tools.${expected.name}.status`, "ready", tool?.status);
+		if (tool?.status === "ready" && expected.versionPrefix !== void 0 && !tool.version.startsWith(expected.versionPrefix)) differences.push({
+			category: "contract",
+			actual: tool.version,
+			expected: `${expected.versionPrefix}*`,
+			path: `tools.${expected.name}.version`
+		});
+	}
+	return differences;
+};
+const compareRunnerProbes = (expected, actual) => compareValues("", comparisonShape(expected), comparisonShape(actual));
+const parseRunnerContract = (contents) => defineRunnerContract(parseJson(runnerContractSchema, contents, "runner contract"));
+const parseRunnerProbe = (contents) => {
+	const probe = parseJson(runnerProbeSchema, contents, "runner probe");
+	assertUniqueNames(probe.packages.packages, "runner probe packages");
+	assertUniqueNames(probe.paths, "runner probe paths");
+	assertUniqueNames(probe.tools, "runner probe tools");
+	return probe;
+};
+const parseJson = (schema, contents, name) => {
+	let value;
+	try {
+		value = JSON.parse(contents);
+	} catch (error) {
+		throw new Error(`${name} is not valid JSON`, { cause: error });
+	}
+	const result = schema.safeParse(value);
+	if (result.success) return result.data;
+	const issue = result.error.issues[0];
+	const path = issue === void 0 || issue.path.length === 0 ? "" : ` at ${issue.path.join(".")}`;
+	throw new Error(`${name} is invalid${path}: ${issue?.message ?? "unknown schema error"}`, { cause: result.error });
+};
+const comparisonShape = (probe) => ({
+	...probe,
+	packages: {
+		...probe.packages,
+		packages: Object.fromEntries(probe.packages.packages.map((entry) => [entry.name, entry]))
+	},
+	paths: Object.fromEntries(probe.paths.map((entry) => [entry.name, entry])),
+	tools: Object.fromEntries(probe.tools.map((entry) => [entry.name, entry]))
+});
+const compareValues = (path, expected, actual) => {
+	if (Object.is(expected, actual)) return [];
+	if (Array.isArray(expected) && Array.isArray(actual)) {
+		const length = Math.max(expected.length, actual.length);
+		return Array.from({ length }, (_, index) => compareValues(joinPath(path, String(index)), expected[index], actual[index])).flat();
+	}
+	if (isRecord(expected) && isRecord(actual)) return [...new Set([...Object.keys(expected), ...Object.keys(actual)])].sort().flatMap((key) => compareValues(joinPath(path, key), expected[key], actual[key]));
+	return [{
+		category: differenceCategory(path),
+		actual,
+		expected,
+		path
+	}];
+};
+const differenceCategory = (path) => {
+	if (/^(identity|platform\.(architecture|capabilities|cgroup|kernel))/.test(path)) return "provider";
+	if (/^(packages|toolCache)/.test(path) || /^tools\.[^.]+\.(path|version)$/.test(path) || path === "environment.ImageVersion" || /^paths\.[^.]+\.value$/.test(path)) return "inventory";
+	return "contract";
+};
+const difference = (differences, path, expected, actual) => {
+	if (!Object.is(expected, actual)) differences.push({
+		category: "contract",
+		actual,
+		expected,
+		path
+	});
+};
+const assertUniqueNames = (entries, name) => assertUnique(entries.map(({ name }) => name), `${name} names`);
+const assertUnique = (values, name) => {
+	if (new Set(values).size !== values.length) throw new Error(`${name} must be unique`);
+};
+const joinPath = (prefix, suffix) => prefix === "" ? suffix : `${prefix}.${suffix}`;
+const isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+//#endregion
 //#region src/container.ts
 var ContainerProviderUnavailableError = class extends Error {
 	binary;
@@ -559,4 +776,4 @@ const resolveOutputPath = (outputDir, path) => {
 	return outputPath;
 };
 //#endregion
-export { ContainerProviderUnavailableError, GeneratedFilePathCollisionError, GitHubJobResult, InvalidWorkflowFilenameError, action, always, and, assertValidActionMetadataContent, assertValidWorkflowContent, booleanInput, cancelled, choiceInput, contains, currentRunner, defineEnvironmentRegistry, defineMatrix, envVar, eq, expr, failure, format, generateActionEntrypointFile, generateActionFile, generateActionFiles, generateActionMetadata, generateUsesStep, generateWorkflowFile, gh, github, githubActionsRunnerImage, hashFiles, input, integerInput, job, localAction, matrix, ne, needsOutput, needsResult, needsResultIn, needsResultIs, nodeExec, nodeFs, nodeLog, not, or, pathInput, renderActionFile, renderGeneratedFile, renderWorkflowFile, resolveEnvironment, runAction, runGitHubAction, runner, secret, selectEnvironmentName, selectString, stepOutput, stringInput, stringOutput, success, summaryCode, summaryText, uses, validateActionMetadataContent, validateWorkflowContent, valueOr, withContainer, withLocalContainer, workflow, writeGeneratedFiles };
+export { ContainerProviderUnavailableError, GeneratedFilePathCollisionError, GitHubJobResult, InvalidWorkflowFilenameError, action, always, and, assertValidActionMetadataContent, assertValidWorkflowContent, booleanInput, cancelled, choiceInput, compareRunnerProbes, contains, currentRunner, defineEnvironmentRegistry, defineMatrix, defineRunnerContract, envVar, eq, expr, failure, format, generateActionEntrypointFile, generateActionFile, generateActionFiles, generateActionMetadata, generateUsesStep, generateWorkflowFile, gh, github, githubActionsRunnerImage, hashFiles, input, integerInput, job, localAction, matrix, ne, needsOutput, needsResult, needsResultIn, needsResultIs, nodeExec, nodeFs, nodeLog, not, or, parseRunnerContract, parseRunnerProbe, pathInput, renderActionFile, renderGeneratedFile, renderWorkflowFile, resolveEnvironment, runAction, runGitHubAction, runner, runnerProbeSchemaVersion, secret, selectEnvironmentName, selectString, stepOutput, stringInput, stringOutput, success, summaryCode, summaryText, uses, validateActionMetadataContent, validateWorkflowContent, valueOr, verifyRunner, withContainer, withLocalContainer, workflow, writeGeneratedFiles };
