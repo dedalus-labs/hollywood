@@ -78,6 +78,7 @@ test("runner CLI writes and verifies a typed probe", async () => {
 	const output: string[] = [];
 	const contract: RunnerContract = {
 		schemaVersion: 1,
+		architectures: ["arm64", "x64"],
 		environment: { CI: "true", RUNNER_OS: "Linux" },
 		os: { id: "ubuntu", versionId: "24.04" },
 		paths: ["GITHUB_WORKSPACE"],

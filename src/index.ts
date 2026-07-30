@@ -59,6 +59,7 @@ export {
 	verifyRunner,
 } from "./runner-contract";
 export type {
+	RunnerArchitecture,
 	RunnerEnvironmentName,
 	RunnerPathEnvironmentName,
 	RunnerToolName,

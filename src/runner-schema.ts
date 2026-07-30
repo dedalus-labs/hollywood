@@ -2,6 +2,8 @@ import { z } from "zod";
 
 export const runnerProbeSchemaVersion = 1 as const;
 
+export const runnerArchitectures = ["arm64", "x64"] as const;
+
 export const runnerEnvironmentNames = [
 	"CI",
 	"GITHUB_ACTIONS",
@@ -104,6 +106,7 @@ export const runnerProbeSchema = z.strictObject({
 
 export const runnerContractSchema = z.strictObject({
 	schemaVersion: z.literal(runnerProbeSchemaVersion),
+	architectures: z.array(z.enum(runnerArchitectures)).min(1),
 	environment,
 	os: z.strictObject({ id: text, versionId: text }),
 	paths: z.array(pathName),
@@ -121,6 +124,7 @@ type DeepReadonly<Value> = Value extends readonly unknown[]
 		? { readonly [Key in keyof Value]: DeepReadonly<Value[Key]> }
 		: Value;
 
+export type RunnerArchitecture = (typeof runnerArchitectures)[number];
 export type RunnerEnvironmentName = (typeof runnerEnvironmentNames)[number];
 export type RunnerPathEnvironmentName = (typeof runnerPathEnvironmentNames)[number];
 export type RunnerToolName = (typeof runnerToolNames)[number];
