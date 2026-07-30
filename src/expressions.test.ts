@@ -59,6 +59,18 @@ test("typed context helpers generate expressions without stringly property acces
 	assert.equal(eq(github.eventName, "push"), "${{ github.event_name == 'push' }}");
 	assert.equal(github.mergeGroup.baseSha, "${{ github.event.merge_group.base_sha }}");
 	assert.equal(github.mergeGroup.headSha, "${{ github.event.merge_group.head_sha }}");
+	assert.deepEqual(github.pullRequest, {
+		baseRef: "${{ github.event.pull_request.base.ref }}",
+		stack: {
+			baseRef: "${{ github.event.pull_request.stack.base.ref }}",
+			baseSha: "${{ github.event.pull_request.stack.base.sha }}",
+			id: "${{ github.event.pull_request.stack.id }}",
+			isPresent: "${{ github.event.pull_request.stack != null }}",
+			number: "${{ github.event.pull_request.stack.number }}",
+			position: "${{ github.event.pull_request.stack.position }}",
+			size: "${{ github.event.pull_request.stack.size }}",
+		},
+	});
 	assert.equal(
 		ne(github.repository, "acme/widgets-sandbox"),
 		"${{ github.repository != 'acme/widgets-sandbox' }}",

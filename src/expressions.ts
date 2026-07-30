@@ -91,6 +91,18 @@ export const github = {
 		baseSha: expr<string>("github.event.merge_group.base_sha"),
 		headSha: expr<string>("github.event.merge_group.head_sha"),
 	},
+	pullRequest: {
+		baseRef: expr<string>("github.event.pull_request.base.ref"),
+		stack: {
+			baseRef: expr<string>("github.event.pull_request.stack.base.ref"),
+			baseSha: expr<string>("github.event.pull_request.stack.base.sha"),
+			id: expr<number>("github.event.pull_request.stack.id"),
+			isPresent: expr<boolean>("github.event.pull_request.stack != null"),
+			number: expr<number>("github.event.pull_request.stack.number"),
+			position: expr<number>("github.event.pull_request.stack.position"),
+			size: expr<number>("github.event.pull_request.stack.size"),
+		},
+	},
 	ref: expr<string>("github.ref"),
 	refName: expr<string>("github.ref_name"),
 	repositoryOwner: expr<string>("github.repository_owner"),
