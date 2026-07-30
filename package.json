@@ -66,8 +66,7 @@
 		"check": "npm run build && node dist/cli.js check",
 		"generate": "node dist/cli.js generate",
 		"lint": "oxlint --vitest-plugin --import-plugin --deny-warnings . --ignore-pattern dist --ignore-pattern node_modules --ignore-pattern .github",
-		"package": "npm pack --dry-run",
-		"prepack": "npm run build",
+		"package": "npm run build && npm pack --dry-run",
 		"test": "vitest run --config vitest.config.ts",
 		"typecheck": "tsgo --noEmit"
 	},
