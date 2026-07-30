@@ -2,11 +2,11 @@
 import { a as integerInput, c as stringInput, d as summaryText, f as toGitHubName, g as nodeLog, h as nodeFs, i as choiceInput, l as stringOutput, m as nodeExec, n as action, o as pathInput, p as currentRunner, r as booleanInput, s as runAction, t as runGitHubAction, u as summaryCode } from "./github-cUK0davD.js";
 import { defineEnvironmentRegistry, resolveEnvironment, selectEnvironmentName } from "./environments.js";
 import { A as success, C as needsResultIs, D as secret, E as runner, O as selectString, S as needsResultIn, T as or, _ as isGitHubTypedMatrix, a as contains, b as needsOutput, c as eq, d as format, f as gh, g as input, h as hashFiles, i as cancelled, j as valueOr, k as stepOutput, l as expr, m as githubTypedMatrixValues, n as always, o as defineMatrix, p as github, r as and, s as envVar, t as GitHubJobResult, u as failure, v as matrix, w as not, x as needsResult, y as ne } from "./expressions-BPTcb6xM.js";
-import { chmod, copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, chmod, copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { z } from "zod";
+import { arch, platform, release, tmpdir, version } from "node:os";
+import { delimiter, dirname, isAbsolute, join, posix, relative, resolve, sep } from "node:path";
 import { randomUUID } from "node:crypto";
-import { tmpdir } from "node:os";
-import { dirname, isAbsolute, join, posix, relative, resolve, sep } from "node:path";
 import { dirname as dirname$1, relative as relative$1 } from "node:path/posix";
 import { stringify } from "yaml";
 import { readFileSync } from "node:fs";
@@ -234,6 +234,191 @@ const assertUnique = (values, name) => {
 };
 const joinPath = (prefix, suffix) => prefix === "" ? suffix : `${prefix}.${suffix}`;
 const isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+//#endregion
+//#region src/runner.ts
+const toolVersionArguments = {
+	bash: ["--version"],
+	cargo: ["--version"],
+	clang: ["--version"],
+	cmake: ["--version"],
+	curl: ["--version"],
+	docker: ["--version"],
+	gcc: ["--version"],
+	gh: ["--version"],
+	git: ["--version"],
+	go: ["version"],
+	java: ["--version"],
+	jq: ["--version"],
+	make: ["--version"],
+	node: ["--version"],
+	npm: ["--version"],
+	podman: ["--version"],
+	python3: ["--version"],
+	ruby: ["--version"],
+	rustc: ["--version"],
+	tar: ["--version"],
+	zstd: ["--version"]
+};
+const probeRunner = async (source = localProbeSource()) => {
+	if (source.operatingSystem !== "linux") throw new Error(`runner probe requires Linux, received ${source.operatingSystem}`);
+	const pathEntries = requiredEnvironment(source.env, "PATH").split(source.pathDelimiter);
+	const [groups, osRelease, capabilities, cgroup, paths, tools, packages, toolCache] = await Promise.all([
+		probeGroups(source.exec),
+		probeOsRelease(source.readText),
+		probeCapabilities(source.readText),
+		probeCgroup(source.testAccess),
+		probePaths(source),
+		probeTools(source, pathEntries),
+		probePackages(source, pathEntries),
+		probeToolCache(source)
+	]);
+	return {
+		schemaVersion: 1,
+		environment: selectedEnvironment(source.env),
+		identity: {
+			gid: source.gid,
+			groups,
+			uid: source.uid
+		},
+		packages,
+		paths,
+		platform: {
+			architecture: source.architecture,
+			capabilities,
+			cgroup,
+			kernelRelease: source.kernelRelease,
+			kernelVersion: source.kernelVersion,
+			os: osRelease
+		},
+		tools,
+		toolCache
+	};
+};
+const readRunnerContract = async (path) => parseRunnerContract(await readFile(path, "utf8"));
+const readRunnerProbe = async (path) => parseRunnerProbe(await readFile(path, "utf8"));
+const writeRunnerProbe = async (path, probe) => {
+	await writeFile(path, `${JSON.stringify(probe, void 0, 2)}\n`);
+};
+const localProbeSource = () => {
+	const uid = process.getuid?.();
+	const gid = process.getgid?.();
+	if (uid === void 0 || gid === void 0) throw new Error("runner probe requires POSIX uid and gid");
+	return {
+		architecture: arch(),
+		env: process.env,
+		exec: nodeExec,
+		gid,
+		kernelRelease: release(),
+		kernelVersion: version(),
+		operatingSystem: platform(),
+		pathDelimiter: delimiter,
+		readDirectory: async (path) => readdir(path),
+		readText: (path) => readFile(path, "utf8"),
+		testAccess: async (path, mode) => {
+			try {
+				await access(path, mode);
+				return true;
+			} catch (error) {
+				if (isMissing(error)) return false;
+				throw error;
+			}
+		},
+		uid
+	};
+};
+const probeGroups = async (exec) => {
+	return (await exec("id", ["-Gn"])).stdout.trim().split(/\s+/).filter(Boolean).sort();
+};
+const probeOsRelease = async (readText) => {
+	const values = Object.fromEntries((await readText("/etc/os-release")).split("\n").filter((line) => line.includes("=")).map((line) => {
+		const separator = line.indexOf("=");
+		return [line.slice(0, separator), line.slice(separator + 1).replace(/^"|"$/g, "")];
+	}));
+	return {
+		id: requiredEnvironment(values, "ID"),
+		prettyName: requiredEnvironment(values, "PRETTY_NAME"),
+		versionId: requiredEnvironment(values, "VERSION_ID")
+	};
+};
+const probeCapabilities = async (readText) => {
+	const match = /(?:^|\n)CapEff:\s*([0-9a-fA-F]+)/.exec(await readText("/proc/self/status"));
+	if (match?.[1] === void 0) throw new Error("runner probe could not read CapEff");
+	return match[1].toLowerCase();
+};
+const probeCgroup = async (testAccess) => await testAccess("/sys/fs/cgroup/cgroup.controllers") ? "v2" : "v1";
+const probePaths = async (source) => Promise.all(runnerPathEnvironmentNames.map(async (name) => {
+	const value = source.env[name];
+	if (value === void 0 || value === "") return {
+		name,
+		status: "absent"
+	};
+	return {
+		absolute: isAbsolute(value),
+		exists: await source.testAccess(value),
+		name,
+		status: "ready",
+		value,
+		writable: await source.testAccess(value, 2)
+	};
+}));
+const probeTools = async (source, pathEntries) => Promise.all(runnerToolNames.map(async (name) => {
+	const path = await resolveExecutable(source, name, pathEntries);
+	if (path === void 0) return {
+		name,
+		status: "absent"
+	};
+	const result = await source.exec(path, toolVersionArguments[name]);
+	const version = firstLine(`${result.stdout}\n${result.stderr}`);
+	if (version === "") throw new Error(`runner tool ${name} returned no version`);
+	return {
+		name,
+		path,
+		status: "ready",
+		version
+	};
+}));
+const probePackages = async (source, pathEntries) => {
+	const dpkgQuery = await resolveExecutable(source, "dpkg-query", pathEntries);
+	if (dpkgQuery === void 0) return {
+		manager: "none",
+		packages: []
+	};
+	return {
+		manager: "dpkg",
+		packages: (await source.exec(dpkgQuery, ["-W", "-f=${binary:Package}\\t${Version}\\n"])).stdout.trim().split("\n").filter(Boolean).map((line) => {
+			const [name, packageVersion, ...extra] = line.split("	");
+			if (name === void 0 || packageVersion === void 0 || extra.length > 0) throw new Error(`runner package inventory has invalid line: ${line}`);
+			return {
+				name,
+				version: packageVersion
+			};
+		}).sort((left, right) => left.name.localeCompare(right.name))
+	};
+};
+const probeToolCache = async (source) => {
+	const root = source.env["RUNNER_TOOL_CACHE"];
+	if (root === void 0 || root === "") return {};
+	const entries = [...await source.readDirectory(root)].sort();
+	const cache = await Promise.all(entries.map(async (name) => [name, [...await source.readDirectory(join(root, name))].sort()]));
+	return Object.fromEntries(cache);
+};
+const resolveExecutable = async (source, name, pathEntries) => {
+	for (const directory of pathEntries) {
+		const candidate = join(directory, name);
+		if (await source.testAccess(candidate, 1)) return candidate;
+	}
+};
+const selectedEnvironment = (environment) => Object.fromEntries(runnerEnvironmentNames.flatMap((name) => {
+	const value = environment[name];
+	return value === void 0 ? [] : [[name, value]];
+}));
+const requiredEnvironment = (environment, name) => {
+	const value = environment[name];
+	if (value === void 0 || value === "") throw new Error(`runner probe requires ${name}`);
+	return value;
+};
+const firstLine = (value) => value.split("\n").map((line) => line.trim()).find(Boolean) ?? "";
+const isMissing = (error) => error instanceof Error && "code" in error && error.code === "ENOENT";
 //#endregion
 //#region src/container.ts
 var ContainerProviderUnavailableError = class extends Error {
@@ -776,4 +961,4 @@ const resolveOutputPath = (outputDir, path) => {
 	return outputPath;
 };
 //#endregion
-export { ContainerProviderUnavailableError, GeneratedFilePathCollisionError, GitHubJobResult, InvalidWorkflowFilenameError, action, always, and, assertValidActionMetadataContent, assertValidWorkflowContent, booleanInput, cancelled, choiceInput, compareRunnerProbes, contains, currentRunner, defineEnvironmentRegistry, defineMatrix, defineRunnerContract, envVar, eq, expr, failure, format, generateActionEntrypointFile, generateActionFile, generateActionFiles, generateActionMetadata, generateUsesStep, generateWorkflowFile, gh, github, githubActionsRunnerImage, hashFiles, input, integerInput, job, localAction, matrix, ne, needsOutput, needsResult, needsResultIn, needsResultIs, nodeExec, nodeFs, nodeLog, not, or, parseRunnerContract, parseRunnerProbe, pathInput, renderActionFile, renderGeneratedFile, renderWorkflowFile, resolveEnvironment, runAction, runGitHubAction, runner, runnerProbeSchemaVersion, secret, selectEnvironmentName, selectString, stepOutput, stringInput, stringOutput, success, summaryCode, summaryText, uses, validateActionMetadataContent, validateWorkflowContent, valueOr, verifyRunner, withContainer, withLocalContainer, workflow, writeGeneratedFiles };
+export { ContainerProviderUnavailableError, GeneratedFilePathCollisionError, GitHubJobResult, InvalidWorkflowFilenameError, action, always, and, assertValidActionMetadataContent, assertValidWorkflowContent, booleanInput, cancelled, choiceInput, compareRunnerProbes, contains, currentRunner, defineEnvironmentRegistry, defineMatrix, defineRunnerContract, envVar, eq, expr, failure, format, generateActionEntrypointFile, generateActionFile, generateActionFiles, generateActionMetadata, generateUsesStep, generateWorkflowFile, gh, github, githubActionsRunnerImage, hashFiles, input, integerInput, job, localAction, matrix, ne, needsOutput, needsResult, needsResultIn, needsResultIs, nodeExec, nodeFs, nodeLog, not, or, parseRunnerContract, parseRunnerProbe, pathInput, probeRunner, readRunnerContract, readRunnerProbe, renderActionFile, renderGeneratedFile, renderWorkflowFile, resolveEnvironment, runAction, runGitHubAction, runner, runnerProbeSchemaVersion, secret, selectEnvironmentName, selectString, stepOutput, stringInput, stringOutput, success, summaryCode, summaryText, uses, validateActionMetadataContent, validateWorkflowContent, valueOr, verifyRunner, withContainer, withLocalContainer, workflow, writeGeneratedFiles, writeRunnerProbe };

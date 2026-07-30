@@ -64,6 +64,13 @@ export type {
 	RunnerToolName,
 } from "./runner-schema";
 export { runnerProbeSchemaVersion } from "./runner-schema";
+export type { RunnerProbeSource } from "./runner";
+export {
+	probeRunner,
+	readRunnerContract,
+	readRunnerProbe,
+	writeRunnerProbe,
+} from "./runner";
 export type {
 	ContainerOptions,
 	ContainerProvider,
