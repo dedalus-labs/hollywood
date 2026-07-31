@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "vitest";
 
-import { buildActions, check, createCli, generate, run } from "./commands";
+import { buildActions, check, createCli, generate, init, run } from "./commands";
 
 test("generate discovers exported actions from source files", async () => {
 	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
@@ -746,6 +746,65 @@ const writeWorkflowSource = async (root: string): Promise<void> => {
 		"",
 	]);
 };
+
+test("init scaffolds an action source file", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
+	const output: string[] = [];
+
+	await init(
+		{ name: "my-action", output: root, sourceRoot: "gha", workflow: false },
+		{ writeOut: (message) => output.push(message) },
+	);
+
+	assert.deepEqual(output, ["created\tgha/my-action.ts\n"]);
+	const content = await readFile(join(root, "gha/my-action.ts"), "utf8");
+	assert.match(content, /import { action, stringInput, stringOutput } from "@dedalus-labs\/hollywood";/);
+	assert.match(content, /export const myAction = action\(/);
+});
+
+test("init scaffolds a workflow source file", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
+	const output: string[] = [];
+
+	await init(
+		{ name: "my-workflow", output: root, sourceRoot: "gha", workflow: true },
+		{ writeOut: (message) => output.push(message) },
+	);
+
+	assert.deepEqual(output, ["created\tgha/my-workflow.ts\n"]);
+	const content = await readFile(join(root, "gha/my-workflow.ts"), "utf8");
+	assert.match(content, /import { job, workflow } from "@dedalus-labs\/hollywood";/);
+	assert.match(content, /export const myWorkflow = workflow\(/);
+});
+
+test("init refuses to overwrite an existing source file", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
+	await mkdir(join(root, "gha"), { recursive: true });
+	await writeFile(join(root, "gha/taken.ts"), "export const existing = true;\n", "utf8");
+
+	await assert.rejects(
+		init({ name: "taken", output: root, sourceRoot: "gha", workflow: false }, { writeOut: () => {} }),
+		/file already exists: gha\/taken.ts/,
+	);
+});
+
+test("createCli parses space-separated init command", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
+	const output: string[] = [];
+
+	await createCli({ writeOut: (message) => output.push(message) }).parseAsync([
+		"node",
+		"hollywood",
+		"init",
+		"my-action",
+		"--output",
+		root,
+		"--source-root",
+		"gha",
+	]);
+
+	assert.deepEqual(output, ["created\tgha/my-action.ts\n"]);
+});
 
 const restoreEnv = (name: string, value: string | undefined): void => {
 	if (value === undefined) {
