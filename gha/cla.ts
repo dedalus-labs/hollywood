@@ -104,6 +104,7 @@ const findContributor = (
 	authorHandle: string,
 ): { readonly denouncedReason?: string } | null => {
 	const authorKey = `github:${authorHandle}`;
+	let isVouched = false;
 	for (const rawLine of vouched.split("\n")) {
 		const line = rawLine.replace(/\r$/, "").trim();
 		if (line.length === 0 || line.startsWith("#")) {
@@ -124,9 +125,9 @@ const findContributor = (
 		if (isDenounced) {
 			return { denouncedReason: reasonParts.join(" ") || "no reason recorded" };
 		}
-		return {};
+		isVouched = true;
 	}
-	return null;
+	return isVouched ? {} : null;
 };
 
 const contributorKey = (rawHandle: string): string => {
@@ -180,7 +181,7 @@ const trustedBaseCheckout = {
 	name: "Checkout contributor check implementation",
 	uses: checkoutAction,
 	with: {
-		ref: "${{ github.event.pull_request.head.repo.full_name == github.repository && github.sha || github.event.pull_request.base.sha }}",
+		ref: "${{ github.event.pull_request.base.sha }}",
 		"persist-credentials": false,
 	},
 } as const;

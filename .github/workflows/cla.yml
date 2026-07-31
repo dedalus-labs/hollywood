@@ -20,7 +20,7 @@ jobs:
       - name: Checkout contributor check implementation
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
-          ref: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.sha || github.event.pull_request.base.sha }}
+          ref: ${{ github.event.pull_request.base.sha }}
           persist-credentials: false
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
@@ -45,7 +45,7 @@ jobs:
       - name: Checkout contributor check implementation
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
-          ref: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.sha || github.event.pull_request.base.sha }}
+          ref: ${{ github.event.pull_request.base.sha }}
           persist-credentials: false
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
