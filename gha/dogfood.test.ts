@@ -51,3 +51,11 @@ test("repository workflows bundle ignored local actions before use", () => {
 		}
 	}
 });
+
+test("contributor checks always check out the trusted base commit", () => {
+	for (const contributorJob of [cla.jobs.cla, cla.jobs.vouch]) {
+		const checkout = contributorJob.steps[0];
+		assert.ok(checkout !== undefined && "with" in checkout);
+		assert.equal(checkout.with?.ref, "${{ github.event.pull_request.base.sha }}");
+	}
+});
