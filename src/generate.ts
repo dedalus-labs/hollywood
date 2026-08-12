@@ -276,13 +276,42 @@ export type GitHubWorkflowJobs = {
 
 export type GitHubWorkflowFile = Readonly<{
 	sourcePath: string;
+	sourceExport?: string;
 	path: string;
 	header: string;
 	workflow: GitHubWorkflow;
 }>;
 
-export const workflow = <const Workflow extends GitHubWorkflow>(definition: Workflow): Workflow =>
-	definition;
+export type GitHubWorkflowOptions = Readonly<{
+	filename: string;
+}>;
+
+export class InvalidWorkflowFilenameError extends Error {
+	readonly filename: string;
+	readonly reason: string;
+
+	constructor(filename: string, reason: string) {
+		super(`invalid workflow filename ${JSON.stringify(filename)}: ${reason}`);
+		this.name = "InvalidWorkflowFilenameError";
+		this.filename = filename;
+		this.reason = reason;
+	}
+}
+
+const workflowFilenameKey = Symbol.for("@dedalus-labs/hollywood/workflow-filename");
+
+export const workflow = <const Workflow extends GitHubWorkflow>(
+	definition: Workflow,
+	options?: GitHubWorkflowOptions,
+): Workflow => {
+	if (options === undefined) {
+		return definition;
+	}
+	assertWorkflowFilename(options.filename);
+	const configured = { ...definition };
+	Object.defineProperty(configured, workflowFilenameKey, { value: options.filename });
+	return configured as Workflow;
+};
 
 export const job = <const Job extends GitHubWorkflowJob>(definition: Job): Job => definition;
 
@@ -446,15 +475,14 @@ export const generateWorkflowFile = (
 		sourcePath: string;
 		sourceRoot: string;
 		workflowsDir: string;
+		exportName?: string;
 		generatedAt?: Date;
 		workflow: GitHubWorkflow;
 	}>,
 ): GitHubWorkflowFile => ({
 	sourcePath: options.sourcePath,
-	path: `${trimTrailingSlash(options.workflowsDir)}/${flattenSourcePath(
-		options.sourcePath,
-		options.sourceRoot,
-	)}.yml`,
+	...(options.exportName === undefined ? {} : { sourceExport: options.exportName }),
+	path: `${trimTrailingSlash(options.workflowsDir)}/${workflowFilename(options.workflow) ?? `${flattenSourcePath(options.sourcePath, options.sourceRoot)}.yml`}`,
 	header: generatedHeader(options.generatedAt),
 	workflow: options.workflow,
 });
@@ -576,6 +604,41 @@ const assertRelativeGeneratedPath = (value: string, kind: string): void => {
 	) {
 		throw new Error(`invalid ${kind}: ${value}`);
 	}
+};
+
+const assertWorkflowFilename = (filename: string): void => {
+	if (filename.length === 0) {
+		throw new InvalidWorkflowFilenameError(filename, "filename must not be empty");
+	}
+	if (filename !== filename.trim()) {
+		throw new InvalidWorkflowFilenameError(filename, "leading or trailing whitespace is not allowed");
+	}
+	if (filename.includes("/") || filename.includes("\\")) {
+		throw new InvalidWorkflowFilenameError(filename, "filename must not contain directories");
+	}
+	const extension = filename.slice(filename.lastIndexOf("."));
+	if (extension !== ".yml" && extension !== ".yaml") {
+		throw new InvalidWorkflowFilenameError(filename, "extension must be .yml or .yaml");
+	}
+	const stem = filename.slice(0, -extension.length);
+	if (!/^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$/.test(stem)) {
+		throw new InvalidWorkflowFilenameError(
+			filename,
+			"name must contain only portable ASCII letters, numbers, dots, hyphens, or underscores",
+		);
+	}
+};
+
+const workflowFilename = (definition: GitHubWorkflow): string | undefined => {
+	const filename = (definition as Readonly<Record<symbol, unknown>>)[workflowFilenameKey];
+	if (filename === undefined) {
+		return undefined;
+	}
+	if (typeof filename !== "string") {
+		throw new InvalidWorkflowFilenameError(String(filename), "filename metadata must be a string");
+	}
+	assertWorkflowFilename(filename);
+	return filename;
 };
 
 const flattenSourcePath = (sourcePath: string, sourceRoot: string): string => {

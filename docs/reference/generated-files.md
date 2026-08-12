@@ -80,3 +80,7 @@ The GitHub workflow output is flat:
 
 That satisfies GitHub's directory shape without forcing humans to keep every
 workflow source file in one directory.
+
+`workflow(definition, { filename: "release.yml" })` overrides the flattened name.
+Filenames cannot contain directories, and case-insensitive collisions fail
+before Hollywood writes any generated file.
