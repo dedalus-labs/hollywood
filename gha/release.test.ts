@@ -15,10 +15,15 @@ test("release please opens version pull requests without creating tags", () => {
 });
 
 test("GitHub releases require a successful npm publish", () => {
-	assert.deepEqual(publishNpm.on, {
-		push: { branches: ["main"], paths: [".release-please-manifest.json"] },
+	assert.deepEqual(publishNpm.on.push, {
+		branches: ["main"],
+		paths: [".release-please-manifest.json"],
 	});
 	assert.equal(publishNpm.jobs.release?.needs, "publish");
+});
+
+test("failed npm releases can be retried from current main", () => {
+	assert.deepEqual(publishNpm.on.workflow_dispatch, {});
 });
 
 test("release please finalizes the published package lifecycle", () => {
