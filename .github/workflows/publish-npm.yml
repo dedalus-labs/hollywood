@@ -52,18 +52,6 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
-        with:
-          node-version: "24"
-      - name: Install dependencies
-        run: npm ci
-      - name: Build Hollywood
-        run: npm run build
-      - name: Build local actions
-        run: npm run actions
       - id: cind-token
         name: Create Cind app token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
@@ -73,10 +61,14 @@ jobs:
           owner: ${{ github.repository_owner }}
           repositories: hollywood
           permission-contents: write
+          permission-issues: write
           permission-metadata: read
-      - name: Create GitHub release
-        uses: ./.github/actions/create-github-release
+          permission-pull-requests: write
+      - id: release
+        name: Finalize release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7
         with:
-          repository: ${{ github.repository }}
-          target: ${{ github.sha }}
           token: ${{ steps.cind-token.outputs.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          skip-github-pull-request: "true"

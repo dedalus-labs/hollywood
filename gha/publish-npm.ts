@@ -1,8 +1,9 @@
-import { action, booleanInput, job, pathInput, stringInput, uses, workflow } from "../src/index";
+import { action, booleanInput, job, pathInput, uses, workflow } from "../src/index";
 import {
 	checkHollywoodStateCommand,
 	checkoutAction,
 	createGitHubAppTokenAction,
+	releasePleaseAction,
 	setupNodeAction,
 } from "./actions";
 
@@ -29,45 +30,6 @@ export const publishNpmPackage = action({
 			"--provenance",
 			...(input.dryRun ? ["--dry-run"] : []),
 		]);
-
-		return {};
-	},
-});
-
-export const createGitHubRelease = action({
-	name: "Create GitHub release",
-	description: "Create the GitHub release after npm publication succeeds.",
-	localActionPath: "create-github-release",
-	inputs: {
-		packageJson: pathInput({ description: "Path to package.json.", default: "package.json" }),
-		repository: stringInput({ description: "GitHub owner/repository name." }),
-		target: stringInput({ description: "Git commit to tag." }),
-		token: stringInput({ description: "GitHub token with release permissions." }),
-	},
-	outputs: {},
-	run: async ({ exec, fs, input }) => {
-		const packageJson = JSON.parse(await fs.readText(input.packageJson)) as unknown;
-		const version = requiredString(recordField(packageJson, "version"), "package.json version");
-		const prerelease = publishTagForVersion(version) !== "latest";
-		const tag = `v${version}`;
-
-		await exec(
-			"gh",
-			[
-				"release",
-				"create",
-				tag,
-				"--repo",
-				input.repository,
-				"--target",
-				input.target,
-				"--title",
-				tag,
-				"--generate-notes",
-				...(prerelease ? ["--prerelease"] : []),
-			],
-			{ env: { GH_TOKEN: input.token } },
-		);
 
 		return {};
 	},
@@ -123,11 +85,6 @@ export const publishNpm = workflow({
 			"runs-on": "ubuntu-latest",
 			permissions: { contents: "read" },
 			steps: [
-				{ uses: checkoutAction, with: { "persist-credentials": false } },
-				{ uses: setupNodeAction, with: { "node-version": "24" } },
-				{ name: "Install dependencies", run: "npm ci" },
-				{ name: "Build Hollywood", run: "npm run build" },
-				{ name: "Build local actions", run: "npm run actions" },
 				{
 					id: "cind-token",
 					name: "Create Cind app token",
@@ -138,17 +95,22 @@ export const publishNpm = workflow({
 						owner: "${{ github.repository_owner }}",
 						repositories: "hollywood",
 						"permission-contents": "write",
+						"permission-issues": "write",
 						"permission-metadata": "read",
+						"permission-pull-requests": "write",
 					},
 				},
-				uses(createGitHubRelease, {
-					name: "Create GitHub release",
+				{
+					id: "release",
+					name: "Finalize release",
+					uses: releasePleaseAction,
 					with: {
-						repository: "${{ github.repository }}",
-						target: "${{ github.sha }}",
 						token: "${{ steps.cind-token.outputs.token }}",
+						"config-file": "release-please-config.json",
+						"manifest-file": ".release-please-manifest.json",
+						"skip-github-pull-request": "true",
 					},
-				}),
+				},
 			],
 		}),
 	},
