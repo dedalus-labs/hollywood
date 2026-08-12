@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.0.2](https://github.com/dedalus-labs/hollywood/compare/v0.0.1...v0.0.2) (2026-08-12)
+
+
+### Features
+
+* **workflows:** support explicit filenames ([#55](https://github.com/dedalus-labs/hollywood/issues/55)) ([5e3302f](https://github.com/dedalus-labs/hollywood/commit/5e3302f4ea4403220dc701dbc1f79d47bcc753eb))
+
+
+### Bug Fixes
+
+* **contributors:** fail closed on trust state ([#52](https://github.com/dedalus-labs/hollywood/issues/52)) ([7ae837a](https://github.com/dedalus-labs/hollywood/commit/7ae837ad1866edb9e14735f55523744767f17534))
+* **github:** render summary headings as html ([#33](https://github.com/dedalus-labs/hollywood/issues/33)) ([82d5e7a](https://github.com/dedalus-labs/hollywood/commit/82d5e7a740341b38e059c7cf7360ab270c09a18e))
+* **release:** restore atomic release lifecycle ([#35](https://github.com/dedalus-labs/hollywood/issues/35)) ([cdd673c](https://github.com/dedalus-labs/hollywood/commit/cdd673cf36831dc4f94229b6b395c164bd127d23))
+
 ## [0.0.1](https://github.com/dedalus-labs/hollywood/compare/v0.1.0-alpha.1...v0.0.1) (2026-07-22)
 
 
