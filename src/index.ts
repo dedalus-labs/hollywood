@@ -85,6 +85,7 @@ export type {
 	GitHubWorkflow,
 	GitHubWorkflowFile,
 	GitHubWorkflowJob,
+	GitHubWorkflowOptions,
 	GitHubWorkflowStep,
 } from "./generate";
 export {
@@ -94,6 +95,7 @@ export {
 	generateActionMetadata,
 	generateUsesStep,
 	generateWorkflowFile,
+	InvalidWorkflowFilenameError,
 	job,
 	localAction,
 	renderActionFile,
@@ -165,7 +167,11 @@ export type {
 	RenderedGeneratedFile,
 	WriteGeneratedFilesOptions,
 } from "./files";
-export { renderGeneratedFile, writeGeneratedFiles } from "./files";
+export {
+	GeneratedFilePathCollisionError,
+	renderGeneratedFile,
+	writeGeneratedFiles,
+} from "./files";
 
 export type { GitHubYamlFile, GitHubYamlValidation, GitHubYamlValidationError } from "./validation";
 export {

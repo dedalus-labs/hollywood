@@ -658,6 +658,7 @@ const discoverGeneratedFiles = async (
 				files.push(
 					generateWorkflowFile({
 						sourcePath,
+						exportName,
 						sourceRoot: options.sourceRoot,
 						workflowsDir: options.workflowsDir,
 						workflow: value,
@@ -669,7 +670,6 @@ const discoverGeneratedFiles = async (
 	if (files.length === 0) {
 		throw new Error(`no Hollywood actions or workflows exported by: ${sourceFiles.join(", ")}`);
 	}
-	assertUniqueGeneratedPaths(files);
 	return files;
 };
 
@@ -787,16 +787,6 @@ const isGitHubWorkflow = (value: unknown): value is GitHubWorkflow =>
 	(value as { readonly on?: unknown }).on !== null &&
 	typeof (value as { readonly jobs?: unknown }).jobs === "object" &&
 	(value as { readonly jobs?: unknown }).jobs !== null;
-
-const assertUniqueGeneratedPaths = (files: readonly GeneratedFile[]): void => {
-	const paths = new Set<string>();
-	for (const file of files) {
-		if (paths.has(file.path)) {
-			throw new Error(`duplicate generated file path: ${file.path}`);
-		}
-		paths.add(file.path);
-	}
-};
 
 const processIo = (): CliIo => ({
 	writeOut: (message) => {

@@ -164,7 +164,7 @@ generateWorkflowFile({
 				],
 			}),
 		},
-	}),
+	}, { filename: "container-release.yml" }),
 });
 ```
 
@@ -179,6 +179,11 @@ becomes:
 ```text
 .github/workflows/containers-release.yml
 ```
+
+Pass `{ filename: "container-release.yml" }` to `workflow` when the output name
+must be independent of the source layout. Hollywood rejects directory paths,
+non-portable names, unsupported extensions, and case-insensitive collisions
+before writing any generated file.
 
 GitHub gets the flat shape it requires. The source tree keeps the nested shape
 humans want.

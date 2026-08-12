@@ -203,11 +203,20 @@ type GitHubWorkflowJobs = {
 };
 type GitHubWorkflowFile = Readonly<{
   sourcePath: string;
+  sourceExport?: string;
   path: string;
   header: string;
   workflow: GitHubWorkflow;
 }>;
-declare const workflow: <const Workflow extends GitHubWorkflow>(definition: Workflow) => Workflow;
+type GitHubWorkflowOptions = Readonly<{
+  filename: string;
+}>;
+declare class InvalidWorkflowFilenameError extends Error {
+  readonly filename: string;
+  readonly reason: string;
+  constructor(filename: string, reason: string);
+}
+declare const workflow: <const Workflow extends GitHubWorkflow>(definition: Workflow, options?: GitHubWorkflowOptions) => Workflow;
 declare const job: <const Job extends GitHubWorkflowJob>(definition: Job) => Job;
 declare const localAction: <const Inputs extends InputDefinitions>(definition: GitHubLocalAction<Inputs>) => GitHubLocalAction<Inputs>;
 declare const generateActionMetadata: <const Inputs extends InputDefinitions, const Outputs extends OutputDefinitions>(action: ScriptActionDescriptor<Inputs, Outputs>) => GitHubActionMetadata;
@@ -235,6 +244,7 @@ declare const generateWorkflowFile: (options: Readonly<{
   sourcePath: string;
   sourceRoot: string;
   workflowsDir: string;
+  exportName?: string;
   generatedAt?: Date;
   workflow: GitHubWorkflow;
 }>) => GitHubWorkflowFile;
@@ -258,6 +268,11 @@ type GeneratedFileWriteResult = Readonly<{
 type WriteGeneratedFilesOptions = Readonly<{
   outputDir: string;
 }>;
+declare class GeneratedFilePathCollisionError extends Error {
+  readonly paths: readonly string[];
+  readonly sources: readonly string[];
+  constructor(first: GeneratedFile, second: GeneratedFile);
+}
 declare const renderGeneratedFile: (file: GeneratedFile) => RenderedGeneratedFile;
 declare const writeGeneratedFiles: (files: readonly GeneratedFile[], options: WriteGeneratedFilesOptions) => Promise<readonly GeneratedFileWriteResult[]>;
 //#endregion
@@ -308,4 +323,4 @@ declare const probeLimaEnvironment: (probe: LimaEnvironmentProbe) => Promise<Lim
 declare const limaExec: (options: LimaExecOptions) => ScriptExec;
 declare const limaRunner: (options: LimaExecOptions) => Promise<RunnerContext>;
 //#endregion
-export { type AccountName, type ActionCallInputValues, type ActionInputValues, type ActionOutputValues, type ChoiceInputDefinition, type Command, type CommandEnvironment, type CommandExitPolicy, type CommandOptions, type CommandResult, type EnvironmentAccount, type EnvironmentAccounts, type EnvironmentDefinition, type EnvironmentDefinitions, type EnvironmentName, type EnvironmentRegistry, type EnvironmentSelector, type GeneratedFile, type GeneratedFileWriteResult, type GeneratedFileWriteStatus, type GitHubActionEntrypointFile, type GitHubActionFile, type GitHubActionInputMetadata, type GitHubActionMetadata, type GitHubActionOutputMetadata, type GitHubConcurrency, type GitHubCore, type GitHubEnvironmentVariables, type GitHubExec, type GitHubExecOptions, type GitHubExpression, type GitHubExpressionString, type GitHubExpressionValue, type GitHubInputOptions, type GitHubJobOutputs, GitHubJobResult, type GitHubJobResultValue, type GitHubLocalAction, type GitHubLocalActionStepOptions, type GitHubLogColor, type GitHubMatrix, type GitHubMatrixObject, type GitHubMatrixValue, type GitHubMatrixValues, type GitHubNeeds, type GitHubPermission, type GitHubPermissions, type GitHubReusableWorkflowJob, type GitHubReusableWorkflowSecrets, type GitHubRunStep, type GitHubService, type GitHubServices, type GitHubStepWorkflowJob, type GitHubStrategy, type GitHubTypedMatrix, type GitHubUsesStep, type GitHubUsesStepOptions, type GitHubWithValues, type GitHubWorkflow, type GitHubWorkflowCallWithValues, type GitHubWorkflowFile, type GitHubWorkflowJob, type GitHubWorkflowStep, type GitHubYamlFile, type GitHubYamlValidation, type GitHubYamlValidationError, type InputDefinition, type InputDefinitions, type InputKind, type LimaContainerRuntime, type LimaEnvironmentProbe, type LimaEnvironmentResult, type LimaExecOptions, type OutputDefinition, type OutputDefinitions, type RenderedGeneratedFile, type ResolvedEnvironment, type RunActionOptions, type RunGitHubActionOptions, type RunnerContext, type ScriptAction, type ScriptActionCall, type ScriptActionContext, type ScriptActionServices, type ScriptExec, type ScriptFs, type ScriptLog, type ScriptSummary, type SummaryCell, type SummaryCode, type SummaryTableRow, type SummaryText, type WorkflowInputValues, type WriteGeneratedFilesOptions, action, always, and, assertValidActionMetadataContent, assertValidWorkflowContent, booleanInput, cancelled, choiceInput, contains, currentRunner, defineEnvironmentRegistry, defineMatrix, envVar, eq, expr, failure, format, generateActionEntrypointFile, generateActionFile, generateActionFiles, generateActionMetadata, generateUsesStep, generateWorkflowFile, gh, github, hashFiles, input, integerInput, job, limaExec, limaRunner, localAction, matrix, ne, needsOutput, needsResult, needsResultIn, needsResultIs, nodeExec, nodeFs, nodeLog, not, or, pathInput, probeLimaEnvironment, renderActionFile, renderGeneratedFile, renderWorkflowFile, resolveEnvironment, runAction, runGitHubAction, runner, secret, selectEnvironmentName, selectString, stepOutput, stringInput, stringOutput, success, summaryCode, summaryText, uses, validateActionMetadataContent, validateWorkflowContent, valueOr, workflow, writeGeneratedFiles };
+export { type AccountName, type ActionCallInputValues, type ActionInputValues, type ActionOutputValues, type ChoiceInputDefinition, type Command, type CommandEnvironment, type CommandExitPolicy, type CommandOptions, type CommandResult, type EnvironmentAccount, type EnvironmentAccounts, type EnvironmentDefinition, type EnvironmentDefinitions, type EnvironmentName, type EnvironmentRegistry, type EnvironmentSelector, type GeneratedFile, GeneratedFilePathCollisionError, type GeneratedFileWriteResult, type GeneratedFileWriteStatus, type GitHubActionEntrypointFile, type GitHubActionFile, type GitHubActionInputMetadata, type GitHubActionMetadata, type GitHubActionOutputMetadata, type GitHubConcurrency, type GitHubCore, type GitHubEnvironmentVariables, type GitHubExec, type GitHubExecOptions, type GitHubExpression, type GitHubExpressionString, type GitHubExpressionValue, type GitHubInputOptions, type GitHubJobOutputs, GitHubJobResult, type GitHubJobResultValue, type GitHubLocalAction, type GitHubLocalActionStepOptions, type GitHubLogColor, type GitHubMatrix, type GitHubMatrixObject, type GitHubMatrixValue, type GitHubMatrixValues, type GitHubNeeds, type GitHubPermission, type GitHubPermissions, type GitHubReusableWorkflowJob, type GitHubReusableWorkflowSecrets, type GitHubRunStep, type GitHubService, type GitHubServices, type GitHubStepWorkflowJob, type GitHubStrategy, type GitHubTypedMatrix, type GitHubUsesStep, type GitHubUsesStepOptions, type GitHubWithValues, type GitHubWorkflow, type GitHubWorkflowCallWithValues, type GitHubWorkflowFile, type GitHubWorkflowJob, type GitHubWorkflowOptions, type GitHubWorkflowStep, type GitHubYamlFile, type GitHubYamlValidation, type GitHubYamlValidationError, type InputDefinition, type InputDefinitions, type InputKind, InvalidWorkflowFilenameError, type LimaContainerRuntime, type LimaEnvironmentProbe, type LimaEnvironmentResult, type LimaExecOptions, type OutputDefinition, type OutputDefinitions, type RenderedGeneratedFile, type ResolvedEnvironment, type RunActionOptions, type RunGitHubActionOptions, type RunnerContext, type ScriptAction, type ScriptActionCall, type ScriptActionContext, type ScriptActionServices, type ScriptExec, type ScriptFs, type ScriptLog, type ScriptSummary, type SummaryCell, type SummaryCode, type SummaryTableRow, type SummaryText, type WorkflowInputValues, type WriteGeneratedFilesOptions, action, always, and, assertValidActionMetadataContent, assertValidWorkflowContent, booleanInput, cancelled, choiceInput, contains, currentRunner, defineEnvironmentRegistry, defineMatrix, envVar, eq, expr, failure, format, generateActionEntrypointFile, generateActionFile, generateActionFiles, generateActionMetadata, generateUsesStep, generateWorkflowFile, gh, github, hashFiles, input, integerInput, job, limaExec, limaRunner, localAction, matrix, ne, needsOutput, needsResult, needsResultIn, needsResultIs, nodeExec, nodeFs, nodeLog, not, or, pathInput, probeLimaEnvironment, renderActionFile, renderGeneratedFile, renderWorkflowFile, resolveEnvironment, runAction, runGitHubAction, runner, secret, selectEnvironmentName, selectString, stepOutput, stringInput, stringOutput, success, summaryCode, summaryText, uses, validateActionMetadataContent, validateWorkflowContent, valueOr, workflow, writeGeneratedFiles };

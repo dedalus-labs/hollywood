@@ -5853,6 +5853,17 @@ const loadSchema = (schemaFileName) => {
 const workflowParserDistDir = () => dirname(dirname(fileURLToPath(import.meta.resolve("@actions/workflow-parser/workflows/workflow-constants"))));
 //#endregion
 //#region src/generate.ts
+var InvalidWorkflowFilenameError = class extends Error {
+	filename;
+	reason;
+	constructor(filename, reason) {
+		super(`invalid workflow filename ${JSON.stringify(filename)}: ${reason}`);
+		this.name = "InvalidWorkflowFilenameError";
+		this.filename = filename;
+		this.reason = reason;
+	}
+};
+const workflowFilenameKey = Symbol.for("@dedalus-labs/hollywood/workflow-filename");
 const generateActionMetadata = (action) => {
 	const inputs = /* @__PURE__ */ new Map();
 	for (const [name, input] of Object.entries(action.inputs)) {
@@ -5913,7 +5924,8 @@ const generateActionEntrypointFile = (action, options) => {
 };
 const generateWorkflowFile = (options) => ({
 	sourcePath: options.sourcePath,
-	path: `${trimTrailingSlash(options.workflowsDir)}/${flattenSourcePath(options.sourcePath, options.sourceRoot)}.yml`,
+	...options.exportName === void 0 ? {} : { sourceExport: options.exportName },
+	path: `${trimTrailingSlash(options.workflowsDir)}/${workflowFilename(options.workflow) ?? `${flattenSourcePath(options.sourcePath, options.sourceRoot)}.yml`}`,
 	header: generatedHeader(options.generatedAt),
 	workflow: options.workflow
 });
@@ -5984,6 +5996,22 @@ const assertRelativeGeneratedPath = (value, kind) => {
 	const segments = value.split("/");
 	if (value.length === 0 || value.startsWith("/") || value.includes("\\") || segments.some((segment) => segment === "" || segment === "." || segment === "..")) throw new Error(`invalid ${kind}: ${value}`);
 };
+const assertWorkflowFilename = (filename) => {
+	if (filename.length === 0) throw new InvalidWorkflowFilenameError(filename, "filename must not be empty");
+	if (filename !== filename.trim()) throw new InvalidWorkflowFilenameError(filename, "leading or trailing whitespace is not allowed");
+	if (filename.includes("/") || filename.includes("\\")) throw new InvalidWorkflowFilenameError(filename, "filename must not contain directories");
+	const extension = filename.slice(filename.lastIndexOf("."));
+	if (extension !== ".yml" && extension !== ".yaml") throw new InvalidWorkflowFilenameError(filename, "extension must be .yml or .yaml");
+	const stem = filename.slice(0, -extension.length);
+	if (!/^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$/.test(stem)) throw new InvalidWorkflowFilenameError(filename, "name must contain only portable ASCII letters, numbers, dots, hyphens, or underscores");
+};
+const workflowFilename = (definition) => {
+	const filename = definition[workflowFilenameKey];
+	if (filename === void 0) return;
+	if (typeof filename !== "string") throw new InvalidWorkflowFilenameError(String(filename), "filename metadata must be a string");
+	assertWorkflowFilename(filename);
+	return filename;
+};
 const flattenSourcePath = (sourcePath, sourceRoot) => {
 	const root = trimSlashes(sourceRoot);
 	const source = trimSlashes(sourcePath);
@@ -6012,12 +6040,25 @@ const assertTypeScriptIdentifier = (value) => {
 };
 //#endregion
 //#region src/files.ts
+var GeneratedFilePathCollisionError = class extends Error {
+	paths;
+	sources;
+	constructor(first, second) {
+		const paths = [first.path, second.path];
+		const sources = [generatedFileSource(first), generatedFileSource(second)];
+		super(`generated file path collision: ${paths.join(" and ")} from ${sources.join(" and ")}`);
+		this.name = "GeneratedFilePathCollisionError";
+		this.paths = paths;
+		this.sources = sources;
+	}
+};
 const renderGeneratedFile = (file) => ({
 	sourcePath: file.sourcePath,
 	path: file.path,
 	content: generatedFileContent(file)
 });
 const writeGeneratedFiles = async (files, options) => {
+	assertUniqueGeneratedPaths(files);
 	const results = [];
 	for (const file of files) {
 		const rendered = renderGeneratedFile(file);
@@ -6031,6 +6072,16 @@ const writeGeneratedFiles = async (files, options) => {
 		});
 	}
 	return results;
+};
+const generatedFileSource = (file) => "sourceExport" in file && file.sourceExport !== void 0 ? `${file.sourcePath}#${file.sourceExport}` : file.sourcePath;
+const assertUniqueGeneratedPaths = (files) => {
+	const paths = /* @__PURE__ */ new Map();
+	for (const file of files) {
+		const key = file.path.normalize("NFC").toLowerCase();
+		const existing = paths.get(key);
+		if (existing !== void 0) throw new GeneratedFilePathCollisionError(existing, file);
+		paths.set(key, file);
+	}
 };
 const generatedFileContent = (file) => {
 	if ("content" in file) return file.content;
@@ -6633,6 +6684,7 @@ const discoverGeneratedFiles = async (sourceFiles, options) => {
 			}));
 			if (isGitHubWorkflow(value)) files.push(generateWorkflowFile({
 				sourcePath,
+				exportName,
 				sourceRoot: options.sourceRoot,
 				workflowsDir: options.workflowsDir,
 				workflow: value
@@ -6640,7 +6692,6 @@ const discoverGeneratedFiles = async (sourceFiles, options) => {
 		}
 	}
 	if (files.length === 0) throw new Error(`no Hollywood actions or workflows exported by: ${sourceFiles.join(", ")}`);
-	assertUniqueGeneratedPaths(files);
 	return files;
 };
 const loadHollywoodModule = async (sourceFile) => {
@@ -6726,13 +6777,6 @@ const relativeSourcePath = (outputDir, sourceFile) => {
 };
 const isScriptAction = (value) => typeof value === "object" && value !== null && typeof value.name === "string" && typeof value.description === "string" && typeof value.inputs === "object" && value.inputs !== null && typeof value.outputs === "object" && value.outputs !== null && typeof value.run === "function";
 const isGitHubWorkflow = (value) => typeof value === "object" && value !== null && typeof value.name === "string" && typeof value.on === "object" && value.on !== null && typeof value.jobs === "object" && value.jobs !== null;
-const assertUniqueGeneratedPaths = (files) => {
-	const paths = /* @__PURE__ */ new Set();
-	for (const file of files) {
-		if (paths.has(file.path)) throw new Error(`duplicate generated file path: ${file.path}`);
-		paths.add(file.path);
-	}
-};
 const processIo = () => ({ writeOut: (message) => {
 	process.stdout.write(message);
 } });

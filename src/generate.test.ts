@@ -8,6 +8,7 @@ import {
 	generateActionMetadata,
 	generateUsesStep,
 	generateWorkflowFile,
+	InvalidWorkflowFilenameError,
 	job,
 	localAction,
 	renderActionFile,
@@ -528,6 +529,45 @@ test("generateWorkflowFile flattens nested workflow sources into .github workflo
 				},
 			},
 		},
+	);
+});
+
+test("generateWorkflowFile honors an explicit workflow filename", () => {
+	const namedWorkflow = workflow(
+		{
+			name: "Container Release",
+			on: { workflow_dispatch: {} },
+			jobs: {},
+		},
+		{ filename: "release.yml" },
+	);
+
+	const file = generateWorkflowFile({
+		sourcePath: "automation/cd/container.ts",
+		sourceRoot: "automation",
+		workflowsDir: ".github/workflows",
+		workflow: namedWorkflow,
+	});
+
+	assert.equal(file.path, ".github/workflows/release.yml");
+	assert.doesNotMatch(renderWorkflowFile(file), /filename/);
+});
+
+test.each([
+	"",
+	" release.yml",
+	"release.yml ",
+	"../release.yml",
+	"nested/release.yml",
+	"nested\\release.yml",
+	".yml",
+	"release.txt",
+	"release.YML",
+	"r\u00e9lease.yml",
+])("workflow rejects invalid explicit filename %j", (filename) => {
+	assert.throws(
+		() => workflow({ name: "Release", on: { workflow_dispatch: {} }, jobs: {} }, { filename }),
+		InvalidWorkflowFilenameError,
 	);
 });
 

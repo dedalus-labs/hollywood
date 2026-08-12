@@ -1,10 +1,11 @@
 import * as assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "vitest";
 
 import { buildActions, check, createCli, generate, run } from "./commands";
+import { GeneratedFilePathCollisionError } from "./files";
 
 test("generate discovers exported actions from source files", async () => {
 	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
@@ -82,6 +83,44 @@ test("generate discovers exported workflows from globbed source files", async ()
 		await readFile(join(root, ".github/workflows/containers-release.yml"), "utf8"),
 		/name: Container Release/,
 	);
+});
+
+test("generate rejects case-insensitive workflow filename collisions before writing", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
+	const cdSource = join(root, "automation/cd/release.ts");
+	const ciSource = join(root, "automation/ci/release.ts");
+	await symlink(join(process.cwd(), "node_modules"), join(root, "node_modules"), "dir");
+
+	const source = (name: string, filename: string): readonly string[] => [
+		'import { workflow } from "@dedalus-labs/hollywood";',
+		`export const release = workflow({ name: "${name}", on: { push: {} }, jobs: {} },`,
+		`  { filename: "${filename}" });`,
+		"",
+	];
+	await writeSource(cdSource, source("Release", "release.yml"));
+	await writeSource(ciSource, source("Verify release", "RELEASE.yml"));
+
+	await assert.rejects(
+		() =>
+			generate(
+				{
+					actionsDir: ".github/actions",
+					output: root,
+					sourceRoot: "automation",
+					sources: [join(root, "automation/**/*.ts")],
+					workflowsDir: ".github/workflows",
+				},
+				{ writeOut: () => {} },
+			),
+		(error: unknown) =>
+			error instanceof GeneratedFilePathCollisionError &&
+			/generated file path collision: .*release\.yml.*automation\/cd\/release\.ts#release.*automation\/ci\/release\.ts#release/is.test(
+				error.message,
+			),
+	);
+	await assert.rejects(() => readFile(join(root, ".github/workflows/release.yml"), "utf8"), {
+		code: "ENOENT",
+	});
 });
 
 test("generate ignores test sources matched by workflow globs", async () => {
