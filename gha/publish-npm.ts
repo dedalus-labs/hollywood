@@ -39,6 +39,7 @@ export const publishNpm = workflow({
 	name: "Publish NPM",
 	on: {
 		push: { branches: ["main"], paths: [".release-please-manifest.json"] },
+		workflow_dispatch: {},
 	},
 	permissions: { contents: "read" },
 	jobs: {
