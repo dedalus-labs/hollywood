@@ -1,5 +1,7 @@
 import {
 	action,
+	eq,
+	github,
 	job,
 	stringInput,
 	uses,
@@ -214,11 +216,13 @@ export const cla = workflow({
 			branches: ["main"],
 			types: ["opened", "reopened", "synchronize", "ready_for_review"],
 		},
+		merge_group: { types: ["checks_requested"] },
 	},
 	permissions: { contents: "read" },
 	jobs: {
 		cla: job({
 			name: "CLA",
+			if: eq(github.eventName, "pull_request"),
 			"runs-on": "ubuntu-latest",
 			steps: [
 				...prepareHollywood,
@@ -230,6 +234,7 @@ export const cla = workflow({
 		}),
 		vouch: job({
 			name: "Vouch",
+			if: eq(github.eventName, "pull_request"),
 			"runs-on": "ubuntu-latest",
 			needs: "cla",
 			steps: [

@@ -10,11 +10,15 @@ on:
       - reopened
       - synchronize
       - ready_for_review
+  merge_group:
+    types:
+      - checks_requested
 permissions:
   contents: read
 jobs:
   cla:
     name: CLA
+    if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout contributor check implementation
@@ -39,6 +43,7 @@ jobs:
           trusted-automation-authors: cind-bot[bot] cind[bot]
   vouch:
     name: Vouch
+    if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     needs: cla
     steps:
