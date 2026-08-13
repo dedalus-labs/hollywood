@@ -80,6 +80,7 @@ export const ci = workflow({
 	on: {
 		push: { branches: ["main"] },
 		pull_request: { branches: ["main"] },
+		merge_group: { types: ["checks_requested"] },
 	},
 	permissions: { contents: "read" },
 	jobs: {

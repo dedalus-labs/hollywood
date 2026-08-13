@@ -59,3 +59,11 @@ test("contributor checks always check out the trusted base commit", () => {
 		assert.equal(checkout.with?.ref, "${{ github.event.pull_request.base.sha }}");
 	}
 });
+
+test("required checks report on merge queue heads", () => {
+	assert.deepEqual(ci.on.merge_group, { types: ["checks_requested"] });
+	assert.deepEqual(cla.on.merge_group, { types: ["checks_requested"] });
+	for (const contributorJob of [cla.jobs.cla, cla.jobs.vouch]) {
+		assert.equal(contributorJob.if, "${{ github.event_name == 'pull_request' }}");
+	}
+});
