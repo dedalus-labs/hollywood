@@ -79,20 +79,27 @@ export const publishDraftReleases = action({
 		if (tags.length === 0) {
 			throw new Error("At least one release tag is required.");
 		}
-
 		for (const tag of tags) {
 			assertReleaseTag(tag);
-			const options = { env: { GH_TOKEN: input.token } };
-			const release = parseGitHubRelease(
-				(
-					await exec(
-						"gh",
-						["api", `repos/${input.repository}/releases/tags/${tag}`],
-						options,
-					)
-				).stdout,
-				tag,
-			);
+		}
+
+		const options = { env: { GH_TOKEN: input.token } };
+		const releases = parseGitHubReleasePages(
+			(
+				await exec(
+					"gh",
+					[
+						"api",
+						"--paginate",
+						"--slurp",
+						`repos/${input.repository}/releases?per_page=100`,
+					],
+					options,
+				)
+			).stdout,
+		);
+		for (const tag of tags) {
+			const release = releaseForTag(releases, tag);
 			if (!release.draft) {
 				assertImmutableRelease(release);
 				continue;
@@ -131,6 +138,13 @@ type GitHubRelease = Readonly<{
 
 const parseGitHubRelease = (source: string, expectedTag: string): GitHubRelease => {
 	const record = parseJsonRecord(source, `GitHub release ${expectedTag}`);
+	return parseGitHubReleaseRecord(record, expectedTag);
+};
+
+const parseGitHubReleaseRecord = (
+	record: Readonly<Record<string, unknown>>,
+	expectedTag: string,
+): GitHubRelease => {
 	const id = record["id"];
 	const tagName = record["tag_name"];
 	const draft = record["draft"];
@@ -145,6 +159,32 @@ const parseGitHubRelease = (source: string, expectedTag: string): GitHubRelease 
 		throw new Error(`GitHub release ${expectedTag} must contain draft and immutable booleans.`);
 	}
 	return { draft, id: id as number, immutable, tagName };
+};
+
+const parseGitHubReleasePages = (source: string): readonly Readonly<Record<string, unknown>>[] => {
+	const value = parseJsonValue(source, "GitHub release pages");
+	if (!Array.isArray(value)) {
+		throw new Error("GitHub release pages must contain a JSON array.");
+	}
+	return value.flatMap((page, pageIndex) => {
+		if (!Array.isArray(page)) {
+			throw new Error(`GitHub release page ${pageIndex} must contain a JSON array.`);
+		}
+		return page.map((release, releaseIndex) =>
+			jsonRecord(release, `GitHub release page ${pageIndex} item ${releaseIndex}`),
+		);
+	});
+};
+
+const releaseForTag = (
+	releases: readonly Readonly<Record<string, unknown>>[],
+	tag: string,
+): GitHubRelease => {
+	const matches = releases.filter((release) => release["tag_name"] === tag);
+	if (matches.length !== 1) {
+		throw new Error(`Expected one GitHub release for ${tag}; found ${matches.length}.`);
+	}
+	return parseGitHubReleaseRecord(matches[0] as Readonly<Record<string, unknown>>, tag);
 };
 
 const assertImmutableRelease = (release: GitHubRelease): void => {
@@ -194,12 +234,20 @@ const parseReleaseManifest = (source: string, name: string): ReleaseManifest => 
 };
 
 const parseJsonRecord = (source: string, name: string): Record<string, unknown> => {
+	return jsonRecord(parseJsonValue(source, name), name);
+};
+
+const parseJsonValue = (source: string, name: string): unknown => {
 	let value: unknown;
 	try {
 		value = JSON.parse(source) as unknown;
 	} catch (error: unknown) {
 		throw new Error(`${name} is not valid JSON.`, { cause: error });
 	}
+	return value;
+};
+
+const jsonRecord = (value: unknown, name: string): Record<string, unknown> => {
 	if (value === null || typeof value !== "object" || Array.isArray(value)) {
 		throw new Error(`${name} must contain a JSON object.`);
 	}
