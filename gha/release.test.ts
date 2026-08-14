@@ -85,12 +85,13 @@ test("release please owns independent npm and runner versions", async () => {
 		version?: unknown;
 	};
 	const hollywoodVersion = packageJson.version;
+	const runnerVersion = (await readFile("runner/version.txt", "utf8")).trim();
 	assert.ok(typeof hollywoodVersion === "string");
 	assert.match(hollywoodVersion, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
-	assert.deepEqual(manifest, { ".": hollywoodVersion });
+	assert.match(runnerVersion, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
+	assert.deepEqual(manifest, { ".": hollywoodVersion, runner: runnerVersion });
 	assert.ok((await readFile("CHANGELOG.md", "utf8")).includes(`## [${hollywoodVersion}]`));
-	await assert.rejects(readFile("runner/version.txt", "utf8"), /ENOENT/);
-	await assert.rejects(readFile("runner/CHANGELOG.md", "utf8"), /ENOENT/);
+	assert.ok((await readFile("runner/CHANGELOG.md", "utf8")).includes(`## ${runnerVersion} (`));
 });
 
 test("failed npm releases can be retried from current main", () => {
