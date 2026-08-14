@@ -8,13 +8,17 @@ import {
 	type ScriptExec,
 	type ScriptLog,
 } from "../src/index";
-import { withLocalContainer, type ContainerProvider } from "../src/container";
+import {
+	githubActionsRunnerVersion,
+	withLocalContainer,
+	type ContainerProvider,
+} from "../src/container";
 import { verifyRunner } from "../src/runner-contract";
 import { probeRunner, readRunnerContract, readRunnerProbe, writeRunnerProbe } from "../src/runner";
 
 export const captureRunnerProbe = action({
 	name: "Capture runner probe",
-	description: "Write a sanitized, typed inventory of the current runner.",
+	description: "Write a sanitized inventory of the current runner.",
 	localActionPath: "capture-runner-probe",
 	inputs: {
 		output: pathInput({ description: "Probe JSON output path." }),
@@ -28,7 +32,7 @@ export const captureRunnerProbe = action({
 
 export const verifyRunnerProbe = action({
 	name: "Verify runner probe",
-	description: "Prove that a runner probe satisfies the Hollywood contract.",
+	description: "Verify that a runner probe satisfies the Hollywood contract.",
 	localActionPath: "verify-runner-probe",
 	inputs: {
 		contract: pathInput({ description: "Runner contract JSON." }),
@@ -41,7 +45,7 @@ export const verifyRunnerProbe = action({
 			await readRunnerProbe(input.probe),
 		);
 		if (differences.length > 0) {
-			throw new Error(`runner contract failed: ${JSON.stringify(differences)}`);
+			throw new Error(`Runner contract verification failed: ${JSON.stringify(differences)}.`);
 		}
 		return {};
 	},
@@ -64,7 +68,7 @@ const prepareRunnerImageReleaseInputs = {
 
 export const prepareRunnerImageRelease = action({
 	name: "Prepare runner image release",
-	description: "Validate release identity and derive canonical OCI tags.",
+	description: "Validate the release identity and derive OCI tags.",
 	localActionPath: "prepare-runner-image-release",
 	inputs: prepareRunnerImageReleaseInputs,
 	outputs: {
@@ -81,7 +85,7 @@ export const prepareRunnerImageRelease = action({
 
 		if (input.event === "push") {
 			if (input.ref !== "refs/heads/main" || input.refName !== "main") {
-				throw new Error(`runner image push must target refs/heads/main, received ${input.ref}`);
+				throw new Error(`Runner image push must target refs/heads/main. Received ${input.ref}.`);
 			}
 			return {
 				sourceRef: input.ref,
@@ -92,11 +96,11 @@ export const prepareRunnerImageRelease = action({
 
 		const expectedTag = `v${version.value}`;
 		if (input.ref !== `refs/tags/${input.refName}`) {
-			throw new Error(`GitHub release ref ${input.ref} does not contain tag ${input.refName}`);
+			throw new Error(`GitHub release ref ${input.ref} does not contain tag ${input.refName}.`);
 		}
 		if (input.refName !== expectedTag) {
 			throw new Error(
-				`GitHub release tag ${input.refName} does not match package version ${version.value}`,
+				`GitHub release tag ${input.refName} does not match package version ${version.value}.`,
 			);
 		}
 
@@ -181,12 +185,25 @@ const verifyRunnerImageInputs = {
 
 export const verifyRunnerImage = action({
 	name: "Verify runner image",
-	description: "Build the runner image and prove its Hollywood contract.",
+	description: "Build the runner image and verify its Hollywood contract.",
 	localActionPath: "verify-runner-image",
 	inputs: verifyRunnerImageInputs,
 	outputs: {},
 	run: verifyRunnerImageRun,
 });
+
+export const verifyRunnerVersion = async (exec: ScriptExec): Promise<void> => {
+	const runnerVersion = (
+		await exec("/home/runner/bin/Runner.Listener", ["--version"], {
+			env: { ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT: "0" },
+		})
+	).stdout.trim();
+	if (runnerVersion !== githubActionsRunnerVersion) {
+		throw new Error(
+			`Runner.Listener version must be ${githubActionsRunnerVersion}. Received ${runnerVersion}.`,
+		);
+	}
+};
 
 async function verifyRunnerImageRun(
 	context: Readonly<{
@@ -216,6 +233,7 @@ async function verifyRunnerImageRun(
 					workspace,
 				},
 				async ({ exec }) => {
+					await verifyRunnerVersion(exec);
 					await exec("node", [
 						"dist/cli.js",
 						"runner",
@@ -274,7 +292,7 @@ const withBuiltImage = async (
 		if (failure !== undefined) {
 			throw new AggregateError(
 				[failure, cleanupError],
-				"runner image verification and cleanup failed",
+				"Runner image verification and cleanup failed.",
 			);
 		}
 		throw cleanupError;
@@ -290,7 +308,7 @@ const removeImageArgs = (provider: ContainerProvider, image: string): readonly s
 const requiredVariable = (name: string): string => {
 	const value = process.env[name];
 	if (value === undefined || value === "") {
-		throw new Error(`${name} is required`);
+		throw new Error(`${name} is required.`);
 	}
 	return value;
 };
@@ -306,7 +324,7 @@ const parseImageVersion = (value: string): ImageVersion => {
 	const match =
 		/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.exec(value);
 	if (match === null) {
-		throw new Error(`package version must be release-tag-compatible semver: ${value}`);
+		throw new Error(`Package version must be release-tag-compatible SemVer: ${value}.`);
 	}
 	return {
 		major: match[1] as string,
@@ -320,47 +338,47 @@ const parseJson = (source: string, path: string): unknown => {
 	try {
 		return JSON.parse(source) as unknown;
 	} catch (error: unknown) {
-		throw new Error(`${path} is not valid JSON`, { cause: error });
+		throw new Error(`${path} is not valid JSON.`, { cause: error });
 	}
 };
 
 const requiredString = (value: unknown, key: string, source: string): string => {
 	if (value === null || typeof value !== "object") {
-		throw new Error(`${source} must contain a JSON object`);
+		throw new Error(`${source} must contain a JSON object.`);
 	}
 	const field = (value as Record<string, unknown>)[key];
 	if (typeof field !== "string" || field.length === 0) {
-		throw new Error(`${source} ${key} is required`);
+		throw new Error(`${source} must contain a nonempty string at '${key}'.`);
 	}
 	return field;
 };
 
 const assertImageName = (value: string): void => {
 	if (!/^ghcr\.io\/[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$/.test(value)) {
-		throw new Error(`runner image must be an untagged GHCR image name: ${value}`);
+		throw new Error(`Runner image must be an untagged GHCR image name: ${value}.`);
 	}
 };
 
 const assertDigest = (value: string): void => {
 	if (!/^sha256:[0-9a-f]{64}$/.test(value)) {
-		throw new Error(`runner image digest must be sha256: ${value}`);
+		throw new Error(`Runner image digest must be a SHA-256 digest: ${value}.`);
 	}
 };
 
 const assertRevision = (value: string): void => {
 	if (!/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(value)) {
-		throw new Error(`source revision must be a full Git object ID: ${value}`);
+		throw new Error(`Source revision must be a full Git object ID: ${value}.`);
 	}
 };
 
 const assertRepository = (value: string): void => {
 	if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(value)) {
-		throw new Error(`GitHub repository must be owner/name: ${value}`);
+		throw new Error(`GitHub repository must use the owner/name format: ${value}.`);
 	}
 };
 
 const assertSourceRef = (value: string): void => {
 	if (!/^refs\/(?:heads|tags)\/[A-Za-z0-9._/-]+$/.test(value)) {
-		throw new Error(`source ref must be a branch or tag ref: ${value}`);
+		throw new Error(`Source ref must be a branch or tag ref: ${value}.`);
 	}
 };

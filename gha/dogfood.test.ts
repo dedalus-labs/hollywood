@@ -7,6 +7,7 @@ import { cla } from "./cla";
 import { docs } from "./docs";
 import { flowers } from "./flowers";
 import { publishNpm } from "./publish-npm";
+import { runnerJit } from "./runner-jit";
 import { release } from "./release";
 import { runnerImageWorkflow } from "./runner-image";
 
@@ -17,6 +18,7 @@ const workflows = [
 	flowers,
 	publishNpm,
 	release,
+	runnerJit,
 	runnerImageWorkflow,
 ] satisfies readonly GitHubWorkflow[];
 

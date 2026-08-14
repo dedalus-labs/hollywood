@@ -1,61 +1,65 @@
-# Execution Backends
+# Execution providers
 
-Execution providers decide where a Hollywood action runs.
+Execution providers run Hollywood's fast action executor or an official GitHub
+runner in a local Linux container.
 
 `hollywood run` requires one provider:
 
-- `docker`
-- `podman`
-- `container` from Apple
+- `docker`.
+- `podman`.
+- `container` from Apple.
 
-There is no provider auto-detection or host fallback.
+Hollywood does not detect a provider or use a different runtime when the
+selected provider is unavailable.
 
-## Provider Matrix
+## Provider matrix
 
-| Provider    | Runtime | Host boundary |
-| ----------- | ------- | ------------- |
-| `docker`    | [Docker Engine or Docker Desktop](https://docs.docker.com/engine/) | Linux, macOS, or Windows supported by Docker |
-| `podman`    | [Rootless, daemon-backed, or Podman machine](https://podman.io/docs/installation) | Linux, macOS, or Windows supported by Podman |
-| `container` | [Apple's `container` CLI](https://github.com/apple/container) | Apple silicon and macOS 26 or newer |
+| Provider | Runtime | Supported host |
+| --- | --- | --- |
+| `docker` | [Docker Engine or Docker Desktop](https://docs.docker.com/engine/) | A Linux, macOS, or Windows host that Docker supports. |
+| `podman` | [Podman](https://podman.io/docs/installation) | A Linux, macOS, or Windows host that Podman supports. |
+| `container` | [Apple `container`](https://github.com/apple/container) | Apple silicon with macOS 26 or later. |
 
-[Docker VMM](https://docs.docker.com/desktop/features/vmm/) is a Docker Desktop
-virtual machine manager on Apple silicon. It still exposes the ordinary
-`docker` CLI, so select `--provider docker`; no Hollywood-specific backend or
-configuration is required.
+[Docker VMM](https://docs.docker.com/desktop/features/vmm/) is a virtual
+machine manager for Docker Desktop on Apple silicon. Select `--provider
+docker` when Docker Desktop uses Docker VMM. Hollywood does not require a
+separate Docker VMM provider.
 
-All three providers create one persistent container for the action, mount the
-repository at `/github/workspace`, and expose GitHub's standard file-command
-paths. The default is GitHub's official
+In fast action mode, each provider creates one container and mounts the
+repository at `/github/workspace`. Hollywood creates paths for `GITHUB_ENV`,
+`GITHUB_EVENT_PATH`, `GITHUB_OUTPUT`, `GITHUB_PATH`, `GITHUB_STATE`, and
+`GITHUB_STEP_SUMMARY`. It also sets `GITHUB_WORKSPACE`, `HOME`, `RUNNER_TEMP`, and
+selected runner environment variables.
+
+The default image derives from GitHub's official, digest-pinned
 [`actions-runner`](https://docs.github.com/en/actions/concepts/runners/actions-runner-controller#software-components)
-container image, pinned by multi-architecture digest. That image publishes
-native Linux `amd64` and `arm64` manifests. Those are the two architectures
-Hollywood can support without replacing GitHub's runner userspace.
+image. The upstream image publishes native Linux `amd64` and `arm64`
+manifests. Hollywood supports those two image architectures.
 
-This is the closest public image GitHub supports, but it is deliberately
-minimal. A standard
-[GitHub-hosted runner](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)
-is a fresh virtual machine with a much larger tool inventory; GitHub does not
-publish `ubuntu-latest` as a supported OCI image.
+`hollywood run` executes the bundled action directly with Node 24. This mode
+does not invoke `Runner.Listener` or `Runner.Worker`. It verifies the action
+bundle, selected userspace image, workspace mount, inputs, and configured
+file-command paths.
 
-Hollywood guarantees that the action bundle, pinned userspace image, workspace
-mount, inputs, and
-[file-command paths](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands)
-are identical across providers. The provider still owns the kernel,
-virtualization, networking, and filesystem implementation. GitHub still owns
-workflow scheduling, service containers, permissions, OIDC, caches, and
-artifacts. Real GitHub CI remains the final conformance test.
+`hollywood runner listen` starts GitHub's official `Runner.Listener` with a JIT
+configuration. GitHub supplies one job message, and the listener starts the
+official `Runner.Worker`. This mode uses GitHub's scheduling, permissions,
+action lifecycle, cache and artifact services, OpenID Connect, logs, and job
+reporting. See [Run a job with the GitHub runner](../usage/github-runner.md).
 
-## Why Backends Exist
+The provider controls the kernel, cgroups, networking, mount implementation,
+and virtualization in both modes. GitHub controls the connected runner's job
+lifecycle. Neither mode reproduces the GitHub-hosted `ubuntu-latest` virtual
+machine.
 
-The provider boundary is intentionally small. A provider only needs to answer:
+## Provider contract
 
-1. How do we create and remove one isolated Linux session?
-2. How do we execute structured commands without shell interpolation?
-3. How do we mount the workspace and GitHub protocol files?
+Each provider must:
 
-The image supplies userspace tools. The provider supplies isolation. GitHub
-still supplies workflow scheduling, services, permissions, and hosted-runner
-infrastructure.
+- Create and remove one Linux container.
+- Execute a file with a structured argument array and no shell interpolation.
+- Mount the workspace and configured GitHub protocol files.
+- Report a missing executable as `ContainerProviderUnavailableError`.
 
-See [Hollywood Runner Image](runner-image.md) for the published image,
-machine-readable runner probe, compatibility contract, and release boundary.
+See [Runner image](runner-image.md) for the image contract, runner probe, and
+publication process.

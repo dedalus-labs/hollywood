@@ -30,7 +30,7 @@ test("parseActionResult reads string outputs", () => {
 test("parseActionResult rejects non-string outputs", () => {
 	assert.throws(
 		() => parseActionResult('{"result":1}'),
-		/container action returned invalid outputs/,
+		/Container action returned invalid outputs\. Every output value must be a string\./,
 	);
 });
 

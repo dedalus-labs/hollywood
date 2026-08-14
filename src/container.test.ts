@@ -39,6 +39,9 @@ for (const provider of ["container", "docker", "podman"] as const) {
 				assert.equal(services.runner.uidGid, "1001:1002");
 				await services.exec("touch", ["marker"]);
 				await services.exec("test", ["-f", "marker"]);
+				await services.exec("printenv", ["HOLLYWOOD_TEST"], {
+					env: { HOLLYWOOD_TEST: "expected" },
+				});
 				assert.equal(await services.fs.readText("message.txt"), "hello\n");
 			});
 		} finally {
@@ -58,6 +61,7 @@ for (const provider of ["container", "docker", "podman"] as const) {
 			"--env",
 		]);
 		assert.ok(create?.args.includes("GITHUB_ACTIONS=true"));
+		assert.ok(create?.args.includes("GITHUB_STATE=/github/file_commands/state"));
 		assert.ok(create?.args.includes("GITHUB_WORKSPACE=/github/workspace"));
 		assert.equal(create?.args.includes("--userns=keep-id"), provider === "podman");
 		assert.ok(create?.args.some((arg) => arg.endsWith(":/github")));
@@ -86,7 +90,7 @@ test("withContainer rejects mutable image tags before invoking a provider", asyn
 				},
 				async () => undefined,
 			),
-		/image must use a sha256 digest or image id/,
+		/Container image must use a SHA-256 digest or image ID\./,
 	);
 	assert.equal(invoked, false);
 });
@@ -137,7 +141,7 @@ test("withContainer names a missing selected provider", async () => {
 			error.provider === "container" &&
 			error.binary === "container" &&
 			error.cause === cause &&
-			/Apple silicon and macOS 26 or newer/.test(error.message),
+			/Apple silicon and macOS 26 or later\./.test(error.message),
 	);
 });
 
@@ -171,7 +175,7 @@ const runtimeProvider = testProvider();
 const containerProviderTest = runtimeProvider === undefined ? test.skip : test;
 
 containerProviderTest(
-	"provider runs a persistent GitHub-shaped session",
+	"provider runs one persistent container session",
 	async () => {
 		const workspace = await mkdtemp(join(tmpdir(), "hollywood-workspace-"));
 		try {
@@ -184,6 +188,15 @@ containerProviderTest(
 						(await exec("printenv", ["GITHUB_WORKSPACE"])).stdout.trim(),
 						"/github/workspace",
 					);
+					assert.equal(
+						(
+							await exec("printenv", ["ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT"], {
+								env: { ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT: "0" },
+							})
+						).stdout.trim(),
+						"0",
+					);
+					await exec("test", ["-w", "/github/file_commands/state"]);
 					await exec("node", [
 						"-e",
 						"require('node:fs').writeFileSync('provider.txt', 'persistent\\n')",
@@ -223,6 +236,17 @@ const expectedCommands = (
 		[binary, "exec", "--workdir", "/github/workspace", name, "id", "-g"],
 		[binary, "exec", "--workdir", "/github/workspace", name, "touch", "marker"],
 		[binary, "exec", "--workdir", "/github/workspace", name, "test", "-f", "marker"],
+		[
+			binary,
+			"exec",
+			"--workdir",
+			"/github/workspace",
+			name,
+			"env",
+			"HOLLYWOOD_TEST=expected",
+			"printenv",
+			"HOLLYWOOD_TEST",
+		],
 		[binary, "exec", "--workdir", "/github/workspace", name, "cat", "/github/workspace/message.txt"],
 		[binary, remove, "--force", name],
 	];

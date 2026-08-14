@@ -2,15 +2,16 @@
 import { a as integerInput, c as stringInput, d as summaryText, f as toGitHubName, g as nodeLog, h as nodeFs, i as choiceInput, l as stringOutput, m as nodeExec, n as action, o as pathInput, p as currentRunner, r as booleanInput, s as runAction, t as runGitHubAction, u as summaryCode } from "./github-cUK0davD.js";
 import { defineEnvironmentRegistry, resolveEnvironment, selectEnvironmentName } from "./environments.js";
 import { A as success, C as needsResultIs, D as secret, E as runner, O as selectString, S as needsResultIn, T as or, _ as isGitHubTypedMatrix, a as contains, b as needsOutput, c as eq, d as format, f as gh, g as input, h as hashFiles, i as cancelled, j as valueOr, k as stepOutput, l as expr, m as githubTypedMatrixValues, n as always, o as defineMatrix, p as github, r as and, s as envVar, t as GitHubJobResult, u as failure, v as matrix, w as not, x as needsResult, y as ne } from "./expressions-BPTcb6xM.js";
-import { access, chmod, copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { access, chmod, copyFile, mkdir, mkdtemp, open, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { z } from "zod";
 import { arch, platform, release, tmpdir, version } from "node:os";
 import { delimiter, dirname, isAbsolute, join, posix, relative, resolve, sep } from "node:path";
 import { randomUUID } from "node:crypto";
-import { dirname as dirname$1, relative as relative$1 } from "node:path/posix";
+import { fileURLToPath } from "node:url";
+import { dirname as dirname$1, isAbsolute as isAbsolute$1, normalize, relative as relative$1 } from "node:path/posix";
 import { stringify } from "yaml";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { ACTION_ROOT } from "@actions/workflow-parser/actions/action-constants";
 import { JSONObjectReader } from "@actions/workflow-parser/templates/json-object-reader";
 import { TemplateContext, TemplateValidationErrors } from "@actions/workflow-parser/templates/template-context";
@@ -35,6 +36,7 @@ const runnerPathEnvironmentNames = [
 	"GITHUB_EVENT_PATH",
 	"GITHUB_OUTPUT",
 	"GITHUB_PATH",
+	"GITHUB_STATE",
 	"GITHUB_STEP_SUMMARY",
 	"GITHUB_WORKSPACE",
 	"HOME",
@@ -141,9 +143,9 @@ const runnerContractSchema = z.strictObject({
 //#endregion
 //#region src/runner-contract.ts
 const defineRunnerContract = (contract) => {
-	assertUnique(contract.architectures, "runner contract architectures");
-	assertUnique(contract.paths, "runner contract paths");
-	assertUniqueNames(contract.tools, "runner contract tools");
+	assertUnique(contract.architectures, "Runner contract architectures");
+	assertUnique(contract.paths, "Runner contract paths");
+	assertUniqueNames(contract.tools, "Runner contract tools");
 	return contract;
 };
 const verifyRunner = (contract, probe) => {
@@ -180,12 +182,12 @@ const verifyRunner = (contract, probe) => {
 	return differences;
 };
 const compareRunnerProbes = (expected, actual) => compareValues("", comparisonShape(expected), comparisonShape(actual));
-const parseRunnerContract = (contents) => defineRunnerContract(parseJson(runnerContractSchema, contents, "runner contract"));
+const parseRunnerContract = (contents) => defineRunnerContract(parseJson(runnerContractSchema, contents, "Runner contract"));
 const parseRunnerProbe = (contents) => {
-	const probe = parseJson(runnerProbeSchema, contents, "runner probe");
-	assertUniqueNames(probe.packages.packages, "runner probe packages");
-	assertUniqueNames(probe.paths, "runner probe paths");
-	assertUniqueNames(probe.tools, "runner probe tools");
+	const probe = parseJson(runnerProbeSchema, contents, "Runner probe");
+	assertUniqueNames(probe.packages.packages, "Runner probe packages");
+	assertUniqueNames(probe.paths, "Runner probe paths");
+	assertUniqueNames(probe.tools, "Runner probe tools");
 	return probe;
 };
 const parseJson = (schema, contents, name) => {
@@ -193,13 +195,13 @@ const parseJson = (schema, contents, name) => {
 	try {
 		value = JSON.parse(contents);
 	} catch (error) {
-		throw new Error(`${name} is not valid JSON`, { cause: error });
+		throw new Error(`${name} is not valid JSON.`, { cause: error });
 	}
 	const result = schema.safeParse(value);
 	if (result.success) return result.data;
 	const issue = result.error.issues[0];
 	const path = issue === void 0 || issue.path.length === 0 ? "" : ` at ${issue.path.join(".")}`;
-	throw new Error(`${name} is invalid${path}: ${issue?.message ?? "unknown schema error"}`, { cause: result.error });
+	throw new Error(`${name} is invalid${path}: ${issue?.message ?? "Unknown schema error"}.`, { cause: result.error });
 };
 const comparisonShape = (probe) => ({
 	...probe,
@@ -239,7 +241,7 @@ const difference = (differences, path, expected, actual) => {
 };
 const assertUniqueNames = (entries, name) => assertUnique(entries.map(({ name }) => name), `${name} names`);
 const assertUnique = (values, name) => {
-	if (new Set(values).size !== values.length) throw new Error(`${name} must be unique`);
+	if (new Set(values).size !== values.length) throw new Error(`${name} must be unique.`);
 };
 const joinPath = (prefix, suffix) => prefix === "" ? suffix : `${prefix}.${suffix}`;
 const isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
@@ -269,7 +271,7 @@ const toolVersionArguments = {
 	zstd: ["--version"]
 };
 const probeRunner = async (source = localProbeSource()) => {
-	if (source.operatingSystem !== "linux") throw new Error(`runner probe requires Linux, received ${source.operatingSystem}`);
+	if (source.operatingSystem !== "linux") throw new Error(`Runner probe requires Linux. Received ${source.operatingSystem}.`);
 	const pathEntries = requiredEnvironment(source.env, "PATH").split(source.pathDelimiter);
 	const [groups, osRelease, capabilities, cgroup, paths, tools, packages, toolCache] = await Promise.all([
 		probeGroups(source.exec),
@@ -311,7 +313,7 @@ const writeRunnerProbe = async (path, probe) => {
 const localProbeSource = () => {
 	const uid = process.getuid?.();
 	const gid = process.getgid?.();
-	if (uid === void 0 || gid === void 0) throw new Error("runner probe requires POSIX uid and gid");
+	if (uid === void 0 || gid === void 0) throw new Error("Runner probe requires a POSIX user ID and group ID.");
 	return {
 		architecture: arch(),
 		env: process.env,
@@ -351,7 +353,7 @@ const probeOsRelease = async (readText) => {
 };
 const probeCapabilities = async (readText) => {
 	const match = /(?:^|\n)CapEff:\s*([0-9a-fA-F]+)/.exec(await readText("/proc/self/status"));
-	if (match?.[1] === void 0) throw new Error("runner probe could not read CapEff");
+	if (match?.[1] === void 0) throw new Error("Runner probe could not read CapEff from /proc/self/status.");
 	return match[1].toLowerCase();
 };
 const probeCgroup = async (testAccess) => await testAccess("/sys/fs/cgroup/cgroup.controllers") ? "v2" : "v1";
@@ -378,7 +380,7 @@ const probeTools = async (source, pathEntries) => Promise.all(runnerToolNames.ma
 	};
 	const result = await source.exec(path, toolVersionArguments[name]);
 	const version = firstLine(`${result.stdout}\n${result.stderr}`);
-	if (version === "") throw new Error(`runner tool ${name} returned no version`);
+	if (version === "") throw new Error(`Runner tool '${name}' returned no version.`);
 	return {
 		name,
 		path,
@@ -396,7 +398,7 @@ const probePackages = async (source, pathEntries) => {
 		manager: "dpkg",
 		packages: (await source.exec(dpkgQuery, ["-W", "-f=${binary:Package}\\t${Version}\\n"])).stdout.trim().split("\n").filter(Boolean).map((line) => {
 			const [name, packageVersion, ...extra] = line.split("	");
-			if (name === void 0 || packageVersion === void 0 || extra.length > 0) throw new Error(`runner package inventory has invalid line: ${line}`);
+			if (name === void 0 || packageVersion === void 0 || extra.length > 0) throw new Error(`Runner package inventory contains an invalid line: ${line}.`);
 			return {
 				name,
 				version: packageVersion
@@ -423,7 +425,7 @@ const selectedEnvironment = (environment) => Object.fromEntries(runnerEnvironmen
 }));
 const requiredEnvironment = (environment, name) => {
 	const value = environment[name];
-	if (value === void 0 || value === "") throw new Error(`runner probe requires ${name}`);
+	if (value === void 0 || value === "") throw new Error(`Runner probe requires ${name}.`);
 	return value;
 };
 const firstLine = (value) => value.split("\n").map((line) => line.trim()).find(Boolean) ?? "";
@@ -434,13 +436,14 @@ var ContainerProviderUnavailableError = class extends Error {
 	binary;
 	provider;
 	constructor(provider, binary, cause) {
-		super(`container provider ${provider} is unavailable: expected executable ${binary} on PATH.${provider === "container" ? " Apple container requires Apple silicon and macOS 26 or newer." : ""}`, { cause });
+		super(`Container provider '${provider}' is unavailable. Expected executable '${binary}' on PATH.${provider === "container" ? " Apple container requires Apple silicon and macOS 26 or later." : ""}`, { cause });
 		this.name = "ContainerProviderUnavailableError";
 		this.binary = binary;
 		this.provider = provider;
 	}
 };
 const githubActionsRunnerImage = "ghcr.io/actions/actions-runner@sha256:0cfdcc701ce933c6d243c6b0b2da767366dc9f2e99961d4c3754b0b78084cdda";
+const githubActionsRunnerVersion = "2.336.0";
 const githubWorkspace = "/github/workspace";
 const githubEnvironment = {
 	CI: "true",
@@ -449,6 +452,7 @@ const githubEnvironment = {
 	GITHUB_EVENT_PATH: "/github/workflow/event.json",
 	GITHUB_OUTPUT: "/github/file_commands/output",
 	GITHUB_PATH: "/github/file_commands/path",
+	GITHUB_STATE: "/github/file_commands/state",
 	GITHUB_STEP_SUMMARY: "/github/file_commands/step_summary",
 	GITHUB_WORKSPACE: githubWorkspace,
 	HOME: "/github/home",
@@ -487,7 +491,7 @@ const withContainerSession = async (options, run) => {
 			workspace
 		}));
 	} catch (error) {
-		failure = isMissingExecutable(error) ? new ContainerProviderUnavailableError(options.provider, runtime.binary, error) : error;
+		failure = isMissingExecutable$1(error) ? new ContainerProviderUnavailableError(options.provider, runtime.binary, error) : error;
 	}
 	const cleanupFailures = await cleanup({
 		created,
@@ -496,9 +500,9 @@ const withContainerSession = async (options, run) => {
 		root,
 		runtime
 	});
-	if (failure !== void 0 && cleanupFailures.length > 0) throw new AggregateError([failure, ...cleanupFailures], "container action and cleanup failed");
+	if (failure !== void 0 && cleanupFailures.length > 0) throw new AggregateError([failure, ...cleanupFailures], "Container action and cleanup failed.");
 	if (failure !== void 0) throw failure;
-	if (cleanupFailures.length > 0) throw new AggregateError(cleanupFailures, "container cleanup failed");
+	if (cleanupFailures.length > 0) throw new AggregateError(cleanupFailures, "Container cleanup failed.");
 	return result;
 };
 const containerServices = async (options) => {
@@ -514,10 +518,12 @@ const containerExec = (options) => (file, args, commandOptions = {}) => {
 	const command = [
 		"exec",
 		"--workdir",
-		containerPath(options.workspace, commandOptions.cwd ?? options.workspace)
+		containerPath(options.workspace, commandOptions.cwd ?? options.workspace),
+		options.name
 	];
-	for (const [name, value] of Object.entries(commandOptions.env ?? {}).sort()) command.push("--env", `${name}=${value}`);
-	command.push(options.name, file, ...args);
+	const environment = Object.entries(commandOptions.env ?? {}).sort().map(([name, value]) => `${name}=${value}`);
+	if (environment.length > 0) command.push("env", ...environment);
+	command.push(file, ...args);
 	return options.hostExec(options.runtime.binary, command, commandOptions.exitPolicy === void 0 ? void 0 : { exitPolicy: commandOptions.exitPolicy });
 };
 const createArgs = (options) => {
@@ -545,6 +551,7 @@ const prepareGitHubRoot = async (actionBundle) => {
 		"env",
 		"output",
 		"path",
+		"state",
 		"step_summary"
 	].map((file) => writeFile(`${root}/file_commands/${file}`, "")));
 	await writeFile(`${root}/workflow/event.json`, "{}\n");
@@ -561,6 +568,7 @@ const prepareGitHubRoot = async (actionBundle) => {
 			"env",
 			"output",
 			"path",
+			"state",
 			"step_summary"
 		].map((file) => chmod(`${root}/file_commands/${file}`, 438))
 	]);
@@ -589,10 +597,10 @@ const containerPath = (workspace, path) => {
 	if (path === githubWorkspace || path.startsWith(`${githubWorkspace}/`)) {
 		const normalized = posix.normalize(path);
 		if (normalized === githubWorkspace || normalized.startsWith(`${githubWorkspace}/`)) return normalized;
-		throw new Error(`path is outside container workspace: ${path}`);
+		throw new Error(`Path is outside the container workspace: ${path}.`);
 	}
 	const child = relative(workspace, resolve(workspace, path));
-	if (child === ".." || child.startsWith(`..${sep}`) || child.startsWith(sep)) throw new Error(`path is outside container workspace: ${path}`);
+	if (child === ".." || child.startsWith(`..${sep}`) || child.startsWith(sep)) throw new Error(`Path is outside the container workspace: ${path}.`);
 	return child === "" ? githubWorkspace : posix.join(githubWorkspace, ...child.split(sep));
 };
 const containerRuntime = (provider) => {
@@ -612,13 +620,278 @@ const containerRuntime = (provider) => {
 			createOptions: ["--userns=keep-id"],
 			remove: "rm"
 		};
-		default: throw new Error(`unsupported container provider: ${String(provider)}`);
+		default: throw new Error(`Unsupported container provider: ${String(provider)}.`);
 	}
 };
 const assertImmutableImage = (image) => {
-	if (!/(?:@sha256:|^sha256:)[0-9a-f]{64}$/.test(image)) throw new Error("container image must use a sha256 digest or image id");
+	if (!/(?:@sha256:|^sha256:)[0-9a-f]{64}$/.test(image)) throw new Error("Container image must use a SHA-256 digest or image ID.");
 };
+const isMissingExecutable$1 = (error) => typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
+//#endregion
+//#region src/github-runner.ts
+const launcherTarget = "/opt/hollywood/runner-launch.js";
+const dockerSocketTarget = "/var/run/docker.sock";
+const hookTargets = {
+	container: "/opt/hollywood/hooks/container.js",
+	jobCompleted: "/opt/hollywood/hooks/job-completed",
+	jobStarted: "/opt/hollywood/hooks/job-started"
+};
+const parseEncodedGitHubJitConfig = (value) => {
+	const decoded = decodeCanonicalBase64(value, "GitHub JIT configuration");
+	let configuration;
+	try {
+		configuration = JSON.parse(decoded.toString("utf8"));
+	} catch (error) {
+		throw new Error("GitHub JIT configuration must decode to JSON.", { cause: error });
+	}
+	if (configuration === null || typeof configuration !== "object" || Array.isArray(configuration) || Object.keys(configuration).length === 0) throw new Error("GitHub JIT configuration must decode to a nonempty object.");
+	for (const [name, contents] of Object.entries(configuration)) {
+		if (!/^\.[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(name)) throw new Error(`GitHub JIT configuration entry name '${name}' is not a safe file name.`);
+		if (typeof contents !== "string") throw new Error(`GitHub JIT configuration entry '${name}' must be base64 text.`);
+		decodeCanonicalBase64(contents, `GitHub JIT configuration entry '${name}'`);
+	}
+	return value;
+};
+const readEncodedGitHubJitConfig = async (path) => parseEncodedGitHubJitConfig((await readFile(path, "utf8")).trim());
+const runGitHubRunner = async (options, services = {
+	process: runForeground,
+	runnerLauncher: new URL("./runner-launch.js", import.meta.url)
+}) => {
+	assertImmutableImage(options.image);
+	const root = await mkdtemp(`${tmpdir()}/hollywood-runner-`);
+	const environmentPath = `${root}/runner.env`;
+	let failure;
+	try {
+		const launch = await prepareLaunch(options, services.runnerLauncher, environmentPath);
+		await services.process(launch);
+	} catch (error) {
+		failure = isMissingExecutable(error) ? new ContainerProviderUnavailableError(options.provider, containerRuntime(options.provider).binary, error) : error;
+	}
+	try {
+		await rm(root, {
+			force: true,
+			recursive: true
+		});
+	} catch (cleanupError) {
+		if (failure !== void 0) throw new AggregateError([failure, cleanupError], "GitHub runner execution and secret cleanup failed.");
+		throw cleanupError;
+	}
+	if (failure !== void 0) throw failure;
+};
+const prepareLaunch = async (options, runnerLauncher, environmentPath) => {
+	const runtime = containerRuntime(options.provider);
+	const environment = { HOLLYWOOD_RUNNER_JIT_CONFIG: options.encodedJitConfig };
+	const mounts = [{
+		source: fileURLToPath(runnerLauncher),
+		target: launcherTarget,
+		readonly: true
+	}];
+	if (options.diagnostics !== void 0) {
+		const diagnostics = resolve(options.diagnostics);
+		await mkdir(diagnostics, { recursive: true });
+		mounts.push({
+			source: diagnostics,
+			target: "/home/runner/_diag",
+			readonly: false
+		});
+	}
+	if (options.hooks?.jobStarted !== void 0) {
+		await assertHook(options.hooks.jobStarted, true);
+		mounts.push({
+			source: resolve(options.hooks.jobStarted),
+			target: hookTargets.jobStarted,
+			readonly: true
+		});
+		environment["ACTIONS_RUNNER_HOOK_JOB_STARTED"] = hookTargets.jobStarted;
+	}
+	if (options.hooks?.jobCompleted !== void 0) {
+		await assertHook(options.hooks.jobCompleted, true);
+		mounts.push({
+			source: resolve(options.hooks.jobCompleted),
+			target: hookTargets.jobCompleted,
+			readonly: true
+		});
+		environment["ACTIONS_RUNNER_HOOK_JOB_COMPLETED"] = hookTargets.jobCompleted;
+	}
+	if (options.hooks?.container !== void 0) {
+		await assertHook(options.hooks.container, false);
+		mounts.push({
+			source: resolve(options.hooks.container),
+			target: hookTargets.container,
+			readonly: true
+		});
+		environment["ACTIONS_RUNNER_CONTAINER_HOOKS"] = hookTargets.container;
+	}
+	if (options.hooks?.requireJobContainer === true) environment["ACTIONS_RUNNER_REQUIRE_JOB_CONTAINER"] = "true";
+	await writeFile(environmentPath, `${Object.entries(environment).sort(([left], [right]) => left.localeCompare(right)).map(([name, value]) => `${name}=${value}`).join("\n")}\n`, { mode: 384 });
+	await chmod(environmentPath, 384);
+	const args = [
+		"run",
+		"--rm",
+		"--init",
+		"--name",
+		`hollywood-runner-${randomUUID()}`,
+		"--workdir",
+		"/home/runner",
+		"--env-file",
+		environmentPath
+	];
+	for (const mount of mounts) args.push("--mount", mountArgument(mount));
+	if (options.containerEngine !== void 0) {
+		const socket = resolve(options.containerEngine.path);
+		if (!(await stat(socket)).isSocket()) throw new Error(`Container engine path must be a Unix socket: ${socket}.`);
+		if (options.provider === "container") args.push("--publish-socket", `${socket}:${dockerSocketTarget}`);
+		else args.push("--mount", mountArgument({
+			source: socket,
+			target: dockerSocketTarget,
+			readonly: false
+		}));
+	}
+	args.push("--entrypoint", "/home/runner/externals/node24/bin/node", options.image, launcherTarget);
+	return {
+		file: runtime.binary,
+		args
+	};
+};
+const assertHook = async (path, executable) => {
+	const resolved = resolve(path);
+	const metadata = await stat(resolved);
+	if (!metadata.isFile()) throw new Error(`GitHub runner hook must be a regular file: ${resolved}.`);
+	if (executable && (metadata.mode & 73) === 0) throw new Error(`GitHub runner job hook must be executable: ${resolved}.`);
+};
+const mountArgument = (mount) => {
+	if (mount.source.includes(",") || mount.target.includes(",")) throw new Error(`Container mount paths must not contain commas: ${mount.source}.`);
+	return `type=bind,source=${mount.source},target=${mount.target}${mount.readonly ? ",readonly" : ""}`;
+};
+const decodeCanonicalBase64 = (value, name) => {
+	if (value.length === 0 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) throw new Error(`${name} must be canonical base64.`);
+	const decoded = Buffer.from(value, "base64");
+	if (decoded.toString("base64") !== value) throw new Error(`${name} must be canonical base64.`);
+	return decoded;
+};
+const runForeground = ({ file, args }) => new Promise((resolveProcess, rejectProcess) => {
+	const child = spawn(file, [...args], { stdio: "inherit" });
+	const handlers = [
+		"SIGINT",
+		"SIGTERM",
+		"SIGHUP"
+	].map((signal) => [signal, () => child.kill(signal)]);
+	for (const [signal, handler] of handlers) process.once(signal, handler);
+	const removeSignalHandlers = () => {
+		for (const [signal, handler] of handlers) process.off(signal, handler);
+	};
+	child.once("error", (error) => {
+		removeSignalHandlers();
+		rejectProcess(error);
+	});
+	child.once("close", (code, signal) => {
+		removeSignalHandlers();
+		if (code === 0) {
+			resolveProcess();
+			return;
+		}
+		rejectProcess(/* @__PURE__ */ new Error(signal === null ? `${file} exited with code ${String(code ?? 1)}.` : `${file} exited after signal ${signal}.`));
+	});
+});
 const isMissingExecutable = (error) => typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
+//#endregion
+//#region src/github-runner-api.ts
+var GitHubRunnerApiError = class extends Error {
+	status;
+	constructor(status, statusText) {
+		super(`GitHub JIT configuration request failed with ${String(status)}${statusText.length === 0 ? "" : ` ${statusText}`}.`);
+		this.name = "GitHubRunnerApiError";
+		this.status = status;
+	}
+};
+const githubApiVersion = "2026-03-10";
+const defaultGitHubApiUrl = new URL("https://api.github.com/");
+const jitResponseSchema = z.object({ encoded_jit_config: z.string() });
+const parseGitHubApiToken = (value) => {
+	if (value.trim().length === 0 || value.trim() !== value || hasControlCharacter(value)) throw new Error("GitHub API token must be nonempty text without whitespace or control characters.");
+	return value;
+};
+const parseGitHubRepository = (value) => {
+	const match = /^([^/\s]+)\/([^/\s]+)$/.exec(value);
+	if (match === null) throw new Error(`GitHub repository must use OWNER/REPOSITORY format. Received '${value}'.`);
+	return {
+		name: required(match[2]),
+		owner: required(match[1])
+	};
+};
+const defineGitHubRunnerJitRegistration = (options) => {
+	assertNonemptyText(options.name, "GitHub runner name");
+	if (!Number.isSafeInteger(options.runnerGroupId) || options.runnerGroupId <= 0) throw new Error("GitHub runner group ID must be a positive integer.");
+	if (options.labels.length < 1 || options.labels.length > 100 || new Set(options.labels).size !== options.labels.length || options.labels.some((label) => label.trim().length === 0 || label.trim() !== label)) throw new Error("GitHub runner labels must contain between 1 and 100 unique labels.");
+	if (options.workFolder !== void 0) assertWorkFolder(options.workFolder);
+	return {
+		labels: Object.freeze([...options.labels]),
+		name: options.name,
+		runnerGroupId: options.runnerGroupId,
+		...options.workFolder === void 0 ? {} : { workFolder: options.workFolder }
+	};
+};
+const generateGitHubRepositoryRunnerJitConfig = async (options, services = { request: requestGitHub }) => {
+	const apiUrl = options.apiUrl ?? defaultGitHubApiUrl;
+	assertGitHubApiUrl(apiUrl);
+	const requestBody = {
+		labels: [...options.registration.labels],
+		name: options.registration.name,
+		runner_group_id: options.registration.runnerGroupId,
+		...options.registration.workFolder === void 0 ? {} : { work_folder: options.registration.workFolder }
+	};
+	const endpoint = new URL(`repos/${encodeURIComponent(options.repository.owner)}/${encodeURIComponent(options.repository.name)}/actions/runners/generate-jitconfig`, withTrailingSlash(apiUrl));
+	const response = await services.request(endpoint, {
+		body: JSON.stringify(requestBody),
+		headers: {
+			Accept: "application/vnd.github+json",
+			Authorization: `Bearer ${options.token}`,
+			"Content-Type": "application/json",
+			"X-GitHub-Api-Version": githubApiVersion
+		},
+		method: "POST"
+	});
+	if (response.status !== 201) throw new GitHubRunnerApiError(response.status, response.statusText);
+	const parsed = jitResponseSchema.safeParse(await response.json());
+	if (!parsed.success) throw new Error("GitHub JIT response must contain encoded_jit_config text.");
+	return parseEncodedGitHubJitConfig(parsed.data.encoded_jit_config);
+};
+const writeEncodedGitHubJitConfig = async (path, config) => {
+	await mkdir(dirname(path), { recursive: true });
+	let file;
+	try {
+		file = await open(path, "wx", 384);
+	} catch (error) {
+		throw new Error(`Failed to create GitHub JIT configuration file '${path}'.`, { cause: error });
+	}
+	try {
+		await file.writeFile(`${config}\n`, "utf8");
+		await file.chmod(384);
+	} finally {
+		await file.close();
+	}
+};
+const requestGitHub = async (url, init) => fetch(url, init);
+const hasControlCharacter = (value) => [...value].some((character) => {
+	const codePoint = character.codePointAt(0);
+	return codePoint !== void 0 && (codePoint <= 31 || codePoint === 127);
+});
+const assertNonemptyText = (value, name) => {
+	if (value.trim().length === 0 || value.trim() !== value) throw new Error(`${name} must be nonempty text without surrounding whitespace.`);
+};
+const assertWorkFolder = (value) => {
+	const segments = value.split("/");
+	if (value.length === 0 || isAbsolute$1(value) || value.includes("\\") || normalize(value) !== value || segments.some((segment) => segment === "." || segment === ".." || segment.length === 0)) throw new Error("GitHub runner work folder must be a relative path without traversal.");
+};
+const assertGitHubApiUrl = (url) => {
+	if (url.protocol !== "https:") throw new Error(`GitHub API URL must use HTTPS. Received '${url.href}'.`);
+	if (url.username.length > 0 || url.password.length > 0 || url.search.length > 0 || url.hash.length > 0) throw new Error("GitHub API URL must not contain credentials, a query, or a fragment.");
+};
+const withTrailingSlash = (url) => new URL(url.href.endsWith("/") ? url.href : `${url.href}/`);
+const required = (value) => {
+	if (value === void 0) throw new Error("GitHub repository parser invariant failed.");
+	return value;
+};
 //#endregion
 //#region src/validation.ts
 const validateWorkflowContent = (file) => validateContent(file, workflowSchema(), WORKFLOW_ROOT);
@@ -970,4 +1243,4 @@ const resolveOutputPath = (outputDir, path) => {
 	return outputPath;
 };
 //#endregion
-export { ContainerProviderUnavailableError, GeneratedFilePathCollisionError, GitHubJobResult, InvalidWorkflowFilenameError, action, always, and, assertValidActionMetadataContent, assertValidWorkflowContent, booleanInput, cancelled, choiceInput, compareRunnerProbes, contains, currentRunner, defineEnvironmentRegistry, defineMatrix, defineRunnerContract, envVar, eq, expr, failure, format, generateActionEntrypointFile, generateActionFile, generateActionFiles, generateActionMetadata, generateUsesStep, generateWorkflowFile, gh, github, githubActionsRunnerImage, hashFiles, input, integerInput, job, localAction, matrix, ne, needsOutput, needsResult, needsResultIn, needsResultIs, nodeExec, nodeFs, nodeLog, not, or, parseRunnerContract, parseRunnerProbe, pathInput, probeRunner, readRunnerContract, readRunnerProbe, renderActionFile, renderGeneratedFile, renderWorkflowFile, resolveEnvironment, runAction, runGitHubAction, runner, runnerProbeSchemaVersion, secret, selectEnvironmentName, selectString, stepOutput, stringInput, stringOutput, success, summaryCode, summaryText, uses, validateActionMetadataContent, validateWorkflowContent, valueOr, verifyRunner, withContainer, withLocalContainer, workflow, writeGeneratedFiles, writeRunnerProbe };
+export { ContainerProviderUnavailableError, GeneratedFilePathCollisionError, GitHubJobResult, GitHubRunnerApiError, InvalidWorkflowFilenameError, action, always, and, assertValidActionMetadataContent, assertValidWorkflowContent, booleanInput, cancelled, choiceInput, compareRunnerProbes, contains, currentRunner, defineEnvironmentRegistry, defineGitHubRunnerJitRegistration, defineMatrix, defineRunnerContract, envVar, eq, expr, failure, format, generateActionEntrypointFile, generateActionFile, generateActionFiles, generateActionMetadata, generateGitHubRepositoryRunnerJitConfig, generateUsesStep, generateWorkflowFile, gh, github, githubActionsRunnerImage, githubActionsRunnerVersion, hashFiles, input, integerInput, job, localAction, matrix, ne, needsOutput, needsResult, needsResultIn, needsResultIs, nodeExec, nodeFs, nodeLog, not, or, parseEncodedGitHubJitConfig, parseGitHubApiToken, parseGitHubRepository, parseRunnerContract, parseRunnerProbe, pathInput, probeRunner, readEncodedGitHubJitConfig, readRunnerContract, readRunnerProbe, renderActionFile, renderGeneratedFile, renderWorkflowFile, resolveEnvironment, runAction, runGitHubAction, runGitHubRunner, runner, runnerProbeSchemaVersion, secret, selectEnvironmentName, selectString, stepOutput, stringInput, stringOutput, success, summaryCode, summaryText, uses, validateActionMetadataContent, validateWorkflowContent, valueOr, verifyRunner, withContainer, withLocalContainer, workflow, writeEncodedGitHubJitConfig, writeGeneratedFiles, writeRunnerProbe };

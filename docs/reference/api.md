@@ -1,4 +1,4 @@
-# API Surface
+# API surface
 
 Hollywood's current application programming interface (API) surface is
 intentionally small.
@@ -67,6 +67,14 @@ authoring can keep orchestration imports separate from script/action imports.
 | `nodeFs`                          | Read local files.                                                            |
 | `nodeLog`                         | Write local logs to stdout and stderr.                                       |
 | `withContainer`                   | Own one Docker, Podman, or Apple container action session.                   |
+| `parseEncodedGitHubJitConfig`     | Validate and brand a GitHub JIT runner configuration.                        |
+| `readEncodedGitHubJitConfig`      | Read and validate a GitHub JIT runner configuration file.                    |
+| `parseGitHubRepository`           | Validate and brand an `OWNER/REPOSITORY` name.                               |
+| `parseGitHubApiToken`             | Validate and brand a GitHub API token.                                       |
+| `defineGitHubRunnerJitRegistration` | Validate and brand JIT runner registration options.                        |
+| `generateGitHubRepositoryRunnerJitConfig` | Request a repository JIT configuration with GitHub OpenAPI types.   |
+| `writeEncodedGitHubJitConfig`     | Create a mode-`0600` JIT file without replacing an existing file.            |
+| `runGitHubRunner`                 | Run one GitHub-scheduled job with the official runner.                       |
 | `probeRunner`                     | Capture a sanitized, typed runner inventory.                                 |
 | `defineRunnerContract`            | Define the required operating system, paths, and tools.                      |
 | `verifyRunner`                    | Compare a runner probe with its required contract.                           |
@@ -109,6 +117,8 @@ so it cannot be combined with `cancel-in-progress`.
 | ------------------------- | ---------------------------------------------------------- |
 | `hollywood generate`      | Discover exported actions and workflows from source files. |
 | `hollywood run`           | Run one exported Hollywood action locally.                 |
+| `hollywood runner jit-config` | Create one repository JIT runner configuration.         |
+| `hollywood runner listen` | Run one GitHub job with the official Actions runner.       |
 | `hollywood runner probe`  | Write a sanitized runner inventory.                        |
 | `hollywood runner verify` | Verify a probe against a runner contract.                   |
 | `hollywood runner compare` | Classify drift between two runner probes.                  |

@@ -64,7 +64,7 @@ export const probeRunner = async (
 	source: RunnerProbeSource = localProbeSource(),
 ): Promise<RunnerProbe> => {
 	if (source.operatingSystem !== "linux") {
-		throw new Error(`runner probe requires Linux, received ${source.operatingSystem}`);
+		throw new Error(`Runner probe requires Linux. Received ${source.operatingSystem}.`);
 	}
 	const pathEntries = requiredEnvironment(source.env, "PATH").split(source.pathDelimiter);
 	const [groups, osRelease, capabilities, cgroup, paths, tools, packages, toolCache] =
@@ -111,7 +111,7 @@ const localProbeSource = (): RunnerProbeSource => {
 	const uid = process.getuid?.();
 	const gid = process.getgid?.();
 	if (uid === undefined || gid === undefined) {
-		throw new Error("runner probe requires POSIX uid and gid");
+		throw new Error("Runner probe requires a POSIX user ID and group ID.");
 	}
 	return {
 		architecture: arch(),
@@ -166,7 +166,7 @@ const probeOsRelease = async (
 const probeCapabilities = async (readText: RunnerProbeSource["readText"]): Promise<string> => {
 	const match = /(?:^|\n)CapEff:\s*([0-9a-fA-F]+)/.exec(await readText("/proc/self/status"));
 	if (match?.[1] === undefined) {
-		throw new Error("runner probe could not read CapEff");
+		throw new Error("Runner probe could not read CapEff from /proc/self/status.");
 	}
 	return match[1].toLowerCase();
 };
@@ -207,7 +207,7 @@ const probeTools = async (
 			const result = await source.exec(path, toolVersionArguments[name]);
 			const version = firstLine(`${result.stdout}\n${result.stderr}`);
 			if (version === "") {
-				throw new Error(`runner tool ${name} returned no version`);
+				throw new Error(`Runner tool '${name}' returned no version.`);
 			}
 			return { name, path, status: "ready", version };
 		}),
@@ -232,7 +232,7 @@ const probePackages = async (
 		.map((line) => {
 			const [name, packageVersion, ...extra] = line.split("\t");
 			if (name === undefined || packageVersion === undefined || extra.length > 0) {
-				throw new Error(`runner package inventory has invalid line: ${line}`);
+				throw new Error(`Runner package inventory contains an invalid line: ${line}.`);
 			}
 			return { name, version: packageVersion };
 		})
@@ -287,7 +287,7 @@ const requiredEnvironment = (
 ): string => {
 	const value = environment[name];
 	if (value === undefined || value === "") {
-		throw new Error(`runner probe requires ${name}`);
+		throw new Error(`Runner probe requires ${name}.`);
 	}
 	return value;
 };

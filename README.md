@@ -1,44 +1,25 @@
 # Hollywood
 
-Lights, cameras, Actions!
+Hollywood generates GitHub Actions from typed TypeScript definitions. It also
+runs exported actions locally for testing.
 
-Hollywood lets you write GitHub Actions logic as typed TypeScript, run it
-locally, and generate ordinary GitHub Actions files for CI/CD.
+Use GitHub Actions for triggers, job dependencies, runner selection,
+permissions, and secrets. Use Hollywood for action logic, typed inputs and
+outputs, structured process execution, and generated workflow files.
 
-> "Lights, Cameras, (GitHub) Actions!"
+Hollywood generates standard `action.yml` files, JavaScript entrypoints, and
+workflow YAML. Generated actions use GitHub's official action toolkit.
 
-Hollywood is AI-native and AI-friendly. The docs ship copy-page controls and
-generated agent context. Point your agents at the docs, hand them
-[`llms.txt`](https://oss.dedaluslabs.ai/hollywood/llms.txt) or
-[`llms-full.txt`](https://oss.dedaluslabs.ai/hollywood/llms-full.txt), and let
-them rip on typed TypeScript actions instead of hand-writing YAML.
-
-GitHub Actions is a good orchestration layer. It knows when jobs should run,
-which runner labels they need, which secrets exist, and how jobs depend on each
-other.
-
-It is a rough programming environment. Real DevOps logic often turns into shell
-inside YAML: untyped strings, quoting bugs, hidden input coercion, and commits
-whose only purpose is "try CI again".
-
-Our position is simple: people should not spend their time painstakingly
-handwriting imperative GitHub Actions YAML. YAML should orchestrate. TypeScript
-should program.
-
-Hollywood moves the imperative part into TypeScript scripts you can test before
-they run on GitHub. The generated output is still boring GitHub Actions:
-`action.yml`, `uses: ./.github/actions/...`, and JavaScript actions that run
-through GitHub's official action toolkit.
-
-This works because GitHub Actions can run JavaScript actions directly. An
-`action.yml` file points at a Node entrypoint, and Hollywood generates the thin
-adapter around your typed script.
+The documentation site publishes
+[`llms.txt`](https://oss.dedaluslabs.ai/hollywood/llms.txt) and
+[`llms-full.txt`](https://oss.dedaluslabs.ai/hollywood/llms-full.txt) for tools
+that consume project documentation as text.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the CLA/Vouch contribution flow and
 [ROADMAP.md](ROADMAP.md) for planned contribution areas. See
 [SECURITY.md](SECURITY.md) for the GitHub Actions hardening policy.
 
-## Docs
+## Documentation
 
 Published docs live at <https://oss.dedaluslabs.ai/hollywood>.
 
@@ -77,7 +58,7 @@ For code and docs changes, fork the repository and open a pull request from
 your branch into `dedalus-labs/hollywood:main`. See
 [CONTRIBUTING.md](CONTRIBUTING.md) for the full checklist.
 
-## Node Requirements
+## Node requirements
 
 The package runtime and the repository toolchain have different Node
 requirements:
@@ -106,24 +87,24 @@ npm install --save-dev @dedalus-labs/hollywood
 That installs a local `hollywood` binary at `node_modules/.bin/hollywood`. Run
 it with `npx hollywood ...`, or put `hollywood ...` inside an npm script.
 
-## Small Dependency Surface
+## Runtime dependencies
 
-Hollywood is intentionally lightweight. The package has six direct runtime
-dependencies:
+The package has eight direct runtime dependencies:
 
 - `@actions/core`
 - `@actions/exec`
 - `@actions/expressions`
 - `@actions/workflow-parser`
+- `@octokit/openapi-types`
 - `esbuild`
 - `yaml`
+- `zod`
 
-Most of that surface is GitHub's own action toolkit and schema parser. The
-published package only ships runtime files, type declarations, package metadata,
-the README, and the license. A smaller dependency graph is easier to audit and
-reduces npm supply-chain exposure.
+Five dependencies provide GitHub's action toolkit, expression parser,
+workflow parser, and REST API types. The published package contains runtime
+files, type declarations, package metadata, the README, and the license.
 
-## Before / After
+## Before and after
 
 Before Hollywood, a container publish step might look like this:
 
@@ -294,7 +275,7 @@ That is [`execve(2)`](https://man7.org/linux/man-pages/man2/execve.2.html)-shape
 one executable path and one array of arguments.
 There is no shell interpolation and no YAML quoting puzzle.
 
-## Local Runs
+## Local runs
 
 Run an exported action in a persistent Linux container:
 
@@ -326,16 +307,45 @@ npx hollywood run gha/cache/s3-cache.ts \
   --with contentsPath=/tmp/node-cache
 ```
 
-Hollywood runs the complete bundled action with GitHub's standard workspace and
-file-command paths. The default image is GitHub's official minimal Actions
-runner image, pinned by digest. See the [execution provider
-docs](docs/backends/index.md) for the exact boundary.
+Hollywood runs the bundled action with Node 24 in one Linux container. It
+mounts `/github/workspace` and creates selected GitHub file-command paths,
+including `GITHUB_STATE`. The
+default image derives from GitHub's official Actions runner image and is pinned
+by digest. See [Execution providers](docs/backends/index.md) for the supported
+and unsupported behavior.
 
 For repeatable local and CI execution, Hollywood also defines a
 [verified runner image](docs/backends/runner-image.md), a secret-safe runner
 probe, and a machine-readable compatibility contract.
 
-## Generate Actions
+## GitHub runner jobs
+
+Create a one-job JIT configuration:
+
+```bash
+export GITHUB_TOKEN="$(gh auth token)"
+npx hollywood runner jit-config OWNER/REPOSITORY \
+  --runner-group-id 1 \
+  --label self-hosted hollywood-local
+```
+
+Run the matching GitHub job with the official Actions runner:
+
+```bash
+npx hollywood runner listen .hollywood-jit-config \
+  --provider docker \
+  --diagnostics .hollywood/runner-diagnostics
+```
+
+This mode starts the pinned `Runner.Listener` and `Runner.Worker` processes.
+The worker handles action pre and post handlers, state propagation, and job
+hooks. GitHub supplies scheduling, permissions, cache and artifact services,
+OpenID Connect tokens, logs, and job status. The mode requires a GitHub-issued
+JIT configuration and pushed workflow source. The listener can run on a local
+workstation or a remote host. It only needs outbound access to GitHub. See
+[Run a job with the GitHub runner](docs/usage/github-runner.md).
+
+## Generate actions
 
 Generate local action metadata and entrypoints:
 
@@ -363,7 +373,7 @@ Generated files include a marker:
 Edit the TypeScript source and regenerate. We recommend not hand-patching
 generated YAML.
 
-## Workflow Sources
+## Workflow sources
 
 Hollywood can generate workflow YAML from typed workflow objects too:
 
@@ -405,7 +415,7 @@ export default generateWorkflowFile({
 });
 ```
 
-## Use Cases
+## Use cases
 
 Hollywood is useful when the CI/CD step is a real program:
 
@@ -425,7 +435,7 @@ Future work is tracked in [ROADMAP.md](ROADMAP.md). Concrete tasks should become
 GitHub issues before implementation, especially if they change the public API or
 generated YAML.
 
-## LICENSE
+## License
 
 MIT.
 

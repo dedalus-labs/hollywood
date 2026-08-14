@@ -1,4 +1,4 @@
-# Publishing Boundary
+# Publishing boundary
 
 The published package should contain runtime JavaScript, TypeScript
 declarations, package metadata, and the README.
@@ -15,8 +15,10 @@ Hollywood keeps the direct runtime dependency list small:
 | `@actions/exec`             | Official GitHub Actions process execution.         |
 | `@actions/expressions`      | GitHub expression parsing and validation.          |
 | `@actions/workflow-parser`  | GitHub workflow schema parsing and validation.     |
+| `@octokit/openapi-types`    | GitHub REST request and response types.             |
 | `esbuild`                   | Local TypeScript source loading for the CLI.       |
 | `yaml`                      | Rendering generated action and workflow files.     |
+| `zod`                       | Runtime validation for external structured data.  |
 
 Keep new runtime dependencies rare. Every dependency expands the install graph
 that users have to trust when they run CI/CD automation from npm.
@@ -49,17 +51,18 @@ that users have to trust when they run CI/CD automation from npm.
 
 With that boundary:
 
-| Path               | Published? | Reason                                  |
-| ------------------ | ---------- | --------------------------------------- |
-| `dist/index.js`    | yes        | Runtime entrypoint.                     |
-| `dist/cli.js`      | yes        | Bundled `hollywood` command.            |
-| `dist/index.d.ts`  | yes        | Public types.                           |
-| `dist/expr.js`     | yes        | Expression helper subpath.              |
-| `README.md`        | yes        | Package landing page.                   |
-| `LICENSE`          | yes        | License file included by npm.           |
-| `examples/*`       | no         | Repository examples, not runtime files. |
-| `src/*.test.ts`    | no         | Tests are not runtime files.            |
-| `vitest.config.ts` | no         | Local test configuration.               |
+| Path                    | Published? | Reason                                  |
+| ----------------------- | ---------- | --------------------------------------- |
+| `dist/index.js`         | yes        | Runtime entrypoint.                     |
+| `dist/cli.js`           | yes        | Bundled `hollywood` command.            |
+| `dist/runner-launch.js` | yes        | Connected runner container entrypoint.  |
+| `dist/index.d.ts`       | yes        | Public types.                           |
+| `dist/expr.js`          | yes        | Expression helper subpath.              |
+| `README.md`             | yes        | Package landing page.                   |
+| `LICENSE`               | yes        | License file included by npm.           |
+| `examples/*`            | no         | Repository examples, not runtime files. |
+| `src/*.test.ts`         | no         | Tests are not runtime files.            |
+| `vitest.config.ts`      | no         | Local test configuration.               |
 
 `npm pack --dry-run` is the source of truth for what would publish. The package
 uses `prepack` to build `dist/` before the tarball is assembled.

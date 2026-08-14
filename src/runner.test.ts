@@ -6,6 +6,7 @@ import { test } from "vitest";
 
 import type { RunnerContract } from "./runner-contract";
 import { createRunnerCommand } from "./runner-cli";
+import { parseEncodedGitHubJitConfig } from "./github-runner";
 import {
 	probeRunner,
 	type RunnerProbeSource,
@@ -18,6 +19,7 @@ const environment = {
 	GITHUB_EVENT_PATH: "/github/workflow/event.json",
 	GITHUB_OUTPUT: "/github/file_commands/output",
 	GITHUB_PATH: "/github/file_commands/path",
+	GITHUB_STATE: "/github/file_commands/state",
 	GITHUB_STEP_SUMMARY: "/github/file_commands/step_summary",
 	GITHUB_WORKSPACE: "/github/workspace",
 	HOME: "/github/home",
@@ -67,7 +69,7 @@ test("probeRunner records only allowlisted runner state", async () => {
 test("probeRunner rejects non-Linux environments", async () => {
 	await assert.rejects(
 		probeRunner({ ...probeSource(), operatingSystem: "darwin" }),
-		/requires Linux, received darwin/,
+		/Runner probe requires Linux\. Received darwin\./,
 	);
 });
 
@@ -88,7 +90,13 @@ test("runner CLI writes and verifies a typed probe", async () => {
 		const probe = await probeRunner(probeSource());
 		const command = createRunnerCommand(
 			{ writeOut: (message) => output.push(message) },
-			{ probe: async () => probe },
+			{
+				generateJitConfig: async () => assert.fail("JIT generation is not expected"),
+				listen: async () => {},
+				probe: async () => probe,
+				readEnvironmentVariable: () => undefined,
+				writeJitConfig: async () => assert.fail("JIT output is not expected"),
+			},
 		);
 		await command.parseAsync(["node", "runner", "probe", "--output", probePath]);
 		await writeFile(contractPath, `${JSON.stringify(contract)}\n`);
@@ -98,6 +106,137 @@ test("runner CLI writes and verifies a typed probe", async () => {
 	} finally {
 		await rm(directory, { force: true, recursive: true });
 	}
+});
+
+test("runner CLI starts one official GitHub runner job from a JIT configuration file", async () => {
+	const directory = await mkdtemp(join(tmpdir(), "hollywood-runner-listen-"));
+	const configPath = join(directory, "jit-config");
+	const config = Buffer.from(
+		JSON.stringify({ ".runner": Buffer.from("runner").toString("base64") }),
+	).toString("base64");
+	const output: string[] = [];
+	await writeFile(configPath, `${config}\n`);
+	try {
+		const command = createRunnerCommand(
+			{ writeOut: (message) => output.push(message) },
+			{
+				generateJitConfig: async () => assert.fail("JIT generation is not expected"),
+				listen: async (options) => {
+					assert.equal(options.encodedJitConfig, config);
+					assert.equal(options.provider, "podman");
+					assert.equal(options.containerEngine?.kind, "docker-socket");
+					assert.equal(options.containerEngine?.path, "/run/user/501/podman.sock");
+					assert.equal(options.diagnostics, "/tmp/hollywood-diag");
+				},
+				probe: async () => probeRunner(probeSource()),
+				readEnvironmentVariable: () => undefined,
+				writeJitConfig: async () => assert.fail("JIT output is not expected"),
+			},
+		);
+		await command.parseAsync([
+			"node",
+			"runner",
+			"listen",
+			configPath,
+			"--provider",
+			"podman",
+			"--container-engine-socket",
+			"/run/user/501/podman.sock",
+			"--diagnostics",
+			"/tmp/hollywood-diag",
+		]);
+		assert.deepEqual(output, ["ok\tGitHub runner completed one job\n"]);
+	} finally {
+		await rm(directory, { force: true, recursive: true });
+	}
+});
+
+test("runner CLI creates a typed JIT configuration without printing the credential", async () => {
+	const output: string[] = [];
+	let writtenPath = "";
+	let writtenConfig = "";
+	const config = parseEncodedGitHubJitConfig(
+		Buffer.from(
+			JSON.stringify({ ".runner": Buffer.from("runner").toString("base64") }),
+		).toString("base64"),
+	);
+	const command = createRunnerCommand(
+		{ writeOut: (message) => output.push(message) },
+		{
+			generateJitConfig: async (options) => {
+				assert.deepEqual(options.repository, { name: "hello-world", owner: "octo-org" });
+				assert.deepEqual(options.registration, {
+					labels: ["self-hosted", "hollywood-local"],
+					name: "local-arm64",
+					runnerGroupId: 7,
+					workFolder: "jobs",
+				});
+				assert.equal(options.token, "github-token");
+				assert.equal(options.apiUrl?.href, "https://github.example/api/v3/");
+				return config;
+			},
+			listen: async () => {},
+			probe: async () => probeRunner(probeSource()),
+			readEnvironmentVariable: (name) =>
+				name === "HOLLYWOOD_GITHUB_TOKEN" ? "github-token" : undefined,
+			writeJitConfig: async (path, value) => {
+				writtenPath = path;
+				writtenConfig = value;
+			},
+		},
+	);
+	await command.parseAsync([
+		"node",
+		"runner",
+		"jit-config",
+		"octo-org/hello-world",
+		"--api-url",
+		"https://github.example/api/v3/",
+		"--runner-group-id",
+		"7",
+		"--label",
+		"self-hosted",
+		"hollywood-local",
+		"--name",
+		"local-arm64",
+		"--work-folder",
+		"jobs",
+		"--token-env",
+		"HOLLYWOOD_GITHUB_TOKEN",
+		"--output",
+		".runner-secret",
+	]);
+
+	assert.equal(writtenPath, ".runner-secret");
+	assert.equal(writtenConfig, config);
+	assert.deepEqual(output, ["wrote\t.runner-secret\n"]);
+	assert.equal(output.join("").includes(config), false);
+});
+
+test("runner CLI rejects a missing selected JIT token", async () => {
+	const command = createRunnerCommand(
+		{ writeOut: () => {} },
+		{
+			generateJitConfig: async () => assert.fail("GitHub must not receive a request"),
+			listen: async () => {},
+			probe: async () => probeRunner(probeSource()),
+			readEnvironmentVariable: () => undefined,
+			writeJitConfig: async () => assert.fail("JIT config must not be written"),
+		},
+	);
+	await assert.rejects(
+		command.parseAsync([
+			"node",
+			"runner",
+			"jit-config",
+			"octo-org/hello-world",
+			"--runner-group-id",
+			"1",
+			"--label",
+			"hollywood-local",
+		]),
+		/GitHub API token environment variable GITHUB_TOKEN is not set/,
+	);
 });
 
 const probeSource = (): RunnerProbeSource => ({

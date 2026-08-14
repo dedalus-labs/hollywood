@@ -6,6 +6,7 @@ import {
 	type Command,
 	currentRunner,
 	githubActionsRunnerImage,
+	githubActionsRunnerVersion,
 	nodeExec,
 	nodeFs,
 	parseRunnerContract,
@@ -16,6 +17,7 @@ import {
 	prepareRunnerImageRelease,
 	verifyPublishedRunnerImage,
 	verifyRunnerImage,
+	verifyRunnerVersion,
 } from "./runner-image-actions";
 
 test("runner image source pins its base and requires a revision", async () => {
@@ -26,6 +28,7 @@ test("runner image source pins its base and requires a revision", async () => {
 	assert.equal("ImageOS" in contract.environment, false);
 	assert.equal(contract.os.versionId, "24.04");
 	assert.match(githubActionsRunnerImage, /^ghcr\.io\/actions\/actions-runner@sha256:[0-9a-f]{64}$/);
+	assert.equal(githubActionsRunnerVersion, "2.336.0");
 	assert.equal(containerfile.split("\n")[0], `FROM ${githubActionsRunnerImage}`);
 	assert.match(containerfile, /^ARG SOURCE_REVISION\nRUN test -n "\$\{SOURCE_REVISION\}"$/m);
 });
@@ -103,7 +106,7 @@ test("runner image releases reject tags that disagree with package.json", async 
 	);
 });
 
-test("prerelease runner images never move stable aliases", async () => {
+test("prerelease runner images omit stable aliases", async () => {
 	const revision = "0123456789abcdef0123456789abcdef01234567";
 	const outputs = await runAction(prepareRunnerImageRelease, {
 		with: {
@@ -174,6 +177,26 @@ test("published runner verification uses structured commands", async () => {
 			],
 		},
 	]);
+});
+
+test("runner version verification disables diagnostic stdout", async () => {
+	const commands: Command[] = [];
+	await verifyRunnerVersion(async (file, args, options) => {
+		commands.push({ file, args, ...options });
+		return { exitCode: 0, stderr: "", stdout: `${githubActionsRunnerVersion}\n` };
+	});
+
+	assert.deepEqual(commands, [
+		{
+			file: "/home/runner/bin/Runner.Listener",
+			args: ["--version"],
+			env: { ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT: "0" },
+		},
+	]);
+	await assert.rejects(
+		verifyRunnerVersion(async () => ({ exitCode: 0, stderr: "", stdout: "2.335.0\n" })),
+		/Runner\.Listener version must be 2\.336\.0\. Received 2\.335\.0\./,
+	);
 });
 
 const provider = process.env["HOLLYWOOD_RUNNER_IMAGE_PROVIDER"];

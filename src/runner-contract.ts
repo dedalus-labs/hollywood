@@ -20,9 +20,9 @@ export type {
 } from "./runner-schema";
 
 export const defineRunnerContract = (contract: RunnerContract): RunnerContract => {
-	assertUnique(contract.architectures, "runner contract architectures");
-	assertUnique(contract.paths, "runner contract paths");
-	assertUniqueNames(contract.tools, "runner contract tools");
+	assertUnique(contract.architectures, "Runner contract architectures");
+	assertUnique(contract.paths, "Runner contract paths");
+	assertUniqueNames(contract.tools, "Runner contract tools");
 	return contract;
 };
 
@@ -90,13 +90,13 @@ export const compareRunnerProbes = (
 	compareValues("", comparisonShape(expected), comparisonShape(actual));
 
 export const parseRunnerContract = (contents: string): RunnerContract =>
-	defineRunnerContract(parseJson(runnerContractSchema, contents, "runner contract"));
+	defineRunnerContract(parseJson(runnerContractSchema, contents, "Runner contract"));
 
 export const parseRunnerProbe = (contents: string): RunnerProbe => {
-	const probe = parseJson(runnerProbeSchema, contents, "runner probe");
-	assertUniqueNames(probe.packages.packages, "runner probe packages");
-	assertUniqueNames(probe.paths, "runner probe paths");
-	assertUniqueNames(probe.tools, "runner probe tools");
+	const probe = parseJson(runnerProbeSchema, contents, "Runner probe");
+	assertUniqueNames(probe.packages.packages, "Runner probe packages");
+	assertUniqueNames(probe.paths, "Runner probe paths");
+	assertUniqueNames(probe.tools, "Runner probe tools");
 	return probe;
 };
 
@@ -109,7 +109,7 @@ const parseJson = <Schema extends z.ZodType>(
 	try {
 		value = JSON.parse(contents);
 	} catch (error) {
-		throw new Error(`${name} is not valid JSON`, { cause: error });
+		throw new Error(`${name} is not valid JSON.`, { cause: error });
 	}
 	const result = schema.safeParse(value);
 	if (result.success) {
@@ -117,7 +117,7 @@ const parseJson = <Schema extends z.ZodType>(
 	}
 	const issue = result.error.issues[0];
 	const path = issue === undefined || issue.path.length === 0 ? "" : ` at ${issue.path.join(".")}`;
-	throw new Error(`${name} is invalid${path}: ${issue?.message ?? "unknown schema error"}`, {
+	throw new Error(`${name} is invalid${path}: ${issue?.message ?? "Unknown schema error"}.`, {
 		cause: result.error,
 	});
 };
@@ -186,7 +186,7 @@ const assertUniqueNames = (
 
 const assertUnique = (values: readonly string[], name: string): void => {
 	if (new Set(values).size !== values.length) {
-		throw new Error(`${name} must be unique`);
+		throw new Error(`${name} must be unique.`);
 	}
 };
 

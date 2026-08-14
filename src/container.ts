@@ -14,9 +14,9 @@ export class ContainerProviderUnavailableError extends Error {
 
 	constructor(provider: ContainerProvider, binary: string, cause: unknown) {
 		const requirement =
-			provider === "container" ? " Apple container requires Apple silicon and macOS 26 or newer." : "";
+			provider === "container" ? " Apple container requires Apple silicon and macOS 26 or later." : "";
 		super(
-			`container provider ${provider} is unavailable: expected executable ${binary} on PATH.${requirement}`,
+			`Container provider '${provider}' is unavailable. Expected executable '${binary}' on PATH.${requirement}`,
 			{ cause },
 		);
 		this.name = "ContainerProviderUnavailableError";
@@ -27,6 +27,7 @@ export class ContainerProviderUnavailableError extends Error {
 
 export const githubActionsRunnerImage =
 	"ghcr.io/actions/actions-runner@sha256:0cfdcc701ce933c6d243c6b0b2da767366dc9f2e99961d4c3754b0b78084cdda";
+export const githubActionsRunnerVersion = "2.336.0";
 
 export type ContainerOptions = Readonly<{
 	actionBundle?: string;
@@ -42,7 +43,7 @@ export type ContainerServices = Readonly<{
 	runner: RunnerContext;
 }>;
 
-type ContainerRuntime = Readonly<{
+export type ContainerRuntime = Readonly<{
 	binary: string;
 	createOptions: readonly string[];
 	remove: string;
@@ -56,6 +57,7 @@ const githubEnvironment = {
 	GITHUB_EVENT_PATH: "/github/workflow/event.json",
 	GITHUB_OUTPUT: "/github/file_commands/output",
 	GITHUB_PATH: "/github/file_commands/path",
+	GITHUB_STATE: "/github/file_commands/state",
 	GITHUB_STEP_SUMMARY: "/github/file_commands/step_summary",
 	GITHUB_WORKSPACE: githubWorkspace,
 	HOME: "/github/home",
@@ -106,13 +108,13 @@ const withContainerSession = async <Value>(
 
 	const cleanupFailures = await cleanup({ created, hostExec, name, root, runtime });
 	if (failure !== undefined && cleanupFailures.length > 0) {
-		throw new AggregateError([failure, ...cleanupFailures], "container action and cleanup failed");
+		throw new AggregateError([failure, ...cleanupFailures], "Container action and cleanup failed.");
 	}
 	if (failure !== undefined) {
 		throw failure;
 	}
 	if (cleanupFailures.length > 0) {
-		throw new AggregateError(cleanupFailures, "container cleanup failed");
+		throw new AggregateError(cleanupFailures, "Container cleanup failed.");
 	}
 	return result as Value;
 };
@@ -143,11 +145,15 @@ const containerExec =
 			"exec",
 			"--workdir",
 			containerPath(options.workspace, commandOptions.cwd ?? options.workspace),
+			options.name,
 		];
-		for (const [name, value] of Object.entries(commandOptions.env ?? {}).sort()) {
-			command.push("--env", `${name}=${value}`);
+		const environment = Object.entries(commandOptions.env ?? {})
+			.sort()
+			.map(([name, value]) => `${name}=${value}`);
+		if (environment.length > 0) {
+			command.push("env", ...environment);
 		}
-		command.push(options.name, file, ...args);
+		command.push(file, ...args);
 		return options.hostExec(
 			options.runtime.binary,
 			command,
@@ -192,7 +198,7 @@ const prepareGitHubRoot = async (actionBundle?: string): Promise<string> => {
 		),
 	);
 	await Promise.all(
-		["env", "output", "path", "step_summary"].map((file) =>
+		["env", "output", "path", "state", "step_summary"].map((file) =>
 			writeFile(`${root}/file_commands/${file}`, ""),
 		),
 	);
@@ -205,7 +211,7 @@ const prepareGitHubRoot = async (actionBundle?: string): Promise<string> => {
 		...["file_commands", "home", "temp", "workflow"].map((directory) =>
 			chmod(`${root}/${directory}`, 0o777),
 		),
-		...["env", "output", "path", "step_summary"].map((file) =>
+		...["env", "output", "path", "state", "step_summary"].map((file) =>
 			chmod(`${root}/file_commands/${file}`, 0o666),
 		),
 	]);
@@ -245,17 +251,17 @@ const containerPath = (workspace: string, path: string): string => {
 		if (normalized === githubWorkspace || normalized.startsWith(`${githubWorkspace}/`)) {
 			return normalized;
 		}
-		throw new Error(`path is outside container workspace: ${path}`);
+		throw new Error(`Path is outside the container workspace: ${path}.`);
 	}
 	const absolute = resolve(workspace, path);
 	const child = relative(workspace, absolute);
 	if (child === ".." || child.startsWith(`..${sep}`) || child.startsWith(sep)) {
-		throw new Error(`path is outside container workspace: ${path}`);
+		throw new Error(`Path is outside the container workspace: ${path}.`);
 	}
 	return child === "" ? githubWorkspace : posix.join(githubWorkspace, ...child.split(sep));
 };
 
-const containerRuntime = (provider: ContainerProvider): ContainerRuntime => {
+export const containerRuntime = (provider: ContainerProvider): ContainerRuntime => {
 	switch (provider) {
 		case "container":
 			return { binary: "container", createOptions: [], remove: "delete" };
@@ -264,13 +270,24 @@ const containerRuntime = (provider: ContainerProvider): ContainerRuntime => {
 		case "podman":
 			return { binary: "podman", createOptions: ["--userns=keep-id"], remove: "rm" };
 		default:
-			throw new Error(`unsupported container provider: ${String(provider)}`);
+			throw new Error(`Unsupported container provider: ${String(provider)}.`);
 	}
 };
 
-const assertImmutableImage = (image: string): void => {
+export const assertImmutableImage = (image: string): void => {
 	if (!/(?:@sha256:|^sha256:)[0-9a-f]{64}$/.test(image)) {
-		throw new Error("container image must use a sha256 digest or image id");
+		throw new Error("Container image must use a SHA-256 digest or image ID.");
+	}
+};
+
+export const parseContainerProvider = (value: string): ContainerProvider => {
+	switch (value) {
+		case "container":
+		case "docker":
+		case "podman":
+			return value;
+		default:
+			throw new Error(`Unsupported container provider: ${value}.`);
 	}
 };
 
