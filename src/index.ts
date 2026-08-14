@@ -80,9 +80,40 @@ export type {
 export {
 	ContainerProviderUnavailableError,
 	githubActionsRunnerImage,
+	githubActionsRunnerVersion,
 	withContainer,
 	withLocalContainer,
 } from "./container";
+export type {
+	EncodedGitHubJitConfig,
+	GitHubRunnerContainerEngine,
+	GitHubRunnerHooks,
+	GitHubRunnerOptions,
+	GitHubRunnerProcess,
+} from "./github-runner";
+export {
+	parseEncodedGitHubJitConfig,
+	readEncodedGitHubJitConfig,
+	runGitHubRunner,
+} from "./github-runner";
+export type {
+	GenerateGitHubRepositoryRunnerJitConfigOptions,
+	GitHubApiToken,
+	GitHubRepository,
+	GitHubRunnerApiRequest,
+	GitHubRunnerApiResponse,
+	GitHubRunnerApiServices,
+	GitHubRunnerJitRegistration,
+	GitHubRunnerJitRegistrationOptions,
+} from "./github-runner-api";
+export {
+	defineGitHubRunnerJitRegistration,
+	generateGitHubRepositoryRunnerJitConfig,
+	GitHubRunnerApiError,
+	parseGitHubApiToken,
+	parseGitHubRepository,
+	writeEncodedGitHubJitConfig,
+} from "./github-runner-api";
 export type {
 	GitHubCore,
 	GitHubExec,

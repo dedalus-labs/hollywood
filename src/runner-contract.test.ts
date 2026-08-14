@@ -94,18 +94,18 @@ test("runner schemas reject malformed and undeclared state", () => {
 	assert.deepEqual(parseRunnerProbe(JSON.stringify(probe)), probe);
 	assert.throws(
 		() => parseRunnerContract(JSON.stringify({ ...contract, secret: "nope" })),
-		/runner contract is invalid: Unrecognized key/,
+		/Runner contract is invalid: Unrecognized key/,
 	);
 	assert.throws(
 		() => parseRunnerProbe(JSON.stringify({ ...probe, identity: { ...probe.identity, secret: "nope" } })),
-		/runner probe is invalid at identity: Unrecognized key/,
+		/Runner probe is invalid at identity: Unrecognized key/,
 	);
 	assert.throws(
 		() => parseRunnerContract(JSON.stringify({ ...contract, architectures: ["arm64", "arm64"] })),
-		/runner contract architectures must be unique/,
+		/Runner contract architectures must be unique\./,
 	);
 	assert.throws(
 		() => parseRunnerProbe(JSON.stringify({ ...probe, tools: [probe.tools[0], probe.tools[0]] })),
-		/runner probe tools names must be unique/,
+		/Runner probe tools names must be unique\./,
 	);
 });

@@ -18,6 +18,7 @@ export const runnerPathEnvironmentNames = [
 	"GITHUB_EVENT_PATH",
 	"GITHUB_OUTPUT",
 	"GITHUB_PATH",
+	"GITHUB_STATE",
 	"GITHUB_STEP_SUMMARY",
 	"GITHUB_WORKSPACE",
 	"HOME",

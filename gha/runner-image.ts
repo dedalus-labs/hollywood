@@ -34,6 +34,7 @@ const runnerImage = "ghcr.io/dedalus-labs/hollywood-runner";
 const runnerImagePaths = [
 	"runner/**",
 	"src/container*.ts",
+	"src/github-runner*.ts",
 	"src/runner*.ts",
 	"gha/actions.ts",
 	"gha/runner-image*.ts",
@@ -60,7 +61,7 @@ const setupSteps = [
 ] as const;
 
 export const runnerImageWorkflow = workflow({
-	name: "Runner Image",
+	name: "Runner image",
 	on: {
 		pull_request: { branches: ["main"], paths: runnerImagePaths },
 		push: { branches: ["main"], paths: runnerImagePaths },

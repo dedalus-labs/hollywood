@@ -5,7 +5,7 @@ RUN test -n "${SOURCE_REVISION}"
 
 ENV PATH="/home/runner/externals/node24/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
-LABEL org.opencontainers.image.description="GitHub-shaped userspace for Hollywood actions" \
+LABEL org.opencontainers.image.description="GitHub Actions runner userspace for Hollywood" \
       org.opencontainers.image.documentation="https://oss.dedaluslabs.ai/hollywood/backends/runner-image/" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.revision="${SOURCE_REVISION}" \

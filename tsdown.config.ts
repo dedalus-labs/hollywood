@@ -44,4 +44,16 @@ export default defineConfig([
 		platform: "node",
 		target,
 	},
+	{
+		banner: { js: banner },
+		clean: false,
+		define: productionDefines,
+		deps: { neverBundle },
+		dts: false,
+		entry: { "runner-launch": "src/runner-launch.ts" },
+		fixedExtension: false,
+		format: "esm",
+		platform: "node",
+		target,
+	},
 ]);

@@ -97,7 +97,7 @@ const buildContainerAction = async (
 
 const actionEntrypoint = (source: string, exportName: string, actionRuntime: string): string => {
 	if (exportName !== "default" && !/^[A-Za-z_$][\w$]*$/.test(exportName)) {
-		throw new Error(`invalid TypeScript export name: ${exportName}`);
+		throw new Error(`Invalid TypeScript export name: ${exportName}.`);
 	}
 	const actionImport =
 		exportName === "default"
@@ -132,7 +132,7 @@ export const parseActionResult = (content: string): Readonly<Record<string, stri
 		Array.isArray(parsed) ||
 		Object.values(parsed).some((value) => typeof value !== "string")
 	) {
-		throw new Error("container action returned invalid outputs");
+		throw new Error("Container action returned invalid outputs. Every output value must be a string.");
 	}
 	return parsed as Readonly<Record<string, string>>;
 };

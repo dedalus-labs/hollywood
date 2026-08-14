@@ -20,6 +20,7 @@ import { nodeExec } from "./local";
 import { runContainerAction } from "./container-action";
 import {
 	githubActionsRunnerImage,
+	parseContainerProvider,
 	type ContainerProvider,
 } from "./container";
 import { createRunnerCommand } from "./runner-cli";
@@ -84,7 +85,7 @@ export const createCli = (
 ): Command => {
 	const program = new Command()
 		.name("hollywood")
-		.description("Lights, cameras, Actions!")
+		.description("Generate, validate, and run typed GitHub Actions.")
 		.version(readHollywoodVersion());
 
 	program
@@ -136,16 +137,16 @@ export const createCli = (
 
 	program
 		.command("run")
-		.description("Run an exported Hollywood action locally")
-		.argument("<source>", "Source file exporting a Hollywood action")
-		.requiredOption("--export <name>", "Action export name")
-		.option("--image <reference>", "Digest-pinned runner image", githubActionsRunnerImage)
+		.description("Run an exported Hollywood action in a local container.")
+		.argument("<source>", "Source file that exports a Hollywood action.")
+		.requiredOption("--export <name>", "Action export name.")
+		.option("--image <reference>", "Digest-pinned runner image.", githubActionsRunnerImage)
 		.requiredOption(
 			"--provider <provider>",
-			"Container provider: container, docker, or podman",
+			"Container provider: container, docker, or podman.",
 			parseContainerProvider,
 		)
-		.option("--with <name=value>", "Action input", collect, [] as string[])
+		.option("--with <name=value>", "Action input.", collect, [] as string[])
 		.action(async (source, options) => {
 			const runOptions = {
 				image: options.image,
@@ -712,11 +713,11 @@ const parseInputPairs = (inputs: readonly string[]): { readonly [name: string]: 
 	for (const input of inputs) {
 		const separator = input.indexOf("=");
 		if (separator <= 0) {
-			throw new Error(`invalid input, expected name=value: ${input}`);
+			throw new Error(`Invalid input '${input}'. Expected name=value.`);
 		}
 		const name = input.slice(0, separator);
 		if (parsed.has(name)) {
-			throw new Error(`duplicate input: ${name}`);
+			throw new Error(`Duplicate input: ${name}.`);
 		}
 		parsed.set(name, input.slice(separator + 1));
 	}
@@ -724,17 +725,6 @@ const parseInputPairs = (inputs: readonly string[]): { readonly [name: string]: 
 };
 
 const collect = (value: string, previous: string[]): string[] => [...previous, value];
-
-const parseContainerProvider = (value: string): ContainerProvider => {
-	switch (value) {
-		case "container":
-		case "docker":
-		case "podman":
-			return value;
-		default:
-			throw new Error(`unsupported container provider: ${value}`);
-	}
-};
 
 const relativeSourcePath = (outputDir: string, sourceFile: string): string => {
 	const path = relative(resolve(outputDir), resolve(sourceFile));
