@@ -19,6 +19,7 @@ import {
 	type GitHubWorkflowStep,
 } from "./generate";
 import { defineMatrix, expr } from "./expressions";
+import { command } from "./workflow-command";
 import {
 	action,
 	integerInput,
@@ -742,7 +743,7 @@ test("workflow steps cannot be both run and uses steps", () => {
 		// @ts-expect-error A GitHub step must choose either run or uses.
 		const step: GitHubWorkflowStep = {
 			name: "Invalid",
-			run: "echo hi",
+			run: command({ file: "echo", args: ["hi"] }),
 			uses: "actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10",
 		};
 		void step;
@@ -784,12 +785,12 @@ test("renderWorkflowFile emits duplicate objects without YAML aliases", () => {
 				first: job({
 					"runs-on": "ubuntu-latest",
 					permissions,
-					steps: [{ run: "true" }],
+					steps: [{ run: command({ file: "true", args: [] }) }],
 				}),
 				second: job({
 					"runs-on": "ubuntu-latest",
 					permissions,
-					steps: [{ run: "true" }],
+					steps: [{ run: command({ file: "true", args: [] }) }],
 				}),
 			},
 		}),

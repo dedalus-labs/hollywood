@@ -180,6 +180,69 @@ becomes:
 .github/workflows/containers-release.yml
 ```
 
+## Workflow commands
+
+Use `command` for a workflow step that starts one process. Provide the executable
+and argument vector as separate values.
+
+```typescript
+import { command, job } from "@dedalus-labs/hollywood";
+
+job({
+	"runs-on": "ubuntu-latest",
+	steps: [
+		{
+			name: "Test",
+			run: command({
+				file: "npm",
+				args: ["test", "--", "src/release.test.ts"],
+			}),
+		},
+	],
+});
+```
+
+Hollywood quotes literal arguments and selects `bash`. The selected runner must
+provide `bash`. Hollywood does not select another shell when `bash` is missing.
+
+Pass a complete GitHub expression as one argument. Hollywood moves the expression
+into a generated environment variable and quotes the variable expansion. This
+prevents expression data from becoming shell syntax.
+
+```typescript
+import { command, github } from "@dedalus-labs/hollywood";
+
+command({
+	file: "printf",
+	args: ["actor=%s\\n", github.actor],
+});
+```
+
+Do not combine a literal and an expression in one argument. Use `format` to
+produce one complete expression when the child process needs a combined value.
+
+Use a typed local `action` for multiple commands, branching, loops, file access,
+or output parsing. Call `exec` once for each process. This path uses
+`@actions/exec` and does not generate shell control flow.
+
+### Unsafe shell escape hatch
+
+Use `unsafeShell` only when a workflow step requires shell syntax that Hollywood
+cannot represent with `command` or a typed local action. Document the missing
+first-class operation in a source comment when it is not apparent from the
+script.
+
+```typescript
+import { unsafeShell } from "@dedalus-labs/hollywood";
+
+// Hollywood does not provide a structured pipeline step.
+unsafeShell("printf '%s\\n' ok | tee result.txt");
+```
+
+`unsafeShell` does not quote, parse, or validate the script. The selected shell
+controls its behavior. Treat all interpolated values as untrusted and pass
+GitHub expressions through step environment variables instead of script text.
+
 Pass `{ filename: "container-release.yml" }` to `workflow` when the output name
 must be independent of the source layout. Hollywood rejects directory paths,
 non-portable names, unsupported extensions, and case-insensitive collisions

@@ -60,14 +60,19 @@ jobs:
           node-version: "24"
       - name: Install dependencies
         run: npm ci
+        shell: bash
       - name: Audit dependencies
         run: npm audit --audit-level=high
+        shell: bash
       - name: Verify registry signatures
         run: npm audit signatures
+        shell: bash
       - name: Build Hollywood
         run: npm run build
+        shell: bash
       - name: Build local actions
         run: npm run actions
+        shell: bash
       - name: Capture runner
         uses: ./.github/actions/capture-runner-probe
         with:
@@ -106,14 +111,19 @@ jobs:
           node-version: "24"
       - name: Install dependencies
         run: npm ci
+        shell: bash
       - name: Audit dependencies
         run: npm audit --audit-level=high
+        shell: bash
       - name: Verify registry signatures
         run: npm audit signatures
+        shell: bash
       - name: Build Hollywood
         run: npm run build
+        shell: bash
       - name: Build local actions
         run: npm run actions
+        shell: bash
       - name: Verify runner image
         uses: ./.github/actions/verify-runner-image
         with:
@@ -139,14 +149,19 @@ jobs:
           node-version: "24"
       - name: Install dependencies
         run: npm ci
+        shell: bash
       - name: Audit dependencies
         run: npm audit --audit-level=high
+        shell: bash
       - name: Verify registry signatures
         run: npm audit signatures
+        shell: bash
       - name: Build Hollywood
         run: npm run build
+        shell: bash
       - name: Build local actions
         run: npm run actions
+        shell: bash
       - id: release
         name: Prepare release
         uses: ./.github/actions/prepare-runner-image-release

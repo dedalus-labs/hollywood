@@ -131,6 +131,7 @@ export type {
 	GitHubActionMetadata,
 	GitHubActionOutputMetadata,
 	GitHubConcurrency,
+	GitHubCommandStep,
 	GitHubEnvironmentVariables,
 	GitHubExpressionString,
 	GitHubJobOutputs,
@@ -151,6 +152,7 @@ export type {
 	GitHubStrategy,
 	GitHubUsesStepOptions,
 	GitHubUsesStep,
+	GitHubUnsafeShellStep,
 	GitHubWithValues,
 	GitHubWorkflowCallWithValues,
 	GitHubWorkflow,
@@ -174,6 +176,14 @@ export {
 	uses,
 	workflow,
 } from "./generate";
+
+export type {
+	UnsafeShell,
+	WorkflowCommand,
+	WorkflowCommandOptions,
+	WorkflowRun,
+} from "./workflow-command";
+export { command, unsafeShell } from "./workflow-command";
 
 export type {
 	GitHubExpression,
