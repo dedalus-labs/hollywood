@@ -5,12 +5,15 @@ import {
 	format,
 	gh,
 	job,
+	ne,
 	or,
 	selectString,
 	stepOutput,
+	startsWith,
 	uses,
 	workflow,
 } from "../src/index";
+import { githubActionsRunnerImage, githubActionsRunnerVersion } from "../src/container";
 import {
 	attestBuildProvenanceAction,
 	checkoutAction,
@@ -31,6 +34,14 @@ import {
 } from "./runner-image-actions";
 
 const runnerImage = "ghcr.io/dedalus-labs/hollywood-runner";
+const runnerRelease = and(
+	eq(gh.github.eventName, "release"),
+	startsWith(gh.github.ref, "refs/tags/runner-v"),
+);
+const trustedRunnerImageRun = and(
+	trustedCiRun,
+	or(ne(gh.github.eventName, "release"), runnerRelease),
+);
 const runnerImagePaths = [
 	"runner/**",
 	"src/container*.ts",
@@ -77,7 +88,7 @@ export const runnerImageWorkflow = workflow({
 	jobs: {
 		observe: job({
 			name: "Observe (${{ matrix.architecture }})",
-			if: trustedCiRun,
+			if: trustedRunnerImageRun,
 			"runs-on": runnerForArchitecture(runnerArchitectures.architecture),
 			strategy: { matrix: runnerArchitectures },
 			steps: [
@@ -107,7 +118,7 @@ export const runnerImageWorkflow = workflow({
 		}),
 		verify: job({
 			name: "Verify image (${{ matrix.provider }}, ${{ matrix.architecture }})",
-			if: trustedCiRun,
+			if: trustedRunnerImageRun,
 			"runs-on": runnerForArchitecture(imageProviders.architecture),
 			strategy: { "fail-fast": false, matrix: imageProviders },
 			steps: [
@@ -123,10 +134,7 @@ export const runnerImageWorkflow = workflow({
 			needs: ["observe", "verify"],
 			if: and(
 				eq(gh.github.repository, "dedalus-labs/hollywood"),
-				or(
-					and(eq(gh.github.eventName, "push"), eq(gh.github.ref, "refs/heads/main")),
-					eq(gh.github.eventName, "release"),
-				),
+				runnerRelease,
 			),
 			"runs-on": "ubuntu-24.04",
 			permissions: {
@@ -141,7 +149,6 @@ export const runnerImageWorkflow = workflow({
 					id: "release",
 					name: "Prepare release",
 					with: {
-						event: gh.github.eventName,
 						image: runnerImage,
 						ref: gh.github.ref,
 						refName: gh.github.refName,
@@ -170,8 +177,10 @@ export const runnerImageWorkflow = workflow({
 						push: true,
 						tags: stepOutput("release", "tags"),
 						labels: format(
-							"org.opencontainers.image.version={0}",
+							"org.opencontainers.image.base.name={0}\norg.opencontainers.image.version={1}\nio.dedalus.hollywood.github-actions-runner.version={2}",
+							githubActionsRunnerImage,
 							stepOutput("release", "version"),
+							githubActionsRunnerVersion,
 						),
 						"build-args": format("SOURCE_REVISION={0}", gh.github.sha),
 						"cache-from": "type=gha,scope=runner-image-main",

@@ -1,0 +1,3 @@
+/.github/actions/** linguist-generated=true
+/.github/workflows/** linguist-generated=true
+/dist/** linguist-generated=true

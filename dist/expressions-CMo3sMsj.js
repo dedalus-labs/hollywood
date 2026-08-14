@@ -17,6 +17,10 @@ const expr = (body) => {
 const github = {
 	actor: expr("github.actor"),
 	baseRef: expr("github.base_ref"),
+	event: {
+		before: expr("github.event.before"),
+		pullRequest: { head: { repository: { fullName: expr("github.event.pull_request.head.repo.full_name") } } }
+	},
 	eventName: expr("github.event_name"),
 	headRef: expr("github.head_ref"),
 	ref: expr("github.ref"),
@@ -62,6 +66,7 @@ const needsResult = (job) => expr(property(property("needs", job), "result"));
 const stepOutput = (step, output) => expr(property(property(property("steps", step), "outputs"), output));
 const format = (template, ...values) => callExpression("format", template, ...values);
 const contains = (search, item) => callExpression("contains", search, item);
+const startsWith = (search, prefix) => callExpression("startsWith", search, prefix);
 const hashFiles = (first, ...rest) => callExpression("hashFiles", first, ...rest);
 const eq = (left, right) => expr(`${comparisonExpressionValue(left)} == ${comparisonExpressionValue(right)}`);
 const ne = (left, right) => expr(`${comparisonExpressionValue(left)} != ${comparisonExpressionValue(right)}`);
@@ -217,4 +222,4 @@ function githubExpressionFunctions() {
 	];
 }
 //#endregion
-export { success as A, needsResultIs as C, secret as D, runner as E, selectString as O, needsResultIn as S, or as T, isGitHubTypedMatrix as _, contains as a, needsOutput as b, eq as c, format as d, gh as f, input as g, hashFiles as h, cancelled as i, valueOr as j, stepOutput as k, expr as l, githubTypedMatrixValues as m, always as n, defineMatrix as o, github as p, and as r, envVar as s, GitHubJobResult as t, failure as u, matrix as v, not as w, needsResult as x, ne as y };
+export { stepOutput as A, needsResultIs as C, secret as D, runner as E, valueOr as M, selectString as O, needsResultIn as S, or as T, isGitHubTypedMatrix as _, contains as a, needsOutput as b, eq as c, format as d, gh as f, input as g, hashFiles as h, cancelled as i, success as j, startsWith as k, expr as l, githubTypedMatrixValues as m, always as n, defineMatrix as o, github as p, and as r, envVar as s, GitHubJobResult as t, failure as u, matrix as v, not as w, needsResult as x, ne as y };

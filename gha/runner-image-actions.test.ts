@@ -15,6 +15,8 @@ import {
 } from "../src/index";
 import {
 	prepareRunnerImageRelease,
+	RunnerImageAnonymousPullError,
+	RunnerImageNotPublicError,
 	verifyPublishedRunnerImage,
 	verifyRunnerImage,
 	verifyRunnerVersion,
@@ -33,27 +35,28 @@ test("runner image source pins its base and requires a revision", async () => {
 	assert.match(containerfile, /^ARG SOURCE_REVISION\nRUN test -n "\$\{SOURCE_REVISION\}"$/m);
 });
 
-test("runner image releases derive stable tags from the package version", async () => {
+test("runner image releases derive stable tags from the runner version", async () => {
 	const outputs = await runAction(prepareRunnerImageRelease, {
 		with: {
-			event: "release",
 			image: "ghcr.io/dedalus-labs/hollywood-runner",
-			packageJson: "package.json",
-			ref: "refs/tags/v1.2.3",
-			refName: "v1.2.3",
+			ref: "refs/tags/runner-v1.2.3",
+			refName: "runner-v1.2.3",
 			revision: "0123456789abcdef0123456789abcdef01234567",
+			versionFile: "runner/version.txt",
 		},
 		exec: unexpectedExec,
-		fs: { readText: async () => '{"version":"1.2.3"}' },
+		fs: { readText: async () => "1.2.3\n" },
 		runner: currentRunner(),
 	});
 
 	assert.deepEqual(outputs, {
-		sourceRef: "refs/tags/v1.2.3",
+		sourceRef: "refs/tags/runner-v1.2.3",
 		tags: [
 			"ghcr.io/dedalus-labs/hollywood-runner:sha-0123456789abcdef0123456789abcdef01234567",
 			"ghcr.io/dedalus-labs/hollywood-runner:1.2.3",
 			"ghcr.io/dedalus-labs/hollywood-runner:1.2",
+			"ghcr.io/dedalus-labs/hollywood-runner:1.2.3-ubuntu-24.04",
+			"ghcr.io/dedalus-labs/hollywood-runner:1.2-ubuntu-24.04",
 			"ghcr.io/dedalus-labs/hollywood-runner:latest",
 			"ghcr.io/dedalus-labs/hollywood-runner:ubuntu-24.04",
 		].join("\n"),
@@ -61,48 +64,21 @@ test("runner image releases derive stable tags from the package version", async 
 	});
 });
 
-test("runner image main builds only move the development channel", async () => {
-	const revision = "0123456789abcdef0123456789abcdef01234567";
-	const outputs = await runAction(prepareRunnerImageRelease, {
-		with: {
-			event: "push",
-			image: "ghcr.io/dedalus-labs/hollywood-runner",
-			packageJson: "package.json",
-			ref: "refs/heads/main",
-			refName: "main",
-			revision,
-		},
-		exec: unexpectedExec,
-		fs: { readText: async () => '{"version":"1.2.3"}' },
-		runner: currentRunner(),
-	});
-
-	assert.deepEqual(outputs, {
-		sourceRef: "refs/heads/main",
-		tags: [
-			`ghcr.io/dedalus-labs/hollywood-runner:sha-${revision}`,
-			"ghcr.io/dedalus-labs/hollywood-runner:edge",
-		].join("\n"),
-		version: `sha-${revision}`,
-	});
-});
-
-test("runner image releases reject tags that disagree with package.json", async () => {
+test("runner image releases reject tags that disagree with runner/version.txt", async () => {
 	await assert.rejects(
 		runAction(prepareRunnerImageRelease, {
 			with: {
-				event: "release",
 				image: "ghcr.io/dedalus-labs/hollywood-runner",
-				packageJson: "package.json",
-				ref: "refs/tags/v1.2.4",
-				refName: "v1.2.4",
+				ref: "refs/tags/runner-v1.2.4",
+				refName: "runner-v1.2.4",
 				revision: "0123456789abcdef0123456789abcdef01234567",
+				versionFile: "runner/version.txt",
 			},
 			exec: unexpectedExec,
-			fs: { readText: async () => '{"version":"1.2.3"}' },
+			fs: { readText: async () => "1.2.3\n" },
 			runner: currentRunner(),
 		}),
-		/GitHub release tag v1\.2\.4 does not match package version 1\.2\.3/,
+		/GitHub release tag runner-v1\.2\.4 does not match runner image version 1\.2\.3/,
 	);
 });
 
@@ -110,15 +86,14 @@ test("prerelease runner images omit stable aliases", async () => {
 	const revision = "0123456789abcdef0123456789abcdef01234567";
 	const outputs = await runAction(prepareRunnerImageRelease, {
 		with: {
-			event: "release",
 			image: "ghcr.io/dedalus-labs/hollywood-runner",
-			packageJson: "package.json",
-			ref: "refs/tags/v1.3.0-rc.1",
-			refName: "v1.3.0-rc.1",
+			ref: "refs/tags/runner-v1.3.0-rc.1",
+			refName: "runner-v1.3.0-rc.1",
 			revision,
+			versionFile: "runner/version.txt",
 		},
 		exec: unexpectedExec,
-		fs: { readText: async () => '{"version":"1.3.0-rc.1"}' },
+		fs: { readText: async () => "1.3.0-rc.1\n" },
 		runner: currentRunner(),
 	});
 
@@ -127,6 +102,7 @@ test("prerelease runner images omit stable aliases", async () => {
 		[
 			`ghcr.io/dedalus-labs/hollywood-runner:sha-${revision}`,
 			"ghcr.io/dedalus-labs/hollywood-runner:1.3.0-rc.1",
+			"ghcr.io/dedalus-labs/hollywood-runner:1.3.0-rc.1-ubuntu-24.04",
 		].join("\n"),
 	);
 });
@@ -139,7 +115,7 @@ test("published runner verification uses structured commands", async () => {
 			image: "ghcr.io/dedalus-labs/hollywood-runner",
 			repository: "dedalus-labs/hollywood",
 			sourceDigest: "0123456789abcdef0123456789abcdef01234567",
-			sourceRef: "refs/tags/v1.2.3",
+			sourceRef: "refs/tags/runner-v1.2.3",
 		},
 		exec: async (file, args, options) => {
 			commands.push({ file, args, ...options });
@@ -163,7 +139,7 @@ test("published runner verification uses structured commands", async () => {
 				"--source-digest",
 				"0123456789abcdef0123456789abcdef01234567",
 				"--source-ref",
-				"refs/tags/v1.2.3",
+				"refs/tags/runner-v1.2.3",
 				"--bundle-from-oci",
 				"--deny-self-hosted-runners",
 			],
@@ -175,8 +151,63 @@ test("published runner verification uses structured commands", async () => {
 				"pull",
 				"ghcr.io/dedalus-labs/hollywood-runner@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 			],
+			exitPolicy: "any",
 		},
 	]);
+});
+
+test("published runner verification names a private GHCR package", async () => {
+	await assert.rejects(
+		runAction(verifyPublishedRunnerImage, {
+			with: {
+				digest: "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+				image: "ghcr.io/dedalus-labs/hollywood-runner",
+				repository: "dedalus-labs/hollywood",
+				sourceDigest: "0123456789abcdef0123456789abcdef01234567",
+				sourceRef: "refs/tags/runner-v1.2.3",
+			},
+			exec: async (file, args) => {
+				if (file === "docker" && args[0] === "pull") {
+					return { exitCode: 1, stderr: "unauthorized", stdout: "" };
+				}
+				return { exitCode: 0, stderr: "", stdout: "" };
+			},
+			fs: nodeFs,
+			runner: currentRunner(),
+		}),
+		(error: unknown) => {
+			assert.ok(error instanceof RunnerImageNotPublicError);
+			assert.match(error.message, /Change package visibility to Public/);
+			assert.match(error.message, /hollywood-runner/);
+			return true;
+		},
+	);
+});
+
+test("published runner verification preserves non-authorization pull failures", async () => {
+	await assert.rejects(
+		runAction(verifyPublishedRunnerImage, {
+			with: {
+				digest: "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+				image: "ghcr.io/dedalus-labs/hollywood-runner",
+				repository: "dedalus-labs/hollywood",
+				sourceDigest: "0123456789abcdef0123456789abcdef01234567",
+				sourceRef: "refs/tags/runner-v1.2.3",
+			},
+			exec: async (file, args) =>
+				file === "docker" && args[0] === "pull"
+					? { exitCode: 125, stderr: "manifest invalid", stdout: "" }
+					: { exitCode: 0, stderr: "", stdout: "" },
+			fs: nodeFs,
+			runner: currentRunner(),
+		}),
+		(error: unknown) => {
+			assert.ok(error instanceof RunnerImageAnonymousPullError);
+			assert.equal(error.exitCode, 125);
+			assert.match(error.message, /manifest invalid/);
+			return true;
+		},
+	);
 });
 
 test("runner version verification disables diagnostic stdout", async () => {

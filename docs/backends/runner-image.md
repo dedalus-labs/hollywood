@@ -150,10 +150,14 @@ The generated `Runner image` workflow performs these jobs:
 2. Build and verify the image with Docker and Podman on native x64 and arm64
    runners. Verification starts `Runner.Listener --version` and requires
    `2.336.0`.
-3. Publish the image on a trusted push to `main` or a published GitHub release.
+3. Publish the image for a `runner-vX.Y.Z` GitHub release.
 
-The publication job requires the Git release tag to match the version in
-`package.json`. It publishes an SBOM, BuildKit provenance, and a GitHub artifact
+The publication job requires the Git release tag to match
+`runner/version.txt`. The runner image version is independent from the
+`@dedalus-labs/hollywood` npm package version. A push to `main` verifies the
+image but does not publish it.
+
+The job publishes an SBOM, BuildKit provenance, and a GitHub artifact
 attestation. Pull request jobs have read-only permissions and do not receive
 package credentials.
 
@@ -168,25 +172,28 @@ An organization owner must make the package public after its first
 publication. The anonymous pull fails while the package is private. GitHub
 [does not permit a public package to become private](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility#configuring-visibility-of-packages-for-an-organization).
 
-A push to `main` publishes:
+A stable release such as `runner-v1.2.3` publishes:
 
 - `sha-<git-sha>` for the source commit.
-- `edge` for the latest verified `main` build.
-
-A stable release such as `v1.2.3` publishes:
-
-- `sha-<git-sha>` for the source commit.
-- `1.2.3` for the exact package version.
+- `1.2.3` for the exact runner image version.
 - `1.2` for the compatible minor release.
+- `1.2.3-ubuntu-24.04` for the exact image and userspace contract.
+- `1.2-ubuntu-24.04` for the compatible minor release and userspace contract.
 - `latest` for the latest stable release.
 - `ubuntu-24.04` for the latest stable release with this userspace contract.
 
-A prerelease publishes only its source commit tag and exact prerelease version.
-It does not update `latest`, `ubuntu-24.04`, or the compatible minor tag.
+A prerelease publishes its source commit tag, exact prerelease version, and
+exact prerelease userspace tag. It does not update `latest`, `ubuntu-24.04`, or
+a compatible minor tag.
 
-Pin a manifest digest when you consume the image. Dependabot proposes updates
-to the upstream runner digest and pinned GitHub Actions. Each update must pass
-the observation and image-contract workflow before publication.
+The image records its Hollywood runner image version, upstream GitHub Actions
+runner version, and digest-pinned base image in OCI labels. Pin the published
+manifest digest for reproducible use. Use version tags to discover a release,
+not as a deployment lock.
+
+Dependabot proposes updates to the upstream runner digest and pinned GitHub
+Actions. Each update must pass the observation and image-contract workflow
+before publication.
 
 ## Test a provider
 
@@ -201,9 +208,8 @@ npm test -- --no-file-parallelism \
 
 Replace `container` with `docker` or `podman` to test that provider. GitHub CI
 tests Docker and Podman on native x64 and arm64 Ubuntu 24.04 runners. Apple
-`container` requires Apple silicon and macOS 26 or later, so test it on a
-compatible Mac. The current stack does not contain completed Apple `container`
-conformance evidence.
+`container` requires Apple silicon and macOS 26 or later. Run the provider test
+on a compatible Mac before releasing a change to that provider.
 
 Select the Docker provider when Docker Desktop uses Docker VMM. Docker VMM
 remains behind the standard `docker` CLI.

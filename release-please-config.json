@@ -1,8 +1,19 @@
 {
 	"$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
 	"packages": {
-		".": {}
+		".": {
+			"exclude-paths": [
+				"runner"
+			]
+		},
+		"runner": {
+			"component": "runner",
+			"include-component-in-tag": true,
+			"pull-request-title-pattern": "release(runner): ${version}",
+			"release-type": "simple"
+		}
 	},
+	"separate-pull-requests": true,
 	"include-v-in-tag": true,
 	"include-component-in-tag": false,
 	"bump-minor-pre-major": true,

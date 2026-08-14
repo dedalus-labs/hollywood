@@ -72,28 +72,43 @@ uses `prepack` to build `dist/` before the tarball is assembled.
 Hollywood releases from `main` through
 [Release Please](https://github.com/googleapis/release-please). Normal PRs
 merge into `main` first. On each push, Release Please reads the Conventional
-Commit history and opens or updates one release PR with the next version,
-changelog, and package metadata.
+Commit history and opens or updates separate release PRs for these components:
 
-Merging that release PR into `main` is the release switch. The manifest change
-reruns lint, typecheck, tests, and the build before publishing the package with
-npm provenance. Only after npm accepts the package does a dependent job create
-the matching GitHub tag and release. A failed npm publish therefore cannot
+| Component | Version source | Git tag | Publication |
+| --- | --- | --- | --- |
+| Hollywood | `package.json` | `vX.Y.Z` | npm and GitHub Releases |
+| Runner image | `runner/version.txt` | `runner-vX.Y.Z` | GHCR and GitHub Releases |
+
+Merging a release PR into `main` is the release switch. The publication
+workflow compares the previous and current Release Please manifests. It fails
+when the manifest changes without changing a configured component version.
+
+For a Hollywood release, the workflow reruns lint, typecheck, tests, and the
+build before publishing the package with npm provenance. It creates the GitHub
+tag and release only after npm accepts the package. A failed npm publish cannot
 leave behind a release tag.
+
+For a runner image release, the workflow creates the `runner-vX.Y.Z` GitHub
+release without running npm publication. The release event starts the runner
+image workflow. That workflow verifies the image on Linux `amd64` and `arm64`,
+then publishes the multi-platform image to GHCR.
 
 Stable releases publish with the `latest` npm dist-tag. Prereleases use their
 prerelease identifier, such as `alpha`. Release Please owns `package.json`,
 `CHANGELOG.md`, and `.release-please-manifest.json` during normal releases.
 
-The published GitHub release also drives the public runner image. Its `vX.Y.Z`
-tag must exactly match `package.json` before GHCR receives version tags. Stable
-images publish the exact version, `X.Y`, `latest`, and `ubuntu-24.04` aliases;
-prereleases publish only the exact prerelease version. Main-branch builds use
-the `edge` channel, and every build also receives an immutable
-`sha-<git-sha>` tag.
+The runner GitHub release tag must exactly match `runner/version.txt` before
+GHCR receives version tags. Stable images publish the exact version, compatible
+minor version, exact and compatible Ubuntu 24.04 variants, `latest`, and
+`ubuntu-24.04`. Prereleases publish only the immutable source tag, exact
+prerelease version, and exact prerelease Ubuntu 24.04 variant.
 
 The image is native on Linux `amd64` and `arm64`, carries an SBOM and BuildKit
 provenance, and receives a GitHub artifact attestation. Publication verifies
 the attestation and an anonymous digest pull before succeeding. Consumers
 should pin the resulting manifest digest even when they discover it through a
 version tag.
+
+GitHub creates the first GHCR package with private visibility. An organization
+owner must change `hollywood-runner` to Public once. The publication workflow
+fails until an anonymous digest pull succeeds.

@@ -1,4 +1,20 @@
-import { action, booleanInput, job, pathInput, uses, workflow } from "../src/index";
+import {
+	action,
+	always,
+	and,
+	booleanInput,
+	eq,
+	gh,
+	GitHubJobResult,
+	job,
+	needsOutput,
+	needsResultIn,
+	needsResultIs,
+	pathInput,
+	stepOutput,
+	uses,
+	workflow,
+} from "../src/index";
 import {
 	checkHollywoodStateCommand,
 	checkoutAction,
@@ -6,6 +22,7 @@ import {
 	releasePleaseAction,
 	setupNodeAction,
 } from "./actions";
+import { detectReleaseComponents } from "./release-actions";
 
 export const publishNpmPackage = action({
 	name: "Publish npm package",
@@ -36,16 +53,49 @@ export const publishNpmPackage = action({
 });
 
 export const publishNpm = workflow({
-	name: "Publish NPM",
+	name: "Publish release",
 	on: {
 		push: { branches: ["main"], paths: [".release-please-manifest.json"] },
 		workflow_dispatch: {},
 	},
 	permissions: { contents: "read" },
 	jobs: {
+		detect: job({
+			name: "Detect release components",
+			"runs-on": "ubuntu-latest",
+			outputs: {
+				hollywood: stepOutput("components", "hollywood"),
+				runner: stepOutput("components", "runner"),
+			},
+			steps: [
+				{
+					uses: checkoutAction,
+					with: {
+						"fetch-depth": 0,
+						"persist-credentials": false,
+					},
+				},
+				{ uses: setupNodeAction, with: { "node-version": "24" } },
+				{ name: "Install dependencies", run: "npm ci" },
+				{ name: "Build Hollywood", run: "npm run build" },
+				{ name: "Build local actions", run: "npm run actions" },
+				uses(detectReleaseComponents, {
+					id: "components",
+					name: "Detect components",
+					with: {
+						before: gh.github.event.before,
+						current: gh.github.sha,
+					},
+				}),
+			],
+		}),
 		publish: job({
 			name: "Publish",
-			if: "github.repository == 'dedalus-labs/hollywood'",
+			needs: "detect",
+			if: and(
+				eq(gh.github.repository, "dedalus-labs/hollywood"),
+				eq(needsOutput("detect", "hollywood"), "true"),
+			),
 			"runs-on": "ubuntu-latest",
 			permissions: {
 				contents: "read",
@@ -81,8 +131,13 @@ export const publishNpm = workflow({
 		}),
 		release: job({
 			name: "Create GitHub Release",
-			needs: "publish",
-			if: "github.repository == 'dedalus-labs/hollywood'",
+			needs: ["detect", "publish"],
+			if: and(
+				always(),
+				eq(gh.github.repository, "dedalus-labs/hollywood"),
+				needsResultIs("detect", GitHubJobResult.Success),
+				needsResultIn("publish", [GitHubJobResult.Success, GitHubJobResult.Skipped]),
+			),
 			"runs-on": "ubuntu-latest",
 			permissions: { contents: "read" },
 			steps: [

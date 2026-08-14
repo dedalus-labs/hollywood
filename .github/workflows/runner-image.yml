@@ -44,7 +44,7 @@ permissions:
 jobs:
   observe:
     name: Observe (${{ matrix.architecture }})
-    if: github.repository == 'dedalus-labs/hollywood' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    if: ${{ github.repository == 'dedalus-labs/hollywood' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event_name != 'release' || github.event_name == 'release' && startsWith(github.ref, 'refs/tags/runner-v')) }}
     runs-on: ${{ matrix.architecture == 'amd64' && 'ubuntu-24.04' || 'ubuntu-24.04-arm' }}
     strategy:
       matrix:
@@ -86,7 +86,7 @@ jobs:
           retention-days: 30
   verify:
     name: Verify image (${{ matrix.provider }}, ${{ matrix.architecture }})
-    if: github.repository == 'dedalus-labs/hollywood' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    if: ${{ github.repository == 'dedalus-labs/hollywood' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event_name != 'release' || github.event_name == 'release' && startsWith(github.ref, 'refs/tags/runner-v')) }}
     runs-on: ${{ matrix.architecture == 'amd64' && 'ubuntu-24.04' || 'ubuntu-24.04-arm' }}
     strategy:
       fail-fast: false
@@ -123,7 +123,7 @@ jobs:
     needs:
       - observe
       - verify
-    if: ${{ github.repository == 'dedalus-labs/hollywood' && (github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release') }}
+    if: ${{ github.repository == 'dedalus-labs/hollywood' && github.event_name == 'release' && startsWith(github.ref, 'refs/tags/runner-v') }}
     runs-on: ubuntu-24.04
     permissions:
       attestations: write
@@ -151,7 +151,6 @@ jobs:
         name: Prepare release
         uses: ./.github/actions/prepare-runner-image-release
         with:
-          event: ${{ github.event_name }}
           image: ghcr.io/dedalus-labs/hollywood-runner
           ref: ${{ github.ref }}
           ref-name: ${{ github.ref_name }}
@@ -175,7 +174,10 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.release.outputs.tags }}
-          labels: ${{ format('org.opencontainers.image.version={0}', steps.release.outputs.version) }}
+          labels: |-
+            ${{ format('org.opencontainers.image.base.name={0}
+            org.opencontainers.image.version={1}
+            io.dedalus.hollywood.github-actions-runner.version={2}', 'ghcr.io/actions/actions-runner@sha256:0cfdcc701ce933c6d243c6b0b2da767366dc9f2e99961d4c3754b0b78084cdda', steps.release.outputs.version, '2.336.0') }}
           build-args: ${{ format('SOURCE_REVISION={0}', github.sha) }}
           cache-from: type=gha,scope=runner-image-main
           cache-to: type=gha,mode=max,scope=runner-image-main

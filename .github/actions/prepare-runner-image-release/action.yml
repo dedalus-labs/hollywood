@@ -3,16 +3,9 @@
 name: Prepare runner image release
 description: Validate the release identity and derive OCI tags.
 inputs:
-  event:
-    description: GitHub event publishing the image.
-    required: true
   image:
     description: OCI image name without a tag.
     required: true
-  package-json:
-    description: Package manifest that owns the release version.
-    required: false
-    default: package.json
   ref:
     description: Fully qualified Git ref.
     required: true
@@ -22,6 +15,10 @@ inputs:
   revision:
     description: Git revision embedded in the image.
     required: true
+  version-file:
+    description: Runner image version file.
+    required: false
+    default: runner/version.txt
 outputs:
   source-ref:
     description: Validated source ref.

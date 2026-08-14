@@ -41,6 +41,16 @@ declare const expr: <Value = unknown>(body: string) => GitHubExpression<Value>;
 declare const github: {
   readonly actor: GitHubExpression<string>;
   readonly baseRef: GitHubExpression<string>;
+  readonly event: {
+    readonly before: GitHubExpression<string>;
+    readonly pullRequest: {
+      readonly head: {
+        readonly repository: {
+          readonly fullName: GitHubExpression<string>;
+        };
+      };
+    };
+  };
   readonly eventName: GitHubExpression<string>;
   readonly headRef: GitHubExpression<string>;
   readonly ref: GitHubExpression<string>;
@@ -61,6 +71,16 @@ declare const gh: {
   readonly github: {
     readonly actor: GitHubExpression<string>;
     readonly baseRef: GitHubExpression<string>;
+    readonly event: {
+      readonly before: GitHubExpression<string>;
+      readonly pullRequest: {
+        readonly head: {
+          readonly repository: {
+            readonly fullName: GitHubExpression<string>;
+          };
+        };
+      };
+    };
     readonly eventName: GitHubExpression<string>;
     readonly headRef: GitHubExpression<string>;
     readonly ref: GitHubExpression<string>;
@@ -88,6 +108,7 @@ declare const needsResult: (job: string) => GitHubExpression<GitHubJobResultValu
 declare const stepOutput: <Value = unknown>(step: string, output: string) => GitHubExpression<Value>;
 declare const format: (template: string, ...values: readonly GitHubExpressionValue[]) => GitHubExpression<string>;
 declare const contains: (search: GitHubExpressionValue, item: GitHubExpressionValue) => GitHubExpression;
+declare const startsWith: (search: GitHubExpressionValue, prefix: GitHubExpressionValue) => GitHubExpression<boolean>;
 declare const hashFiles: (first: string, ...rest: readonly string[]) => GitHubExpression;
 declare const eq: (left: GitHubExpressionValue, right: GitHubExpressionValue) => GitHubExpression<boolean>;
 declare const ne: (left: GitHubExpressionValue, right: GitHubExpressionValue) => GitHubExpression<boolean>;
@@ -105,4 +126,4 @@ declare const cancelled: () => GitHubExpression<boolean>;
 declare const failure: () => GitHubExpression<boolean>;
 declare const success: () => GitHubExpression<boolean>;
 //#endregion
-export { runner as A, ne as C, needsResultIs as D, needsResultIn as E, valueOr as F, selectString as M, stepOutput as N, not as O, success as P, matrix as S, needsResult as T, format as _, GitHubJobResultValue as a, hashFiles as b, always as c, contains as d, defineMatrix as f, failure as g, expr as h, GitHubJobResult as i, secret as j, or as k, and as l, eq as m, GitHubExpression as n, GitHubMatrixValues as o, envVar as p, GitHubExpressionValue as r, GitHubTypedMatrix as s, AnyGitHubTypedMatrix as t, cancelled as u, gh as v, needsOutput as w, input as x, github as y };
+export { runner as A, ne as C, needsResultIs as D, needsResultIn as E, success as F, valueOr as I, selectString as M, startsWith as N, not as O, stepOutput as P, matrix as S, needsResult as T, format as _, GitHubJobResultValue as a, hashFiles as b, always as c, contains as d, defineMatrix as f, failure as g, expr as h, GitHubJobResult as i, secret as j, or as k, and as l, eq as m, GitHubExpression as n, GitHubMatrixValues as o, envVar as p, GitHubExpressionValue as r, GitHubTypedMatrix as s, AnyGitHubTypedMatrix as t, cancelled as u, gh as v, needsOutput as w, input as x, github as y };
