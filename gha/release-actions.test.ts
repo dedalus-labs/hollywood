@@ -148,17 +148,26 @@ test("draft release publication validates and publishes each component", async (
 					stdout: JSON.stringify({ ...release, draft: false, immutable: true }),
 				};
 			}
-			const tag = args[1]?.split("/").at(-1);
-			const release = releases.get(tag ?? "");
-			assert.ok(release !== undefined);
-			return { exitCode: 0, stderr: "", stdout: JSON.stringify(release) };
+			return {
+				exitCode: 0,
+				stderr: "",
+				stdout: JSON.stringify([[...releases.values()]]),
+			};
 		},
 		fs: releaseFiles("0.0.4", "0.0.1"),
 		runner: currentRunner(),
 	});
 
 	assert.deepEqual(commands, [
-		["gh", ["api", "repos/dedalus-labs/hollywood/releases/tags/v0.0.4"]],
+		[
+			"gh",
+			[
+				"api",
+				"--paginate",
+				"--slurp",
+				"repos/dedalus-labs/hollywood/releases?per_page=100",
+			],
+		],
 		[
 			"gh",
 			[
@@ -170,7 +179,6 @@ test("draft release publication validates and publishes each component", async (
 				"draft=false",
 			],
 		],
-		["gh", ["api", "repos/dedalus-labs/hollywood/releases/tags/runner-v0.0.1"]],
 		[
 			"gh",
 			[
@@ -199,12 +207,16 @@ test("draft release publication accepts an existing immutable release", async ()
 			return {
 				exitCode: 0,
 				stderr: "",
-				stdout: JSON.stringify({
-					draft: false,
-					id: 42,
-					immutable: true,
-					tag_name: "runner-v0.0.1",
-				}),
+			stdout: JSON.stringify([
+				[
+					{
+						draft: false,
+						id: 42,
+						immutable: true,
+						tag_name: "runner-v0.0.1",
+					},
+				],
+			]),
 			};
 		},
 		fs: releaseFiles("0.0.4", "0.0.1"),
@@ -226,17 +238,51 @@ test("draft release publication rejects a mutable published release", async () =
 			exec: async () => ({
 				exitCode: 0,
 				stderr: "",
-				stdout: JSON.stringify({
-					draft: false,
-					id: 41,
-					immutable: false,
-					tag_name: "v0.0.4",
-				}),
+				stdout: JSON.stringify([
+					[
+						{
+							draft: false,
+							id: 41,
+							immutable: false,
+							tag_name: "v0.0.4",
+						},
+					],
+				]),
 			}),
 			fs: releaseFiles("0.0.4", "0.0.1"),
 			runner: currentRunner(),
 		}),
 		/Release v0\.0\.4 is published but is not immutable/,
+	);
+});
+
+test.each([
+	{ count: 0, releases: [] },
+	{
+		count: 2,
+		releases: [
+			{ draft: true, id: 41, immutable: false, tag_name: "v0.0.4" },
+			{ draft: true, id: 42, immutable: false, tag_name: "v0.0.4" },
+		],
+	},
+])("draft release publication requires one matching release", async ({ count, releases }) => {
+	await assert.rejects(
+		runAction(publishDraftReleases, {
+			with: {
+				hollywoodTag: "v0.0.4",
+				repository: "dedalus-labs/hollywood",
+				runnerTag: "",
+				token: "token",
+			},
+			exec: async () => ({
+				exitCode: 0,
+				stderr: "",
+				stdout: JSON.stringify([releases]),
+			}),
+			fs: releaseFiles("0.0.4", "0.0.1"),
+			runner: currentRunner(),
+		}),
+		new RegExp(`Expected one GitHub release for v0\\.0\\.4; found ${count}`),
 	);
 });
 
