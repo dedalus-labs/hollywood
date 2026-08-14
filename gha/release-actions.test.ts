@@ -8,10 +8,11 @@ const before = "0123456789abcdef0123456789abcdef01234567";
 const currentRevision = "89abcdef0123456789abcdef0123456789abcdef";
 const current = (hollywood: string, runner: string): string =>
 	JSON.stringify({ ".": hollywood, runner });
+const unreleased = (hollywood: string): string => JSON.stringify({ ".": hollywood });
 const releaseFiles = (
 	hollywood: string,
-	runner: string,
-	manifest = current(hollywood, runner),
+	runner?: string,
+	manifest = runner === undefined ? unreleased(hollywood) : current(hollywood, runner),
 ) => ({
 	readText: async (path: string): Promise<string> => {
 		switch (path) {
@@ -20,6 +21,9 @@ const releaseFiles = (
 			case "package.json":
 				return JSON.stringify({ version: hollywood });
 			case "runner/version.txt":
+				if (runner === undefined) {
+					throw new Error("runner/version.txt does not exist");
+				}
 				return `${runner}\n`;
 			default:
 				throw new Error(`unexpected file: ${path}`);
@@ -33,9 +37,9 @@ test("release component detection reports the npm package independently", async 
 		exec: async (file, args) => {
 			assert.equal(file, "git");
 			assert.deepEqual(args, ["show", `${before}:.release-please-manifest.json`]);
-			return { exitCode: 0, stderr: "", stdout: current("0.0.2", "0.0.0") };
+			return { exitCode: 0, stderr: "", stdout: unreleased("0.0.2") };
 		},
-		fs: releaseFiles("0.0.3", "0.0.0"),
+		fs: releaseFiles("0.0.3"),
 		runner: currentRunner(),
 	});
 
@@ -110,7 +114,7 @@ test("release component detection rejects unrelated manifest rewrites", async ()
 	);
 });
 
-test("release component detection requires the complete manifest schema", async () => {
+test("release component detection rejects unknown manifest components", async () => {
 	await assert.rejects(
 		runAction(detectReleaseComponents, {
 			with: { before, current: currentRevision },
@@ -119,10 +123,30 @@ test("release component detection requires the complete manifest schema", async 
 				stderr: "",
 				stdout: current("0.0.2", "0.0.0"),
 			}),
-			fs: releaseFiles("0.0.3", "0.0.0", JSON.stringify({ ".": "0.0.3" })),
+			fs: releaseFiles(
+				"0.0.3",
+				"0.0.0",
+				JSON.stringify({ ".": "0.0.3", unknown: "0.0.1" }),
+			),
 			runner: currentRunner(),
 		}),
-		/Release manifest must contain exactly '\.' and 'runner'/,
+		/Release manifest must contain '\.' and may contain 'runner'/,
+	);
+});
+
+test("release component detection rejects removal as a runner release", async () => {
+	await assert.rejects(
+		runAction(detectReleaseComponents, {
+			with: { before, current: currentRevision },
+			exec: async () => ({
+				exitCode: 0,
+				stderr: "",
+				stdout: current("0.0.2", "0.0.1"),
+			}),
+			fs: releaseFiles("0.0.2"),
+			runner: currentRunner(),
+		}),
+		/Release manifest changed without changing a configured component version/,
 	);
 });
 
