@@ -79,9 +79,23 @@ test("release please owns independent npm and runner versions", async () => {
 			"release-type": "simple",
 		},
 	});
-	assert.deepEqual(manifest, { ".": "0.0.2", runner: "0.0.1" });
-	assert.equal(await readFile("runner/version.txt", "utf8"), "0.0.1\n");
-	assert.match(await readFile("runner/CHANGELOG.md", "utf8"), /^## \[0\.0\.1\]/m);
+
+	const packageJson = JSON.parse(await readFile("package.json", "utf8")) as {
+		version?: unknown;
+	};
+	const hollywoodVersion = packageJson.version;
+	const runnerVersion = (await readFile("runner/version.txt", "utf8")).trim();
+	assert.ok(typeof hollywoodVersion === "string");
+	assert.match(hollywoodVersion, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
+	assert.match(runnerVersion, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
+	assert.deepEqual(manifest, { ".": hollywoodVersion, runner: runnerVersion });
+
+	for (const [path, version] of [
+		["CHANGELOG.md", hollywoodVersion],
+		["runner/CHANGELOG.md", runnerVersion],
+	] as const) {
+		assert.ok((await readFile(path, "utf8")).includes(`## [${version}]`));
+	}
 });
 
 test("failed npm releases can be retried from current main", () => {
