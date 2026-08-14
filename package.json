@@ -1,6 +1,6 @@
 {
 	"name": "@dedalus-labs/hollywood",
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"private": false,
 	"description": "Generate and test GitHub Actions with typed TypeScript.",
 	"keywords": [

@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.0.3](https://github.com/dedalus-labs/hollywood/compare/v0.0.2...v0.0.3) (2026-08-14)
+
+
+### Features
+
+* **ci:** publish verified runner images ([691226c](https://github.com/dedalus-labs/hollywood/commit/691226c9e63bfe6d70eec223e1f52e681e2e68cf))
+* **cli:** inspect runner environments ([1e5f758](https://github.com/dedalus-labs/hollywood/commit/1e5f75808efb40c335b7837db51d9107a2ec3dd7))
+* **release:** version runner images independently ([d8e8858](https://github.com/dedalus-labs/hollywood/commit/d8e8858c511edff877104fc4884d6229b02f8597))
+* **runner:** capture sanitized host state ([0fc5346](https://github.com/dedalus-labs/hollywood/commit/0fc5346991ee509140fc096763deb7c4eb008dfd))
+* **runner:** define the portable runner image ([ac6e109](https://github.com/dedalus-labs/hollywood/commit/ac6e109dbdaebf96d5a880895ab8c7c8ed3167fa))
+* **runner:** define typed environment contracts ([ec1242a](https://github.com/dedalus-labs/hollywood/commit/ec1242a2a7d8b51e0373cc9f587003905b0a80ec))
+* **runner:** execute GitHub jobs with JIT runners ([#61](https://github.com/dedalus-labs/hollywood/issues/61)) ([0922bea](https://github.com/dedalus-labs/hollywood/commit/0922bea1ca3f4b1e67d93771696a5398cd537e02))
+* **runtime:** add explicit container providers ([f69b85d](https://github.com/dedalus-labs/hollywood/commit/f69b85d606ab20df8f6f04332105b14ed1ca047c))
+* **runtime:** run actions in containers ([504ec0d](https://github.com/dedalus-labs/hollywood/commit/504ec0ddc80bb73f144685d3b4b4aa6f1d862dc9))
+* **workflow:** structure run commands ([#70](https://github.com/dedalus-labs/hollywood/issues/70)) ([9baa463](https://github.com/dedalus-labs/hollywood/commit/9baa46312f71cba662865565e41890f270ab872d))
+
+
+### Bug Fixes
+
+* **ci:** make required checks queue-ready ([#59](https://github.com/dedalus-labs/hollywood/issues/59)) ([50656a1](https://github.com/dedalus-labs/hollywood/commit/50656a13f3212e855596896cf3ad771dff3e9a48))
+* **release:** recover failed npm publishes ([#58](https://github.com/dedalus-labs/hollywood/issues/58)) ([20a17ea](https://github.com/dedalus-labs/hollywood/commit/20a17ea3efdba2d4a75b6867300eafb342aed6e4))
+* **test:** use short unix socket paths ([90770b5](https://github.com/dedalus-labs/hollywood/commit/90770b5d43cb16a5050c9bd3a8a7d8c4ace1c57e))
+
+
+### Chores
+
+* **security:** harden dependency installation ([3dbd9c3](https://github.com/dedalus-labs/hollywood/commit/3dbd9c398b3537f3d93f05e63c5c34c09ede9cae))
+
+
+### Documentation
+
+* **runner:** document image fidelity ([204eaf3](https://github.com/dedalus-labs/hollywood/commit/204eaf34f06f47d7c6be1272172b02f5e17a77c8))
+
 ## [0.0.2](https://github.com/dedalus-labs/hollywood/compare/v0.0.1...v0.0.2) (2026-08-12)
 
 
