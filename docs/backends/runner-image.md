@@ -1,49 +1,72 @@
-# Hollywood Runner Image
+# Runner image
 
-Hollywood publishes a small, multi-architecture Linux userspace for running
-actions consistently through Docker, Podman, and Apple `container`.
+The Hollywood runner image provides a consistent Linux userspace for fast
+action tests and connected GitHub runner jobs through Docker, Podman, and Apple
+`container`.
 
-The image is built directly from GitHub's official, digest-pinned
+The image derives from GitHub's official, digest-pinned
 [`actions-runner`](https://docs.github.com/en/actions/concepts/runners/actions-runner-controller#software-components)
-image. Hollywood adds a stable Node 24 `PATH` and OCI provenance labels. It
-does not install an unrelated collection of language SDKs.
+image. Hollywood adds a stable Node 24 `PATH` and OCI source labels. It does
+not add language SDKs that are absent from the upstream image.
 
-The upstream image publishes native Linux `amd64` and `arm64` manifests. Those
-are Hollywood's supported runner-image architectures. Other GitHub runner
-release archives exist, but using them would require a different image and a
-different contract rather than native variants of this image.
+The pinned upstream image contains GitHub Actions runner `v2.336.0` and
+publishes native Linux `amd64` and `arm64` manifests. Hollywood supports those
+two image architectures. Other GitHub runner archives do not use this image
+contract.
 
-## Fidelity Boundary
+## Fidelity boundary
 
-A standard
+A
 [GitHub-hosted runner](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)
-is a fresh virtual machine. GitHub publishes the VM build definitions and
-software inventory in
-[`actions/runner-images`](https://github.com/actions/runner-images), but it
+is a new virtual machine for each job. GitHub publishes its VM build
+definitions and software inventories in
+[`actions/runner-images`](https://github.com/actions/runner-images). GitHub
 does not publish `ubuntu-latest` as a supported OCI image.
 
-The Hollywood image and runtime reproduce the portable action boundary:
+The Hollywood image provides:
 
-- Ubuntu 24.04 userspace
-- the official GitHub runner and Node 24 runtime
-- the `runner` user and common command-line tools
-- `/github/workspace`
-- GitHub file-command paths for outputs, environment, paths, and summaries
+- Ubuntu 24.04 userspace.
+- The official GitHub runner binaries and Node 24 runtime.
+- The `runner` user and selected command-line tools.
+- The `/github/workspace` mount.
+- Paths for outputs, environment changes, `PATH` changes, event data, and step
+  summaries.
 
-Hollywood executes the bundled action directly. It does not register the
-container as a self-hosted runner or invoke GitHub's `Runner.Listener` or
-`Runner.Worker` job protocol. The runner binaries are present because they come
-from GitHub's official image, not because local execution impersonates the
-GitHub Actions control plane.
+In fast action mode, Hollywood executes the bundled action directly with Node
+24. It does not register the container as a self-hosted runner or invoke
+GitHub's `Runner.Listener` or `Runner.Worker`.
 
-The selected container provider still owns the kernel, cgroups, networking,
-mount implementation, and virtualization. GitHub still owns workflow
-scheduling, permissions, OIDC, caches, artifacts, and service-container
-orchestration. A local container cannot prove those provider-owned behaviors.
+Local execution does not implement these GitHub runner lifecycle features:
 
-## Run an Action
+- JavaScript action
+  [`runs.pre`, `runs.post`, `runs.pre-if`, or `runs.post-if`](https://docs.github.com/en/actions/reference/workflows-and-actions/metadata-syntax).
+- Docker action
+  [`pre-entrypoint` or `post-entrypoint`](https://docs.github.com/en/actions/reference/workflows-and-actions/metadata-syntax).
+- The
+  [`ACTIONS_RUNNER_HOOK_JOB_STARTED` or `ACTIONS_RUNNER_HOOK_JOB_COMPLETED` job hook](https://docs.github.com/en/actions/how-tos/manage-runners/self-hosted-runners/run-scripts-before-or-after-a-job).
+- The
+  [`prepare_job`, `cleanup_job`, `run_container_step`, or `run_script_step` container hook](https://docs.github.com/en/actions/how-tos/manage-runners/self-hosted-runners/customize-containers).
 
-Use an immutable digest from the
+The selected provider controls the kernel, cgroups, networking, mount
+implementation, and virtualization. GitHub controls workflow scheduling,
+permissions, OIDC, caches, artifacts, service containers, and job lifecycle.
+A successful local test does not verify those GitHub-controlled behaviors.
+
+Connected runner mode accepts a GitHub-issued JIT configuration and starts the
+pinned `Runner.Listener` and `Runner.Worker`. It covers the lifecycle features
+listed above because GitHub schedules and controls the job. See [Run a job with
+the GitHub runner](../usage/github-runner.md).
+
+Hollywood uses `@actions/core`, `@actions/exec`, `@actions/expressions`,
+`@actions/workflow-parser`, and `@octokit/openapi-types` for supported GitHub
+interfaces. Hollywood defines its authoring types and local container contract
+because GitHub does not publish an offline runner control-plane API or a
+compatible workflow authoring API.
+
+## Run an action
+
+After the publication workflow creates the package, use an immutable manifest
+digest from the
 [`hollywood-runner` package](https://github.com/dedalus-labs/hollywood/pkgs/container/hollywood-runner):
 
 ```bash
@@ -53,14 +76,28 @@ npx hollywood run gha/check.ts \
   --image ghcr.io/dedalus-labs/hollywood-runner@sha256:<digest>
 ```
 
-Use `docker` or `podman` instead of `container` when that is the runtime you
-intend to validate. Hollywood never auto-detects a provider or falls back to
-host execution.
+Select `docker` or `podman` to test those runtimes. Hollywood does not detect a
+provider or run the action on the host when the selected provider is
+unavailable.
 
-## Inspect a Runner
+## Run a GitHub job
 
-Run `runner probe` inside the Linux runner or container you want to observe. It
-writes deterministic JSON using a fixed allowlist:
+Use the same digest-pinned image with the official runner lifecycle:
+
+```bash
+npx hollywood runner listen .hollywood-jit-config \
+  --provider docker \
+  --image ghcr.io/dedalus-labs/hollywood-runner@sha256:<digest> \
+  --diagnostics .hollywood/runner-diagnostics
+```
+
+The command runs one GitHub-scheduled job and removes the container after the
+listener exits.
+
+## Inspect a runner
+
+Run `runner probe` inside the Linux runner or container that you want to
+inspect. The command writes deterministic JSON from a fixed allowlist:
 
 ```bash
 npx hollywood runner probe --output runner.json
@@ -68,97 +105,92 @@ npx hollywood runner probe --output runner.json
 
 The probe records:
 
-- OS, architecture, kernel, cgroup version, effective capabilities, and UID/GID
-- selected non-secret GitHub runner variables
-- the status of standard GitHub workspace and file-command paths
-- selected tool locations and versions
-- installed Debian packages
-- hosted tool-cache names and versions
+- The operating system, architecture, kernel, cgroup version, effective
+  capabilities, user ID, and group ID.
+- Selected non-secret GitHub runner variables.
+- The status of selected GitHub workspace and file-command paths.
+- Selected tool locations and versions.
+- Installed Debian packages.
+- Hosted tool-cache names and versions.
 
-It never enumerates arbitrary environment variables, process environments,
-home-directory contents, cloud metadata, or GitHub temporary files. This keeps
-tokens and job secrets out of the observation artifact. The versioned parser
-also rejects undeclared fields instead of carrying unknown data forward.
+The probe does not enumerate arbitrary environment variables, process
+environments, home-directory contents, cloud metadata, or GitHub temporary
+files. The parser rejects fields that the schema does not declare.
 
-## Verify and Compare
+## Verify and compare
 
-The curated contract in `runner/contract.json` contains only behavior
-Hollywood promises:
+The contract in `runner/contract.json` defines the userspace behavior that
+Hollywood verifies:
 
 ```bash
 npx hollywood runner verify runner/contract.json runner.json
 ```
 
-Verification fails when required userspace behavior is missing. The broader
-comparison command classifies exact drift without pretending every difference
-is a failure:
+Verification fails when the probe does not satisfy the contract. Use
+`runner compare` to classify other differences:
 
 ```bash
 npx hollywood runner compare github-runner.json local-runner.json
 ```
 
-Differences are classified as:
+The command uses these categories:
 
 | Category | Meaning |
 | --- | --- |
-| `contract` | Portable behavior required by Hollywood |
-| `inventory` | Tool, package, hosted-image identity/version, or path-value drift |
-| `provider` | Kernel, cgroup, capability, architecture, or identity drift |
+| `contract` | A difference in behavior required by the Hollywood contract. |
+| `inventory` | A difference in a tool, package, hosted-image value, or path value. |
+| `provider` | A difference in the kernel, cgroup, capability, architecture, or process identity. |
 
-## Automated Publication
+## Publish the image
 
-The generated `Runner Image` workflow performs three independent jobs:
+The generated `Runner image` workflow performs these jobs:
 
-1. Probe GitHub's x64 and arm64 Ubuntu 24.04 runners, verify the shared
-   contract, and retain the sanitized observations for 30 days.
-2. Build the image natively with Docker and Podman on both architectures and
-   run the same typed contract inside all four combinations.
-3. On trusted pushes to `main`, publish an `edge` image to GHCR. On a published
-   GitHub release, publish stable or prerelease version tags only after the Git
-   tag exactly matches `package.json`.
+1. Probe GitHub's x64 and arm64 Ubuntu 24.04 runners, verify the contract, and
+   retain each sanitized observation for 30 days.
+2. Build and verify the image with Docker and Podman on native x64 and arm64
+   runners. Verification starts `Runner.Listener --version` and requires
+   `2.336.0`.
+3. Publish the image on a trusted push to `main` or a published GitHub release.
 
-Published images include BuildKit's SBOM and maximum-mode provenance. GitHub
-also creates a signed artifact attestation for the registry digest. Package
-write and OIDC permissions exist only on the trusted publication job; pull
-requests remain read-only and never receive publishing credentials.
+The publication job requires the Git release tag to match the version in
+`package.json`. It publishes an SBOM, BuildKit provenance, and a GitHub artifact
+attestation. Pull request jobs have read-only permissions and do not receive
+package credentials.
 
-The publication job verifies the signed provenance against the exact
-repository, workflow, source commit, branch or release tag, and GitHub-hosted
-runner using the attestation bundle stored in GHCR through
+The publication job verifies the attestation against the repository, workflow,
+source commit, source ref, and GitHub-hosted runner with
 [`gh attestation verify`](https://cli.github.com/manual/gh_attestation_verify).
-It then logs out of GHCR and pulls the exact digest anonymously. A release
-cannot pass while the package is private. GitHub
-[creates new organization packages as private by default](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility#configuring-visibility-of-packages-for-an-organization);
-an organization owner must make the package public once in its package
-settings. GitHub warns that a public package
-[cannot later be made private](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility#configuring-visibility-of-packages-for-an-organization).
+It then logs out of GHCR and pulls the published digest without credentials.
 
-Main publishes:
+GitHub
+[creates a new organization package with private visibility by default](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility#configuring-visibility-of-packages-for-an-organization).
+An organization owner must make the package public after its first
+publication. The anonymous pull fails while the package is private. GitHub
+[does not permit a public package to become private](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility#configuring-visibility-of-packages-for-an-organization).
 
-- `sha-<git-sha>`: immutable source identity
-- `edge`: latest verified `main` build
+A push to `main` publishes:
+
+- `sha-<git-sha>` for the source commit.
+- `edge` for the latest verified `main` build.
 
 A stable release such as `v1.2.3` publishes:
 
-- `sha-<git-sha>`: immutable source identity
-- `1.2.3`: exact package version
-- `1.2`: compatible minor release
-- `latest`: latest stable release
-- `ubuntu-24.04`: latest stable release with the documented userspace contract
+- `sha-<git-sha>` for the source commit.
+- `1.2.3` for the exact package version.
+- `1.2` for the compatible minor release.
+- `latest` for the latest stable release.
+- `ubuntu-24.04` for the latest stable release with this userspace contract.
 
-A prerelease publishes only its immutable SHA and exact prerelease version. It
-cannot move `latest`, `ubuntu-24.04`, or the compatible minor tag. The first
-publication creates the GHCR package; if GitHub creates it as private, the
-anonymous-pull proof fails until an organization owner makes the package public
-and reruns the workflow.
+A prerelease publishes only its source commit tag and exact prerelease version.
+It does not update `latest`, `ubuntu-24.04`, or the compatible minor tag.
 
-Consumers should pin the resulting manifest digest. Dependabot proposes
-updates to the upstream runner digest and pinned GitHub Actions. Each update
-must pass the full observation and image-contract workflow before publication.
+Pin a manifest digest when you consume the image. Dependabot proposes updates
+to the upstream runner digest and pinned GitHub Actions. Each update must pass
+the observation and image-contract workflow before publication.
 
-## Provider Conformance
+## Test a provider
 
-Run the same real provider tests locally by selecting one installed runtime:
+Select one installed provider and run the provider tests:
 
 ```bash
 HOLLYWOOD_CONTAINER_PROVIDER=container \
@@ -167,9 +199,11 @@ npm test -- --no-file-parallelism \
   src/container.test.ts src/container-action.test.ts gha/runner-image-actions.test.ts
 ```
 
-Replace `container` with `docker` or `podman` to exercise that provider. The
-generated CI workflow runs Docker and Podman on GitHub's native x64 and arm64
-Ubuntu 24.04 runners. Apple's `container` requires Apple silicon and macOS 26,
-so its real conformance path runs locally on a compatible Mac. Docker VMM is
-transparent behind Docker Desktop's ordinary `docker` CLI and uses the Docker
-provider.
+Replace `container` with `docker` or `podman` to test that provider. GitHub CI
+tests Docker and Podman on native x64 and arm64 Ubuntu 24.04 runners. Apple
+`container` requires Apple silicon and macOS 26 or later, so test it on a
+compatible Mac. The current stack does not contain completed Apple `container`
+conformance evidence.
+
+Select the Docker provider when Docker Desktop uses Docker VMM. Docker VMM
+remains behind the standard `docker` CLI.

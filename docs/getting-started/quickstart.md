@@ -1,4 +1,4 @@
-# Quick Start
+# Quick start
 
 ## 1. Write a script
 
@@ -76,9 +76,9 @@ npx hollywood run gha/containers/publish-image.ts \
   --with provenance=false
 ```
 
-Choose `docker`, `podman`, or Apple's `container` explicitly. Hollywood runs the
-complete action in one persistent, GitHub-shaped Linux container. To use a
-custom runner image, pin it by digest:
+Select `docker`, `podman`, or Apple `container`. Hollywood runs the bundled
+action with Node 24 in one Linux container. Pin a custom runner image by
+digest:
 
 ```bash
 npx hollywood run gha/containers/publish-image.ts \
@@ -89,6 +89,11 @@ npx hollywood run gha/containers/publish-image.ts \
   --with tag=sha-abc123 \
   --with provenance=false
 ```
+
+Use `hollywood runner jit-config` and `hollywood runner listen` when the test
+must execute GitHub's official listener and worker. The listener can run on a
+local workstation or a remote host. See
+[Run a GitHub job locally or remotely](../usage/github-runner.md).
 
 ## 3. Generate action files
 
