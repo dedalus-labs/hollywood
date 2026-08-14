@@ -75,6 +75,7 @@ test("release please owns independent npm and runner versions", async () => {
 		runner: {
 			component: "runner",
 			"include-component-in-tag": true,
+			"initial-version": "0.0.1",
 			"pull-request-title-pattern": "release(runner): ${version}",
 			"release-type": "simple",
 		},
@@ -84,18 +85,12 @@ test("release please owns independent npm and runner versions", async () => {
 		version?: unknown;
 	};
 	const hollywoodVersion = packageJson.version;
-	const runnerVersion = (await readFile("runner/version.txt", "utf8")).trim();
 	assert.ok(typeof hollywoodVersion === "string");
 	assert.match(hollywoodVersion, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
-	assert.match(runnerVersion, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
-	assert.deepEqual(manifest, { ".": hollywoodVersion, runner: runnerVersion });
-
-	for (const [path, version] of [
-		["CHANGELOG.md", hollywoodVersion],
-		["runner/CHANGELOG.md", runnerVersion],
-	] as const) {
-		assert.ok((await readFile(path, "utf8")).includes(`## [${version}]`));
-	}
+	assert.deepEqual(manifest, { ".": hollywoodVersion });
+	assert.ok((await readFile("CHANGELOG.md", "utf8")).includes(`## [${hollywoodVersion}]`));
+	await assert.rejects(readFile("runner/version.txt", "utf8"), /ENOENT/);
+	await assert.rejects(readFile("runner/CHANGELOG.md", "utf8"), /ENOENT/);
 });
 
 test("failed npm releases can be retried from current main", () => {

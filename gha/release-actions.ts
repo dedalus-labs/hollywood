@@ -21,7 +21,7 @@ export const detectReleaseComponents = action({
 				? (await exec("git", ["rev-parse", `${input.current}^`])).stdout.trim()
 				: input.before;
 		assertRevision(before);
-		const previous = parsePreviousReleaseManifest(
+		const previous = parseReleaseManifest(
 			(await exec("git", ["show", `${before}:${manifestPath}`])).stdout,
 			`${before}:${manifestPath}`,
 		);
@@ -35,17 +35,19 @@ export const detectReleaseComponents = action({
 			),
 			current.hollywood,
 		);
-		assertVersionSource(
-			"runner/version.txt",
-			releaseVersion(
-				(await fs.readText("runner/version.txt")).trim(),
-				"runner",
+		if (current.runner !== undefined) {
+			assertVersionSource(
 				"runner/version.txt",
-			),
-			current.runner,
-		);
+				releaseVersion(
+					(await fs.readText("runner/version.txt")).trim(),
+					"runner",
+					"runner/version.txt",
+				),
+				current.runner,
+			);
+		}
 		const hollywood = previous.hollywood !== current.hollywood;
-		const runner = previous.runner !== current.runner;
+		const runner = current.runner !== undefined && previous.runner !== current.runner;
 		if (!hollywood && !runner) {
 			throw new Error("Release manifest changed without changing a configured component version.");
 		}
@@ -55,32 +57,23 @@ export const detectReleaseComponents = action({
 
 type ReleaseManifest = Readonly<{
 	hollywood: string;
-	runner: string;
-}>;
-
-type PreviousReleaseManifest = Readonly<{
-	hollywood: string;
 	runner?: string;
 }>;
-
-const parsePreviousReleaseManifest = (source: string, name: string): PreviousReleaseManifest => {
-	const record = parseJsonRecord(source, name);
-	const keys = Object.keys(record).sort();
-	if (keys.length === 1 && keys[0] === ".") {
-		return { hollywood: releaseVersion(record["."], ".", name) };
-	}
-	return parseReleaseManifest(source, name);
-};
 
 const parseReleaseManifest = (source: string, name: string): ReleaseManifest => {
 	const record = parseJsonRecord(source, name);
 	const keys = Object.keys(record).sort();
-	if (keys.length !== 2 || keys[0] !== "." || keys[1] !== "runner") {
-		throw new Error("Release manifest must contain exactly '.' and 'runner'.");
+	if (
+		!((keys.length === 1 && keys[0] === ".") ||
+			(keys.length === 2 && keys[0] === "." && keys[1] === "runner"))
+	) {
+		throw new Error("Release manifest must contain '.' and may contain 'runner'.");
 	}
 	return {
 		hollywood: releaseVersion(record["."], ".", name),
-		runner: releaseVersion(record["runner"], "runner", name),
+		...(record["runner"] === undefined
+			? {}
+			: { runner: releaseVersion(record["runner"], "runner", name) }),
 	};
 };
 

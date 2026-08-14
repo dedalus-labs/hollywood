@@ -79,6 +79,10 @@ Commit history and opens or updates separate release PRs for these components:
 | Hollywood | `package.json` | `vX.Y.Z` | npm and GitHub Releases |
 | Runner image | `runner/version.txt` | `runner-vX.Y.Z` | GHCR and GitHub Releases |
 
+Release Please creates `runner/version.txt` and `runner/CHANGELOG.md` in the
+first runner release PR. Until that PR merges, the manifest omits the runner
+component and no runner release exists.
+
 Merging a release PR into `main` is the release switch. The publication
 workflow compares the previous and current Release Please manifests. It fails
 when the manifest changes without changing a configured component version.

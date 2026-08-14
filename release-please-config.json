@@ -9,6 +9,7 @@
 		"runner": {
 			"component": "runner",
 			"include-component-in-tag": true,
+			"initial-version": "0.0.1",
 			"pull-request-title-pattern": "release(runner): ${version}",
 			"release-type": "simple"
 		}
