@@ -70,6 +70,8 @@ test("release please owns independent npm and runner versions", async () => {
 	) as Record<string, unknown>;
 
 	assert.equal(config["separate-pull-requests"], true);
+	assert.equal(config["force-tag-creation"], true);
+	assert.equal(config["include-component-in-tag"], false);
 	assert.deepEqual(config["packages"], {
 		".": { "exclude-paths": ["runner"] },
 		runner: {
@@ -90,6 +92,7 @@ test("release please owns independent npm and runner versions", async () => {
 	assert.match(hollywoodVersion, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
 	assert.match(runnerVersion, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
 	assert.deepEqual(manifest, { ".": hollywoodVersion, runner: runnerVersion });
+	assert.notEqual(`v${hollywoodVersion}`, `runner-v${runnerVersion}`);
 	assert.ok((await readFile("CHANGELOG.md", "utf8")).includes(`## [${hollywoodVersion}]`));
 	assert.ok((await readFile("runner/CHANGELOG.md", "utf8")).includes(`## ${runnerVersion} (`));
 });
