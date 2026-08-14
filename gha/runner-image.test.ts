@@ -52,7 +52,7 @@ test("runner image publication proves signed and anonymous access", () => {
 	assert.equal(verification.uses, "./.github/actions/verify-published-runner-image");
 	assert.deepEqual(verification.with, {
 		digest: "${{ steps.build.outputs.digest }}",
-		image: "ghcr.io/dedalus-labs/hollywood-runner",
+		image: "ghcr.io/dedalus-labs/hollywood/runner",
 		repository: "dedalus-labs/hollywood",
 		"source-digest": "${{ github.sha }}",
 		"source-ref": "${{ steps.release.outputs.source-ref }}",

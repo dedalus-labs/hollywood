@@ -238,7 +238,7 @@ you need its verified userspace contract:
 ```bash
 npx hollywood runner listen .hollywood-jit-config \
   --provider docker \
-  --image ghcr.io/dedalus-labs/hollywood-runner@sha256:<digest>
+  --image ghcr.io/dedalus-labs/hollywood/runner@sha256:<digest>
 ```
 
 Hollywood rejects mutable image references.

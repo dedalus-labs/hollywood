@@ -38,7 +38,7 @@ import {
 	verifyRunnerProbe,
 } from "./runner-image-actions";
 
-const runnerImage = "ghcr.io/dedalus-labs/hollywood-runner";
+const runnerImage = "ghcr.io/dedalus-labs/hollywood/runner";
 const runnerRelease = and(
 	eq(gh.github.eventName, "release"),
 	startsWith(gh.github.ref, "refs/tags/runner-v"),

@@ -166,7 +166,7 @@ jobs:
         name: Prepare release
         uses: ./.github/actions/prepare-runner-image-release
         with:
-          image: ghcr.io/dedalus-labs/hollywood-runner
+          image: ghcr.io/dedalus-labs/hollywood/runner
           ref: ${{ github.ref }}
           ref-name: ${{ github.ref_name }}
           revision: ${{ github.sha }}
@@ -201,7 +201,7 @@ jobs:
       - name: Attest image
         uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661
         with:
-          subject-name: ghcr.io/dedalus-labs/hollywood-runner
+          subject-name: ghcr.io/dedalus-labs/hollywood/runner
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
       - env:
@@ -210,7 +210,7 @@ jobs:
         uses: ./.github/actions/verify-published-runner-image
         with:
           digest: ${{ steps.build.outputs.digest }}
-          image: ghcr.io/dedalus-labs/hollywood-runner
+          image: ghcr.io/dedalus-labs/hollywood/runner
           repository: dedalus-labs/hollywood
           source-digest: ${{ github.sha }}
           source-ref: ${{ steps.release.outputs.source-ref }}
