@@ -76,7 +76,7 @@
 	"dependencies": {
 		"@actions/core": "3.0.1",
 		"@actions/exec": "3.0.0",
-		"@actions/expressions": "0.3.57",
+		"@actions/expressions": "0.3.61",
 		"@actions/workflow-parser": "0.3.55",
 		"esbuild": "0.28.1",
 		"yaml": "2.8.4",
