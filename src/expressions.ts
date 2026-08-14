@@ -75,6 +75,16 @@ export const expr = <Value = unknown>(body: string): GitHubExpression<Value> => 
 export const github = {
 	actor: expr<string>("github.actor"),
 	baseRef: expr<string>("github.base_ref"),
+	event: {
+		before: expr<string>("github.event.before"),
+		pullRequest: {
+			head: {
+				repository: {
+					fullName: expr<string>("github.event.pull_request.head.repo.full_name"),
+				},
+			},
+		},
+	},
 	eventName: expr<string>("github.event_name"),
 	headRef: expr<string>("github.head_ref"),
 	ref: expr<string>("github.ref"),
@@ -155,6 +165,11 @@ export const contains = (
 	search: GitHubExpressionValue,
 	item: GitHubExpressionValue,
 ): GitHubExpression => callExpression("contains", search, item);
+
+export const startsWith = (
+	search: GitHubExpressionValue,
+	prefix: GitHubExpressionValue,
+): GitHubExpression<boolean> => callExpression("startsWith", search, prefix);
 
 export const hashFiles = (first: string, ...rest: readonly string[]): GitHubExpression =>
 	callExpression("hashFiles", first, ...rest);

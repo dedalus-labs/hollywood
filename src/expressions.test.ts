@@ -29,6 +29,7 @@ import {
 	selectString,
 	secret,
 	stepOutput,
+	startsWith,
 	success,
 	valueOr,
 	type GitHubExpression,
@@ -50,6 +51,11 @@ test("typed context helpers generate expressions without stringly property acces
 	assert.equal(gh.runner.os, "${{ runner.os }}");
 	assert.equal(github.repositoryOwner, "${{ github.repository_owner }}");
 	assert.equal(github.token, "${{ github.token }}");
+	assert.equal(github.event.before, "${{ github.event.before }}");
+	assert.equal(
+		github.event.pullRequest.head.repository.fullName,
+		"${{ github.event.pull_request.head.repo.full_name }}",
+	);
 	assert.equal(eq(github.eventName, "push"), "${{ github.event_name == 'push' }}");
 	assert.equal(
 		ne(github.repository, "acme/widgets-sandbox"),
@@ -65,6 +71,10 @@ test("typed context helpers generate expressions without stringly property acces
 		"${{ github.ref_name == 'main' && 'prod' || 'dev' }}",
 	);
 	assert.equal(not(contains(github.ref, "release/")), "${{ !contains(github.ref, 'release/') }}");
+	assert.equal(
+		startsWith(github.ref, "refs/tags/runner-v"),
+		"${{ startsWith(github.ref, 'refs/tags/runner-v') }}",
+	);
 	assert.equal(
 		valueOr(github.headRef, github.refName),
 		"${{ github.head_ref || github.ref_name }}",

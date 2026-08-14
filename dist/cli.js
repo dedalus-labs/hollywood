@@ -5746,7 +5746,7 @@ const expr = (body) => {
 	parseGitHubExpression(trimmed);
 	return `\${{ ${trimmed} }}`;
 };
-expr("github.actor"), expr("github.base_ref"), expr("github.event_name"), expr("github.head_ref"), expr("github.ref"), expr("github.ref_name"), expr("github.repository_owner"), expr("github.repository"), expr("github.run_id"), expr("github.sha"), expr("github.token"), expr("github.workflow");
+expr("github.actor"), expr("github.base_ref"), expr("github.event.before"), expr("github.event.pull_request.head.repo.full_name"), expr("github.event_name"), expr("github.head_ref"), expr("github.ref"), expr("github.ref_name"), expr("github.repository_owner"), expr("github.repository"), expr("github.run_id"), expr("github.sha"), expr("github.token"), expr("github.workflow");
 expr("runner.arch"), expr("runner.name"), expr("runner.os");
 const isGitHubTypedMatrix = (value) => typeof value === "object" && value !== null && typedMatrixSymbol in value;
 const githubTypedMatrixValues = (matrix) => {

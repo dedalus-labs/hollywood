@@ -210,6 +210,7 @@ export {
 	selectString,
 	secret,
 	stepOutput,
+	startsWith,
 	success,
 	valueOr,
 } from "./expressions";

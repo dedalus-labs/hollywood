@@ -51,19 +51,40 @@ export const verifyRunnerProbe = action({
 	},
 });
 
+export class RunnerImageNotPublicError extends Error {
+	readonly image: string;
+
+	constructor(image: string, cause: unknown) {
+		super(
+			`Published runner image '${image}' is not anonymously readable. Change package visibility to Public in the GitHub Container registry package settings.`,
+			{ cause },
+		);
+		this.name = "RunnerImageNotPublicError";
+		this.image = image;
+	}
+}
+
+export class RunnerImageAnonymousPullError extends Error {
+	readonly exitCode: number;
+	readonly image: string;
+
+	constructor(image: string, exitCode: number, output: string) {
+		super(`Anonymous pull of published runner image '${image}' exited ${exitCode}: ${output}`);
+		this.name = "RunnerImageAnonymousPullError";
+		this.exitCode = exitCode;
+		this.image = image;
+	}
+}
+
 const prepareRunnerImageReleaseInputs = {
-	event: choiceInput({
-		description: "GitHub event publishing the image.",
-		options: ["push", "release"] as const,
-	}),
 	image: stringInput({ description: "OCI image name without a tag." }),
-	packageJson: pathInput({
-		description: "Package manifest that owns the release version.",
-		default: "package.json",
-	}),
 	ref: stringInput({ description: "Fully qualified Git ref." }),
 	refName: stringInput({ description: "Git branch or tag name." }),
 	revision: stringInput({ description: "Git revision embedded in the image." }),
+	versionFile: pathInput({
+		description: "Runner image version file.",
+		default: "runner/version.txt",
+	}),
 } as const;
 
 export const prepareRunnerImageRelease = action({
@@ -79,28 +100,15 @@ export const prepareRunnerImageRelease = action({
 	run: async ({ fs, input }) => {
 		assertImageName(input.image);
 		assertRevision(input.revision);
-		const packageJson = parseJson(await fs.readText(input.packageJson), input.packageJson);
-		const version = parseImageVersion(requiredString(packageJson, "version", input.packageJson));
+		const version = parseImageVersion((await fs.readText(input.versionFile)).trim());
 		const immutableTag = `${input.image}:sha-${input.revision}`;
-
-		if (input.event === "push") {
-			if (input.ref !== "refs/heads/main" || input.refName !== "main") {
-				throw new Error(`Runner image push must target refs/heads/main. Received ${input.ref}.`);
-			}
-			return {
-				sourceRef: input.ref,
-				tags: [immutableTag, `${input.image}:edge`].join("\n"),
-				version: `sha-${input.revision}`,
-			};
-		}
-
-		const expectedTag = `v${version.value}`;
+		const expectedTag = `runner-v${version.value}`;
 		if (input.ref !== `refs/tags/${input.refName}`) {
 			throw new Error(`GitHub release ref ${input.ref} does not contain tag ${input.refName}.`);
 		}
 		if (input.refName !== expectedTag) {
 			throw new Error(
-				`GitHub release tag ${input.refName} does not match package version ${version.value}.`,
+				`GitHub release tag ${input.refName} does not match runner image version ${version.value}.`,
 			);
 		}
 
@@ -108,9 +116,13 @@ export const prepareRunnerImageRelease = action({
 		if (!version.prerelease) {
 			tags.push(
 				`${input.image}:${version.major}.${version.minor}`,
+				`${input.image}:${version.value}-ubuntu-24.04`,
+				`${input.image}:${version.major}.${version.minor}-ubuntu-24.04`,
 				`${input.image}:latest`,
 				`${input.image}:ubuntu-24.04`,
 			);
+		} else {
+			tags.push(`${input.image}:${version.value}-ubuntu-24.04`);
 		}
 		return {
 			sourceRef: input.ref,
@@ -157,7 +169,14 @@ export const verifyPublishedRunnerImage = action({
 			"--deny-self-hosted-runners",
 		]);
 		await exec("docker", ["logout", "ghcr.io"]);
-		await exec("docker", ["pull", subject]);
+		const pull = await exec("docker", ["pull", subject], { exitPolicy: "any" });
+		if (pull.exitCode !== 0) {
+			const output = `${pull.stderr}${pull.stdout}`.trim();
+			if (/\b(?:denied|unauthorized)\b/i.test(output)) {
+				throw new RunnerImageNotPublicError(input.image, new Error(output));
+			}
+			throw new RunnerImageAnonymousPullError(input.image, pull.exitCode, output);
+		}
 		return {};
 	},
 });
@@ -324,7 +343,7 @@ const parseImageVersion = (value: string): ImageVersion => {
 	const match =
 		/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.exec(value);
 	if (match === null) {
-		throw new Error(`Package version must be release-tag-compatible SemVer: ${value}.`);
+		throw new Error(`Runner image version must be release-tag-compatible SemVer: ${value}.`);
 	}
 	return {
 		major: match[1] as string,
@@ -332,25 +351,6 @@ const parseImageVersion = (value: string): ImageVersion => {
 		prerelease: match[4] !== undefined,
 		value,
 	};
-};
-
-const parseJson = (source: string, path: string): unknown => {
-	try {
-		return JSON.parse(source) as unknown;
-	} catch (error: unknown) {
-		throw new Error(`${path} is not valid JSON.`, { cause: error });
-	}
-};
-
-const requiredString = (value: unknown, key: string, source: string): string => {
-	if (value === null || typeof value !== "object") {
-		throw new Error(`${source} must contain a JSON object.`);
-	}
-	const field = (value as Record<string, unknown>)[key];
-	if (typeof field !== "string" || field.length === 0) {
-		throw new Error(`${source} must contain a nonempty string at '${key}'.`);
-	}
-	return field;
 };
 
 const assertImageName = (value: string): void => {

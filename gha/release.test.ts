@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { test } from "vitest";
 
 import { createGitHubAppTokenAction, releasePleaseAction } from "./actions";
@@ -14,12 +15,69 @@ test("release please opens version pull requests without creating tags", () => {
 	assert.equal(step.with["skip-github-release"], "true");
 });
 
-test("GitHub releases require a successful npm publish", () => {
+test("GitHub release finalization waits for applicable publication jobs", () => {
 	assert.deepEqual(publishNpm.on.push, {
 		branches: ["main"],
 		paths: [".release-please-manifest.json"],
 	});
-	assert.equal(publishNpm.jobs.release?.needs, "publish");
+	assert.deepEqual(publishNpm.jobs.release?.needs, ["detect", "publish"]);
+	assert.equal(
+		publishNpm.jobs.release?.if,
+		"${{ always() && github.repository == 'dedalus-labs/hollywood' && needs.detect.result == 'success' && (needs.publish.result == 'success' || needs.publish.result == 'skipped') }}",
+	);
+});
+
+test("release publication selects components from typed action outputs", () => {
+	const detect = publishNpm.jobs.detect;
+	assert.ok(detect !== undefined && "steps" in detect);
+	const checkout = detect.steps[0];
+	assert.ok(checkout !== undefined && "with" in checkout);
+	assert.equal(checkout.with?.["fetch-depth"], 0);
+	assert.deepEqual(detect.outputs, {
+		hollywood: "${{ steps.components.outputs.hollywood }}",
+		runner: "${{ steps.components.outputs.runner }}",
+	});
+	const components = detect.steps.find((step) => "id" in step && step.id === "components");
+	assert.deepEqual(components, {
+		id: "components",
+		name: "Detect components",
+		uses: "./.github/actions/detect-release-components",
+		with: {
+			before: "${{ github.event.before }}",
+			current: "${{ github.sha }}",
+		},
+	});
+
+	const publish = publishNpm.jobs.publish;
+	assert.equal(publish.needs, "detect");
+	assert.equal(
+		publish.if,
+		"${{ github.repository == 'dedalus-labs/hollywood' && needs.detect.outputs.hollywood == 'true' }}",
+	);
+});
+
+test("release please owns independent npm and runner versions", async () => {
+	const config = JSON.parse(await readFile("release-please-config.json", "utf8")) as Record<
+		string,
+		unknown
+	>;
+	const manifest = JSON.parse(
+		await readFile(".release-please-manifest.json", "utf8"),
+	) as Record<string, unknown>;
+
+	assert.equal(config["separate-pull-requests"], true);
+	assert.deepEqual(config["packages"], {
+		".": { "exclude-paths": ["runner"] },
+		runner: {
+			component: "runner",
+			"include-component-in-tag": true,
+			"pull-request-title-pattern": "release(runner): ${version}",
+			"release-type": "simple",
+		},
+	});
+	assert.deepEqual(manifest, { ".": "0.0.2", runner: "0.0.1" });
+	assert.equal(await readFile("runner/version.txt", "utf8"), "0.0.1\n");
+	assert.match(await readFile("runner/CHANGELOG.md", "utf8"), /^## \[0\.0\.1\]/m);
 });
 
 test("failed npm releases can be retried from current main", () => {

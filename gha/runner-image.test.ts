@@ -19,7 +19,7 @@ test("runner image publication is isolated from pull request permissions", () =>
 	});
 	assert.equal(
 		publishJob().if,
-		"${{ github.repository == 'dedalus-labs/hollywood' && (github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release') }}",
+		"${{ github.repository == 'dedalus-labs/hollywood' && github.event_name == 'release' && startsWith(github.ref, 'refs/tags/runner-v') }}",
 	);
 });
 
@@ -68,11 +68,11 @@ test("runner image verification covers Docker and Podman natively on amd64 and a
 	});
 });
 
-test("runner image publication handles main and matching GitHub releases", () => {
+test("runner image publication accepts only runner GitHub releases", () => {
 	assert.deepEqual(runnerImageWorkflow.on.release, { types: ["published"] });
 	assert.equal(
 		publishJob().if,
-		"${{ github.repository == 'dedalus-labs/hollywood' && (github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release') }}",
+		"${{ github.repository == 'dedalus-labs/hollywood' && github.event_name == 'release' && startsWith(github.ref, 'refs/tags/runner-v') }}",
 	);
 
 	const release = publishJob().steps.find((step) => "id" in step && step.id === "release");
@@ -85,8 +85,17 @@ test("runner image publication handles main and matching GitHub releases", () =>
 	assert.equal(build.with.tags, "${{ steps.release.outputs.tags }}");
 	assert.equal(
 		build.with.labels,
-		"${{ format('org.opencontainers.image.version={0}', steps.release.outputs.version) }}",
+		"${{ format('org.opencontainers.image.base.name={0}\norg.opencontainers.image.version={1}\nio.dedalus.hollywood.github-actions-runner.version={2}', 'ghcr.io/actions/actions-runner@sha256:0cfdcc701ce933c6d243c6b0b2da767366dc9f2e99961d4c3754b0b78084cdda', steps.release.outputs.version, '2.336.0') }}",
 	);
+});
+
+test("root package releases skip runner image work", () => {
+	for (const name of ["observe", "verify"] as const) {
+		assert.equal(
+			runnerImageWorkflow.jobs[name].if,
+			"${{ github.repository == 'dedalus-labs/hollywood' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event_name != 'release' || github.event_name == 'release' && startsWith(github.ref, 'refs/tags/runner-v')) }}",
+		);
+	}
 });
 
 test("runner image workflow contains no unstructured publication commands", () => {
