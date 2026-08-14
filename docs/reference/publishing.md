@@ -114,5 +114,5 @@ should pin the resulting manifest digest even when they discover it through a
 version tag.
 
 GitHub creates the first GHCR package with private visibility. An organization
-owner must change `hollywood-runner` to Public once. The publication workflow
+owner must change `hollywood/runner` to Public once. The publication workflow
 fails until an anonymous digest pull succeeds.

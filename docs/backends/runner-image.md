@@ -65,15 +65,14 @@ compatible workflow authoring API.
 
 ## Run an action
 
-After the publication workflow creates the package, use an immutable manifest
-digest from the
-[`hollywood-runner` package](https://github.com/dedalus-labs/hollywood/pkgs/container/hollywood-runner):
+After the publication workflow creates `ghcr.io/dedalus-labs/hollywood/runner`,
+use an immutable manifest digest:
 
 ```bash
 npx hollywood run gha/check.ts \
   --export check \
   --provider container \
-  --image ghcr.io/dedalus-labs/hollywood-runner@sha256:<digest>
+  --image ghcr.io/dedalus-labs/hollywood/runner@sha256:<digest>
 ```
 
 Select `docker` or `podman` to test those runtimes. Hollywood does not detect a
@@ -87,7 +86,7 @@ Use the same digest-pinned image with the official runner lifecycle:
 ```bash
 npx hollywood runner listen .hollywood-jit-config \
   --provider docker \
-  --image ghcr.io/dedalus-labs/hollywood-runner@sha256:<digest> \
+  --image ghcr.io/dedalus-labs/hollywood/runner@sha256:<digest> \
   --diagnostics .hollywood/runner-diagnostics
 ```
 

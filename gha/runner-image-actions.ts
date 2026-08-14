@@ -354,7 +354,7 @@ const parseImageVersion = (value: string): ImageVersion => {
 };
 
 const assertImageName = (value: string): void => {
-	if (!/^ghcr\.io\/[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$/.test(value)) {
+	if (!/^ghcr\.io(?:\/[a-z0-9][a-z0-9._-]*){2,}$/.test(value)) {
 		throw new Error(`Runner image must be an untagged GHCR image name: ${value}.`);
 	}
 };
