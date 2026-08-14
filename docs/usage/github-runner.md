@@ -51,7 +51,7 @@ Use a dedicated label so that another self-hosted runner cannot accept the
 proof job:
 
 ```typescript
-import { job, workflow } from "@dedalus-labs/hollywood";
+import { command, job, workflow } from "@dedalus-labs/hollywood";
 
 export const connectedRunnerProof = workflow({
 	name: "Connected runner proof",
@@ -66,7 +66,7 @@ export const connectedRunnerProof = workflow({
 					uses: "actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10",
 					with: { "persist-credentials": false },
 				},
-				{ name: "Test", run: "npm test" },
+				{ name: "Test", run: command({ file: "npm", args: ["test"] }) },
 			],
 		}),
 	},
@@ -285,9 +285,16 @@ JIT configuration between hosts.
 Use matching labels in the workflow:
 
 ```typescript
+import { command, job } from "@dedalus-labs/hollywood";
+
 job({
 	"runs-on": ["self-hosted", "hollywood-remote", "linux-x64"],
-	steps: [{ name: "Test", run: "npm test" }],
+	steps: [
+		{
+			name: "Test",
+			run: command({ file: "npm", args: ["test"] }),
+		},
+	],
 });
 ```
 

@@ -1,5 +1,12 @@
 import { job, uses, workflow } from "../src/index";
-import { checkoutAction, setupNodeAction, uploadArtifactAction } from "./actions";
+import {
+	buildHollywoodCommand,
+	buildLocalActionsCommand,
+	checkoutAction,
+	installDependenciesCommand,
+	setupNodeAction,
+	uploadArtifactAction,
+} from "./actions";
 import { captureRunnerProbe, verifyRunnerProbe } from "./runner-image-actions";
 
 const probePath = "runner-probe.json";
@@ -16,9 +23,9 @@ export const runnerJit = workflow({
 			steps: [
 				{ uses: checkoutAction, with: { "persist-credentials": false } },
 				{ uses: setupNodeAction, with: { "node-version": "24" } },
-				{ name: "Install dependencies", run: "npm ci" },
-				{ name: "Build Hollywood", run: "npm run build" },
-				{ name: "Build local actions", run: "npm run actions" },
+				{ name: "Install dependencies", run: installDependenciesCommand },
+				{ name: "Build Hollywood", run: buildHollywoodCommand },
+				{ name: "Build local actions", run: buildLocalActionsCommand },
 				uses(captureRunnerProbe, {
 					name: "Capture runner",
 					with: { output: probePath },

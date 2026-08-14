@@ -936,6 +936,69 @@ const loadSchema = (schemaFileName) => {
 };
 const workflowParserDistDir = () => dirname(dirname(fileURLToPath(import.meta.resolve("@actions/workflow-parser/workflows/workflow-constants"))));
 //#endregion
+//#region src/workflow-command.ts
+const workflowRunBrand = Symbol.for("@dedalus-labs/hollywood.workflow-run");
+const command = (options) => {
+	assertCommandFile(options.file);
+	for (const argument of options.args) assertNoNullByte(argument, "command argument");
+	return {
+		kind: "command",
+		file: options.file,
+		args: [...options.args],
+		[workflowRunBrand]: true
+	};
+};
+const unsafeShell = (script) => {
+	if (script.trim() === "") throw new Error("unsafeShell script is required");
+	assertNoNullByte(script, "unsafeShell script");
+	return {
+		kind: "unsafe-shell",
+		script,
+		[workflowRunBrand]: true
+	};
+};
+const renderWorkflowRun = (workflowRun, environment) => {
+	assertWorkflowRun(workflowRun);
+	if (workflowRun.kind === "unsafe-shell") return { run: workflowRun.script };
+	const generatedEnvironment = { ...environment };
+	const argumentsForShell = workflowRun.args.map((argument, index) => {
+		const expression = completeExpression(argument);
+		if (expression === null) {
+			if (argument.includes("${{")) throw new Error("command arguments cannot embed GitHub expressions; use a complete GitHubExpression argument");
+			return quotePosix(argument);
+		}
+		const name = `HOLLYWOOD_COMMAND_ARG_${index}`;
+		if (name in generatedEnvironment) throw new Error(`${name} is reserved for a Hollywood command expression argument`);
+		generatedEnvironment[name] = expression;
+		return `"$${name}"`;
+	});
+	return {
+		run: [quotePosix(workflowRun.file), ...argumentsForShell].join(" "),
+		shell: "bash",
+		...Object.keys(generatedEnvironment).length === 0 ? {} : { env: generatedEnvironment }
+	};
+};
+const assertWorkflowRun = (value) => {
+	if (typeof value !== "object" || value === null || value[workflowRunBrand] !== true) throw new Error("workflow run must use command() or unsafeShell()");
+};
+const assertCommandFile = (file) => {
+	if (file.trim() === "") throw new Error("command file is required");
+	assertNoNullByte(file, "command file");
+	if (file.includes("${{")) throw new Error("command file must be a literal executable path");
+};
+const assertNoNullByte = (value, name) => {
+	if (value.includes("\0")) throw new Error(`${name} must not contain a null byte`);
+};
+const completeExpression = (value) => {
+	if (!value.startsWith("${{") || !value.endsWith("}}")) return null;
+	expr(value.slice(3, -2));
+	return value;
+};
+const quotePosix = (value) => {
+	if (/^[A-Za-z0-9_@%+=:,./-]+$/.test(value)) return value;
+	return `'${value.replaceAll("'", `'"'"'`)}'`;
+};
+//#endregion
 //#region src/generate.ts
 var InvalidWorkflowFilenameError = class extends Error {
 	filename;
@@ -1075,13 +1138,21 @@ const workflowForYaml = (workflow) => ({
 });
 const jobForYaml = (workflowJob) => {
 	const matrix = workflowJob.strategy?.matrix;
-	if (matrix === void 0 || !isGitHubTypedMatrix(matrix)) return workflowJob;
 	return {
 		...workflowJob,
-		strategy: {
+		...matrix === void 0 || !isGitHubTypedMatrix(matrix) ? {} : { strategy: {
 			...workflowJob.strategy,
 			matrix: githubTypedMatrixValues(matrix)
-		}
+		} },
+		...workflowJob.steps === void 0 ? {} : { steps: workflowJob.steps.map((step) => stepForYaml(step)) }
+	};
+};
+const stepForYaml = (step) => {
+	if (!("run" in step)) return step;
+	const rendered = renderWorkflowRun(step.run, step.env);
+	return {
+		...step,
+		...rendered
 	};
 };
 const inputMetadata = (input) => input.default === void 0 ? {
@@ -1243,4 +1314,4 @@ const resolveOutputPath = (outputDir, path) => {
 	return outputPath;
 };
 //#endregion
-export { ContainerProviderUnavailableError, GeneratedFilePathCollisionError, GitHubJobResult, GitHubRunnerApiError, InvalidWorkflowFilenameError, action, always, and, assertValidActionMetadataContent, assertValidWorkflowContent, booleanInput, cancelled, choiceInput, compareRunnerProbes, contains, currentRunner, defineEnvironmentRegistry, defineGitHubRunnerJitRegistration, defineMatrix, defineRunnerContract, envVar, eq, expr, failure, format, generateActionEntrypointFile, generateActionFile, generateActionFiles, generateActionMetadata, generateGitHubRepositoryRunnerJitConfig, generateUsesStep, generateWorkflowFile, gh, github, githubActionsRunnerImage, githubActionsRunnerVersion, hashFiles, input, integerInput, job, localAction, matrix, ne, needsOutput, needsResult, needsResultIn, needsResultIs, nodeExec, nodeFs, nodeLog, not, or, parseEncodedGitHubJitConfig, parseGitHubApiToken, parseGitHubRepository, parseRunnerContract, parseRunnerProbe, pathInput, probeRunner, readEncodedGitHubJitConfig, readRunnerContract, readRunnerProbe, renderActionFile, renderGeneratedFile, renderWorkflowFile, resolveEnvironment, runAction, runGitHubAction, runGitHubRunner, runner, runnerProbeSchemaVersion, secret, selectEnvironmentName, selectString, startsWith, stepOutput, stringInput, stringOutput, success, summaryCode, summaryText, uses, validateActionMetadataContent, validateWorkflowContent, valueOr, verifyRunner, withContainer, withLocalContainer, workflow, writeEncodedGitHubJitConfig, writeGeneratedFiles, writeRunnerProbe };
+export { ContainerProviderUnavailableError, GeneratedFilePathCollisionError, GitHubJobResult, GitHubRunnerApiError, InvalidWorkflowFilenameError, action, always, and, assertValidActionMetadataContent, assertValidWorkflowContent, booleanInput, cancelled, choiceInput, command, compareRunnerProbes, contains, currentRunner, defineEnvironmentRegistry, defineGitHubRunnerJitRegistration, defineMatrix, defineRunnerContract, envVar, eq, expr, failure, format, generateActionEntrypointFile, generateActionFile, generateActionFiles, generateActionMetadata, generateGitHubRepositoryRunnerJitConfig, generateUsesStep, generateWorkflowFile, gh, github, githubActionsRunnerImage, githubActionsRunnerVersion, hashFiles, input, integerInput, job, localAction, matrix, ne, needsOutput, needsResult, needsResultIn, needsResultIs, nodeExec, nodeFs, nodeLog, not, or, parseEncodedGitHubJitConfig, parseGitHubApiToken, parseGitHubRepository, parseRunnerContract, parseRunnerProbe, pathInput, probeRunner, readEncodedGitHubJitConfig, readRunnerContract, readRunnerProbe, renderActionFile, renderGeneratedFile, renderWorkflowFile, resolveEnvironment, runAction, runGitHubAction, runGitHubRunner, runner, runnerProbeSchemaVersion, secret, selectEnvironmentName, selectString, startsWith, stepOutput, stringInput, stringOutput, success, summaryCode, summaryText, unsafeShell, uses, validateActionMetadataContent, validateWorkflowContent, valueOr, verifyRunner, withContainer, withLocalContainer, workflow, writeEncodedGitHubJitConfig, writeGeneratedFiles, writeRunnerProbe };

@@ -1,5 +1,12 @@
 import { action, job, pathInput, stringInput, uses, workflow, type ScriptExec } from "../src/index";
-import { checkoutAction, createGitHubAppTokenAction, setupNodeAction } from "./actions";
+import {
+	buildHollywoodCommand,
+	buildLocalActionsCommand,
+	checkoutAction,
+	createGitHubAppTokenAction,
+	installDependenciesCommand,
+	setupNodeAction,
+} from "./actions";
 
 const flowerBody = "Here's a flower for all your hard work! 🌸";
 const flowerBots = new Set(["github-actions[bot]", "cind-bot[bot]", "cind[bot]"]);
@@ -157,9 +164,9 @@ export const flowers = workflow({
 			steps: [
 				{ uses: checkoutAction, with: { "persist-credentials": false } },
 				{ uses: setupNodeAction, with: { "node-version": "24" } },
-				{ name: "Install dependencies", run: "npm ci" },
-				{ name: "Build Hollywood", run: "npm run build" },
-				{ name: "Build local actions", run: "npm run actions" },
+				{ name: "Install dependencies", run: installDependenciesCommand },
+				{ name: "Build Hollywood", run: buildHollywoodCommand },
+				{ name: "Build local actions", run: buildLocalActionsCommand },
 				{
 					id: "cind-token",
 					name: "Create Cind app token",

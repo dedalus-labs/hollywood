@@ -18,6 +18,11 @@ import {
 } from "./expressions";
 import { toGitHubName } from "./names";
 import { assertValidActionMetadataContent, assertValidWorkflowContent } from "./validation";
+import {
+	renderWorkflowRun,
+	type UnsafeShell,
+	type WorkflowCommand,
+} from "./workflow-command";
 
 type ScriptActionDescriptor<
 	Inputs extends InputDefinitions,
@@ -120,14 +125,25 @@ export type GitHubUsesStep = GitHubStepBase &
 		"working-directory"?: never;
 	}>;
 
-export type GitHubRunStep = GitHubStepBase &
+export type GitHubCommandStep = GitHubStepBase &
 	Readonly<{
-		run: string;
+		run: WorkflowCommand;
+		shell?: never;
+		"working-directory"?: string;
+		uses?: never;
+		with?: never;
+	}>;
+
+export type GitHubUnsafeShellStep = GitHubStepBase &
+	Readonly<{
+		run: UnsafeShell;
 		shell?: string;
 		"working-directory"?: string;
 		uses?: never;
 		with?: never;
 	}>;
+
+export type GitHubRunStep = GitHubCommandStep | GitHubUnsafeShellStep;
 
 export type GitHubActionFile = Readonly<{
 	sourcePath: string;
@@ -499,25 +515,37 @@ export const renderWorkflowFile = (file: GitHubWorkflowFile): string => {
 	return content;
 };
 
-const workflowForYaml = (workflow: GitHubWorkflow): GitHubWorkflow => ({
+const workflowForYaml = (workflow: GitHubWorkflow): unknown => ({
 	...workflow,
 	jobs: Object.fromEntries(
 		Object.entries(workflow.jobs).map(([name, workflowJob]) => [name, jobForYaml(workflowJob)]),
 	),
 });
 
-const jobForYaml = (workflowJob: GitHubWorkflowJob): GitHubWorkflowJob => {
+const jobForYaml = (workflowJob: GitHubWorkflowJob): unknown => {
 	const matrix = workflowJob.strategy?.matrix;
-	if (matrix === undefined || !isGitHubTypedMatrix(matrix)) {
-		return workflowJob;
-	}
 	return {
 		...workflowJob,
-		strategy: {
-			...workflowJob.strategy,
-			matrix: githubTypedMatrixValues(matrix),
-		},
+		...(matrix === undefined || !isGitHubTypedMatrix(matrix)
+			? {}
+			: {
+					strategy: {
+						...workflowJob.strategy,
+						matrix: githubTypedMatrixValues(matrix),
+					},
+				}),
+		...(workflowJob.steps === undefined
+			? {}
+			: { steps: workflowJob.steps.map((step) => stepForYaml(step)) }),
 	};
+};
+
+const stepForYaml = (step: GitHubWorkflowStep): unknown => {
+	if (!("run" in step)) {
+		return step;
+	}
+	const rendered = renderWorkflowRun(step.run, step.env);
+	return { ...step, ...rendered };
 };
 
 const inputMetadata = (input: InputDefinition): GitHubActionInputMetadata =>

@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { test } from "vitest";
 
-import { createGitHubAppTokenAction, releasePleaseAction } from "./actions";
+import {
+	buildLocalActionsCommand,
+	createGitHubAppTokenAction,
+	releasePleaseAction,
+} from "./actions";
 import { publishNpm } from "./publish-npm";
 import { release } from "./release";
 
@@ -132,7 +136,7 @@ test("publishing bundles its local action before invoking it", () => {
 	const publish = publishNpm.jobs.publish;
 	assert.ok("steps" in publish);
 	const buildIndex = publish.steps.findIndex(
-		(step) => "run" in step && step.run === "npm run actions",
+		(step) => "run" in step && step.run === buildLocalActionsCommand,
 	);
 	const localActionIndex = publish.steps.findIndex(
 		(step) => "uses" in step && step.uses.startsWith("./.github/actions/"),

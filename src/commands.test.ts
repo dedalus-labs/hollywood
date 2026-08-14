@@ -132,13 +132,15 @@ test("generate ignores test sources matched by workflow globs", async () => {
 	const output: string[] = [];
 
 	await writeSource(sourcePath, [
+		`import { command } from ${JSON.stringify(join(process.cwd(), "src/index.ts"))};`,
+		"",
 		"export const containerRelease = {",
 		'  name: "Container Release",',
 		"  on: { workflow_dispatch: {} },",
 		"  jobs: {",
 		"    test: {",
 		'      "runs-on": "ubuntu-latest",',
-		'      steps: [{ run: "echo ok" }],',
+		'      steps: [{ run: command({ file: "echo", args: ["ok"] }) }],',
 		"    },",
 		"  },",
 		"};",
@@ -584,13 +586,15 @@ const writeSource = async (path: string, lines: readonly string[]): Promise<void
 
 const writeWorkflowSource = async (root: string): Promise<void> => {
 	await writeSource(join(root, "ci/ci.ts"), [
+		`import { command } from ${JSON.stringify(join(process.cwd(), "src/index.ts"))};`,
+		"",
 		"export const ci = {",
 		'  name: "CI",',
 		"  on: { push: {} },",
 		"  jobs: {",
 		"    test: {",
 		'      "runs-on": "ubuntu-latest",',
-		"      steps: [{ run: 'echo ok' }],",
+		"      steps: [{ run: command({ file: 'echo', args: ['ok'] }) }],",
 		"    },",
 		"  },",
 		"};",

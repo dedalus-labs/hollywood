@@ -16,13 +16,18 @@ import {
 import { githubActionsRunnerImage, githubActionsRunnerVersion } from "../src/container";
 import {
 	attestBuildProvenanceAction,
+	auditDependenciesCommand,
+	buildHollywoodCommand,
+	buildLocalActionsCommand,
 	checkoutAction,
 	dockerBuildPushAction,
 	dockerLoginAction,
 	dockerSetupBuildxAction,
 	dockerSetupQemuAction,
+	installDependenciesCommand,
 	setupNodeAction,
 	uploadArtifactAction,
+	verifyRegistrySignaturesCommand,
 } from "./actions";
 import { trustedCiRun } from "./guards";
 import {
@@ -64,11 +69,11 @@ const runnerForArchitecture = (architecture: typeof runnerArchitectures.architec
 const setupSteps = [
 	{ uses: checkoutAction, with: { "persist-credentials": false } },
 	{ uses: setupNodeAction, with: { "node-version": "24" } },
-	{ name: "Install dependencies", run: "npm ci" },
-	{ name: "Audit dependencies", run: "npm audit --audit-level=high" },
-	{ name: "Verify registry signatures", run: "npm audit signatures" },
-	{ name: "Build Hollywood", run: "npm run build" },
-	{ name: "Build local actions", run: "npm run actions" },
+	{ name: "Install dependencies", run: installDependenciesCommand },
+	{ name: "Audit dependencies", run: auditDependenciesCommand },
+	{ name: "Verify registry signatures", run: verifyRegistrySignaturesCommand },
+	{ name: "Build Hollywood", run: buildHollywoodCommand },
+	{ name: "Build local actions", run: buildLocalActionsCommand },
 ] as const;
 
 export const runnerImageWorkflow = workflow({

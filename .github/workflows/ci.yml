@@ -27,27 +27,37 @@ jobs:
           node-version: "24"
       - name: Install dependencies
         run: npm ci
+        shell: bash
       - name: Audit dependencies
         run: npm audit --audit-level=high
+        shell: bash
       - name: Verify registry signatures
         run: npm audit signatures
+        shell: bash
       - name: Lint
         run: npm run lint
+        shell: bash
       - name: Typecheck
         run: npm run typecheck
+        shell: bash
       - name: Test
         run: npm test
+        shell: bash
       - name: Build
         run: npm run build
+        shell: bash
       - name: Check package contents
         run: npm run package
+        shell: bash
       - name: Check Hollywood state
         run: node dist/cli.js check
+        shell: bash
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
           node-version: "20"
       - name: Check Node 20 CLI runtime
         run: node dist/cli.js check --workflow-security
+        shell: bash
   actionlint:
     name: Actionlint
     if: ${{ github.repository == 'dedalus-labs/hollywood' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
@@ -61,10 +71,13 @@ jobs:
           node-version: "24"
       - name: Install dependencies
         run: npm ci
+        shell: bash
       - name: Build Hollywood
         run: npm run build
+        shell: bash
       - name: Build local actions
         run: npm run actions
+        shell: bash
       - name: Check Hollywood runtime
         uses: ./.github/actions/check-runtime
       - name: Lint GitHub Actions workflows
@@ -89,9 +102,12 @@ jobs:
           node-version: "24"
       - name: Install dependencies
         run: npm ci
+        shell: bash
       - name: Build Hollywood
         run: npm run build
+        shell: bash
       - name: Build local actions
         run: npm run actions
+        shell: bash
       - name: Test provider
         uses: ./.github/actions/test-container-provider
