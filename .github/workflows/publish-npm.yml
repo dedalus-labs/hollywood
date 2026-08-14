@@ -16,7 +16,9 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       hollywood: ${{ steps.components.outputs.hollywood }}
+      hollywood-tag: ${{ steps.components.outputs.hollywood-tag }}
       runner: ${{ steps.components.outputs.runner }}
+      runner-tag: ${{ steps.components.outputs.runner-tag }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
@@ -92,6 +94,21 @@ jobs:
     permissions:
       contents: read
     steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "24"
+      - name: Install dependencies
+        run: npm ci
+        shell: bash
+      - name: Build Hollywood
+        run: npm run build
+        shell: bash
+      - name: Build local actions
+        run: npm run actions
+        shell: bash
       - id: cind-token
         name: Create Cind app token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
@@ -105,10 +122,17 @@ jobs:
           permission-metadata: read
           permission-pull-requests: write
       - id: release
-        name: Finalize release
+        name: Create draft releases
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7
         with:
           token: ${{ steps.cind-token.outputs.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
           skip-github-pull-request: "true"
+      - name: Publish immutable releases
+        uses: ./.github/actions/publish-draft-releases
+        with:
+          hollywood-tag: ${{ needs.detect.outputs.hollywood-tag }}
+          repository: ${{ github.repository }}
+          runner-tag: ${{ needs.detect.outputs.runner-tag }}
+          token: ${{ steps.cind-token.outputs.token }}

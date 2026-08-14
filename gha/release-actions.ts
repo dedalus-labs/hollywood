@@ -12,7 +12,9 @@ export const detectReleaseComponents = action({
 	},
 	outputs: {
 		hollywood: stringOutput({ description: "Whether the npm package version changed." }),
+		hollywoodTag: stringOutput({ description: "Expected npm package release tag." }),
 		runner: stringOutput({ description: "Whether the runner image version changed." }),
+		runnerTag: stringOutput({ description: "Expected runner image release tag." }),
 	},
 	run: async ({ exec, fs, input }) => {
 		assertRevision(input.current);
@@ -51,9 +53,123 @@ export const detectReleaseComponents = action({
 		if (!hollywood && !runner) {
 			throw new Error("Release manifest changed without changing a configured component version.");
 		}
-		return { hollywood: String(hollywood), runner: String(runner) };
+		return {
+			hollywood: String(hollywood),
+			hollywoodTag: hollywood ? `v${current.hollywood}` : "",
+			runner: String(runner),
+			runnerTag: runner ? `runner-v${current.runner}` : "",
+		};
 	},
 });
+
+export const publishDraftReleases = action({
+	name: "Publish draft releases",
+	description: "Publish validated component drafts as immutable GitHub releases.",
+	localActionPath: "publish-draft-releases",
+	inputs: {
+		hollywoodTag: stringInput({ description: "Hollywood release tag.", default: "" }),
+		repository: stringInput({ description: "GitHub owner/repository name." }),
+		runnerTag: stringInput({ description: "Runner release tag.", default: "" }),
+		token: stringInput({ description: "GitHub token with release write access." }),
+	},
+	outputs: {},
+	run: async ({ exec, input }) => {
+		assertRepository(input.repository);
+		const tags = [input.hollywoodTag, input.runnerTag].filter((tag) => tag !== "");
+		if (tags.length === 0) {
+			throw new Error("At least one release tag is required.");
+		}
+
+		for (const tag of tags) {
+			assertReleaseTag(tag);
+			const options = { env: { GH_TOKEN: input.token } };
+			const release = parseGitHubRelease(
+				(
+					await exec(
+						"gh",
+						["api", `repos/${input.repository}/releases/tags/${tag}`],
+						options,
+					)
+				).stdout,
+				tag,
+			);
+			if (!release.draft) {
+				assertImmutableRelease(release);
+				continue;
+			}
+
+			const published = parseGitHubRelease(
+				(
+					await exec(
+						"gh",
+						[
+							"api",
+							`repos/${input.repository}/releases/${release.id}`,
+							"--method",
+							"PATCH",
+							"-F",
+							"draft=false",
+						],
+						options,
+					)
+				).stdout,
+				tag,
+			);
+			assertImmutableRelease(published);
+		}
+
+		return {};
+	},
+});
+
+type GitHubRelease = Readonly<{
+	draft: boolean;
+	id: number;
+	immutable: boolean;
+	tagName: string;
+}>;
+
+const parseGitHubRelease = (source: string, expectedTag: string): GitHubRelease => {
+	const record = parseJsonRecord(source, `GitHub release ${expectedTag}`);
+	const id = record["id"];
+	const tagName = record["tag_name"];
+	const draft = record["draft"];
+	const immutable = record["immutable"];
+	if (!Number.isSafeInteger(id) || (id as number) <= 0) {
+		throw new Error(`GitHub release ${expectedTag} must contain a positive integer id.`);
+	}
+	if (tagName !== expectedTag) {
+		throw new Error(`GitHub release tag ${String(tagName)} does not match ${expectedTag}.`);
+	}
+	if (typeof draft !== "boolean" || typeof immutable !== "boolean") {
+		throw new Error(`GitHub release ${expectedTag} must contain draft and immutable booleans.`);
+	}
+	return { draft, id: id as number, immutable, tagName };
+};
+
+const assertImmutableRelease = (release: GitHubRelease): void => {
+	if (release.draft) {
+		throw new Error(`Release ${release.tagName} is still a draft.`);
+	}
+	if (!release.immutable) {
+		throw new Error(`Release ${release.tagName} is published but is not immutable.`);
+	}
+};
+
+const assertRepository = (value: string): void => {
+	if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(value)) {
+		throw new Error(`GitHub repository must use owner/name form: ${value}.`);
+	}
+};
+
+const assertReleaseTag = (value: string): void => {
+	const version = value.startsWith("runner-v")
+		? value.slice("runner-v".length)
+		: value.startsWith("v")
+			? value.slice(1)
+			: "";
+	releaseVersion(version, "tag", value);
+};
 
 type ReleaseManifest = Readonly<{
 	hollywood: string;

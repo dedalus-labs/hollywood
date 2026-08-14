@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 
 import { currentRunner, runAction } from "../src/index";
-import { detectReleaseComponents } from "./release-actions";
+import { detectReleaseComponents, publishDraftReleases } from "./release-actions";
 
 const before = "0123456789abcdef0123456789abcdef01234567";
 const currentRevision = "89abcdef0123456789abcdef0123456789abcdef";
@@ -43,7 +43,12 @@ test("release component detection reports the npm package independently", async 
 		runner: currentRunner(),
 	});
 
-	assert.deepEqual(outputs, { hollywood: "true", runner: "false" });
+	assert.deepEqual(outputs, {
+		hollywood: "true",
+		hollywoodTag: "v0.0.3",
+		runner: "false",
+		runnerTag: "",
+	});
 });
 
 test("release component detection reports the runner independently", async () => {
@@ -58,7 +63,12 @@ test("release component detection reports the runner independently", async () =>
 		runner: currentRunner(),
 	});
 
-	assert.deepEqual(outputs, { hollywood: "false", runner: "true" });
+	assert.deepEqual(outputs, {
+		hollywood: "false",
+		hollywoodTag: "",
+		runner: "true",
+		runnerTag: "runner-v0.0.1",
+	});
 });
 
 test("release component detection bootstraps the first runner release", async () => {
@@ -73,7 +83,12 @@ test("release component detection bootstraps the first runner release", async ()
 		runner: currentRunner(),
 	});
 
-	assert.deepEqual(outputs, { hollywood: "false", runner: "true" });
+	assert.deepEqual(outputs, {
+		hollywood: "false",
+		hollywoodTag: "",
+		runner: "true",
+		runnerTag: "runner-v0.0.1",
+	});
 });
 
 test("manual release detection resolves the current commit parent", async () => {
@@ -95,7 +110,153 @@ test("manual release detection resolves the current commit parent", async () => 
 		["git", ["rev-parse", `${currentRevision}^`]],
 		["git", ["show", `${before}:.release-please-manifest.json`]],
 	]);
-	assert.deepEqual(outputs, { hollywood: "false", runner: "true" });
+	assert.deepEqual(outputs, {
+		hollywood: "false",
+		hollywoodTag: "",
+		runner: "true",
+		runnerTag: "runner-v0.0.1",
+	});
+});
+
+test("draft release publication validates and publishes each component", async () => {
+	const commands: Array<readonly [string, readonly string[]]> = [];
+	const releases = new Map([
+		["v0.0.4", { draft: true, id: 41, immutable: false, tag_name: "v0.0.4" }],
+		[
+			"runner-v0.0.1",
+			{ draft: true, id: 42, immutable: false, tag_name: "runner-v0.0.1" },
+		],
+	]);
+
+	await runAction(publishDraftReleases, {
+		with: {
+			hollywoodTag: "v0.0.4",
+			repository: "dedalus-labs/hollywood",
+			runnerTag: "runner-v0.0.1",
+			token: "token",
+		},
+		exec: async (file, args, options) => {
+			commands.push([file, args]);
+			assert.deepEqual(options, { env: { GH_TOKEN: "token" } });
+			if (args.includes("PATCH")) {
+				const id = Number(args[1]?.split("/").at(-1));
+				const release = [...releases.values()].find((candidate) => candidate.id === id);
+				assert.ok(release !== undefined);
+				return {
+					exitCode: 0,
+					stderr: "",
+					stdout: JSON.stringify({ ...release, draft: false, immutable: true }),
+				};
+			}
+			const tag = args[1]?.split("/").at(-1);
+			const release = releases.get(tag ?? "");
+			assert.ok(release !== undefined);
+			return { exitCode: 0, stderr: "", stdout: JSON.stringify(release) };
+		},
+		fs: releaseFiles("0.0.4", "0.0.1"),
+		runner: currentRunner(),
+	});
+
+	assert.deepEqual(commands, [
+		["gh", ["api", "repos/dedalus-labs/hollywood/releases/tags/v0.0.4"]],
+		[
+			"gh",
+			[
+				"api",
+				"repos/dedalus-labs/hollywood/releases/41",
+				"--method",
+				"PATCH",
+				"-F",
+				"draft=false",
+			],
+		],
+		["gh", ["api", "repos/dedalus-labs/hollywood/releases/tags/runner-v0.0.1"]],
+		[
+			"gh",
+			[
+				"api",
+				"repos/dedalus-labs/hollywood/releases/42",
+				"--method",
+				"PATCH",
+				"-F",
+				"draft=false",
+			],
+		],
+	]);
+});
+
+test("draft release publication accepts an existing immutable release", async () => {
+	let calls = 0;
+	await runAction(publishDraftReleases, {
+		with: {
+			hollywoodTag: "",
+			repository: "dedalus-labs/hollywood",
+			runnerTag: "runner-v0.0.1",
+			token: "token",
+		},
+		exec: async () => {
+			calls += 1;
+			return {
+				exitCode: 0,
+				stderr: "",
+				stdout: JSON.stringify({
+					draft: false,
+					id: 42,
+					immutable: true,
+					tag_name: "runner-v0.0.1",
+				}),
+			};
+		},
+		fs: releaseFiles("0.0.4", "0.0.1"),
+		runner: currentRunner(),
+	});
+
+	assert.equal(calls, 1);
+});
+
+test("draft release publication rejects a mutable published release", async () => {
+	await assert.rejects(
+		runAction(publishDraftReleases, {
+			with: {
+				hollywoodTag: "v0.0.4",
+				repository: "dedalus-labs/hollywood",
+				runnerTag: "",
+				token: "token",
+			},
+			exec: async () => ({
+				exitCode: 0,
+				stderr: "",
+				stdout: JSON.stringify({
+					draft: false,
+					id: 41,
+					immutable: false,
+					tag_name: "v0.0.4",
+				}),
+			}),
+			fs: releaseFiles("0.0.4", "0.0.1"),
+			runner: currentRunner(),
+		}),
+		/Release v0\.0\.4 is published but is not immutable/,
+	);
+});
+
+test("draft release publication requires a component tag", async () => {
+	await assert.rejects(
+		runAction(publishDraftReleases, {
+			with: {
+				hollywoodTag: "",
+				repository: "dedalus-labs/hollywood",
+				runnerTag: "",
+				token: "token",
+			},
+			exec: async () => {
+				throw new Error("unexpected exec");
+			},
+			fs: releaseFiles("0.0.4", "0.0.1"),
+			runner: currentRunner(),
+		}),
+		/At least one release tag is required/,
+	);
 });
 
 test("release component detection rejects unrelated manifest rewrites", async () => {

@@ -13,8 +13,12 @@ inputs:
 outputs:
   hollywood:
     description: Whether the npm package version changed.
+  hollywood-tag:
+    description: Expected npm package release tag.
   runner:
     description: Whether the runner image version changed.
+  runner-tag:
+    description: Expected runner image release tag.
 runs:
   using: node24
   main: dist/index.js

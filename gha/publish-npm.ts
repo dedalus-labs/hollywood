@@ -28,7 +28,7 @@ import {
 	testCommand,
 	typecheckCommand,
 } from "./actions";
-import { detectReleaseComponents } from "./release-actions";
+import { detectReleaseComponents, publishDraftReleases } from "./release-actions";
 
 export const publishNpmPackage = action({
 	name: "Publish npm package",
@@ -71,7 +71,9 @@ export const publishNpm = workflow({
 			"runs-on": "ubuntu-latest",
 			outputs: {
 				hollywood: stepOutput("components", "hollywood"),
+				"hollywood-tag": stepOutput("components", "hollywood-tag"),
 				runner: stepOutput("components", "runner"),
+				"runner-tag": stepOutput("components", "runner-tag"),
 			},
 			steps: [
 				{
@@ -147,6 +149,11 @@ export const publishNpm = workflow({
 			"runs-on": "ubuntu-latest",
 			permissions: { contents: "read" },
 			steps: [
+				{ uses: checkoutAction, with: { "persist-credentials": false } },
+				{ uses: setupNodeAction, with: { "node-version": "24" } },
+				{ name: "Install dependencies", run: installDependenciesCommand },
+				{ name: "Build Hollywood", run: buildHollywoodCommand },
+				{ name: "Build local actions", run: buildLocalActionsCommand },
 				{
 					id: "cind-token",
 					name: "Create Cind app token",
@@ -164,7 +171,7 @@ export const publishNpm = workflow({
 				},
 				{
 					id: "release",
-					name: "Finalize release",
+					name: "Create draft releases",
 					uses: releasePleaseAction,
 					with: {
 						token: "${{ steps.cind-token.outputs.token }}",
@@ -173,6 +180,15 @@ export const publishNpm = workflow({
 						"skip-github-pull-request": "true",
 					},
 				},
+				uses(publishDraftReleases, {
+					name: "Publish immutable releases",
+					with: {
+						hollywoodTag: needsOutput("detect", "hollywood-tag"),
+						repository: gh.github.repository,
+						runnerTag: needsOutput("detect", "runner-tag"),
+						token: stepOutput("cind-token", "token"),
+					},
+				}),
 			],
 		}),
 	},
