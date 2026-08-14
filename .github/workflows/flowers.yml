@@ -24,10 +24,13 @@ jobs:
           node-version: "24"
       - name: Install dependencies
         run: npm ci
+        shell: bash
       - name: Build Hollywood
         run: npm run build
+        shell: bash
       - name: Build local actions
         run: npm run actions
+        shell: bash
       - id: cind-token
         name: Create Cind app token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1

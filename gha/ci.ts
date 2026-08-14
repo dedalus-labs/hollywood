@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 import {
 	action,
+	command,
 	job,
 	summaryCode,
 	summaryText,
@@ -11,9 +12,18 @@ import {
 	workflow,
 } from "../src/index";
 import {
+	auditDependenciesCommand,
+	buildHollywoodCommand,
+	buildLocalActionsCommand,
 	checkHollywoodStateCommand,
+	checkPackageContentsCommand,
 	checkoutAction,
+	installDependenciesCommand,
+	lintCommand,
 	setupNodeAction,
+	testCommand,
+	typecheckCommand,
+	verifyRegistrySignaturesCommand,
 } from "./actions";
 import { trustedCiRun } from "./guards";
 
@@ -118,17 +128,20 @@ export const ci = workflow({
 			steps: [
 				{ uses: checkoutAction, with: { "persist-credentials": false } },
 				setupNode,
-				{ name: "Install dependencies", run: "npm ci" },
-				{ name: "Audit dependencies", run: "npm audit --audit-level=high" },
-				{ name: "Verify registry signatures", run: "npm audit signatures" },
-				{ name: "Lint", run: "npm run lint" },
-				{ name: "Typecheck", run: "npm run typecheck" },
-				{ name: "Test", run: "npm test" },
-				{ name: "Build", run: "npm run build" },
-				{ name: "Check package contents", run: "npm run package" },
+				{ name: "Install dependencies", run: installDependenciesCommand },
+				{ name: "Audit dependencies", run: auditDependenciesCommand },
+				{ name: "Verify registry signatures", run: verifyRegistrySignaturesCommand },
+				{ name: "Lint", run: lintCommand },
+				{ name: "Typecheck", run: typecheckCommand },
+				{ name: "Test", run: testCommand },
+				{ name: "Build", run: buildHollywoodCommand },
+				{ name: "Check package contents", run: checkPackageContentsCommand },
 				{ name: "Check Hollywood state", run: checkHollywoodStateCommand },
 				{ ...setupNode, with: { "node-version": "20" } },
-				{ name: "Check Node 20 CLI runtime", run: "node dist/cli.js check --workflow-security" },
+				{
+					name: "Check Node 20 CLI runtime",
+					run: command({ file: "node", args: ["dist/cli.js", "check", "--workflow-security"] }),
+				},
 			],
 		}),
 		actionlint: job({
@@ -138,9 +151,9 @@ export const ci = workflow({
 			steps: [
 				{ uses: checkoutAction, with: { "persist-credentials": false } },
 				setupNode,
-				{ name: "Install dependencies", run: "npm ci" },
-				{ name: "Build Hollywood", run: "npm run build" },
-				{ name: "Build local actions", run: "npm run actions" },
+				{ name: "Install dependencies", run: installDependenciesCommand },
+				{ name: "Build Hollywood", run: buildHollywoodCommand },
+				{ name: "Build local actions", run: buildLocalActionsCommand },
 				uses(checkRuntime, { name: "Check Hollywood runtime" }),
 				uses(lintWorkflows, { name: "Lint GitHub Actions workflows" }),
 			],
@@ -154,9 +167,9 @@ export const ci = workflow({
 			steps: [
 				{ uses: checkoutAction, with: { "persist-credentials": false } },
 				setupNode,
-				{ name: "Install dependencies", run: "npm ci" },
-				{ name: "Build Hollywood", run: "npm run build" },
-				{ name: "Build local actions", run: "npm run actions" },
+				{ name: "Install dependencies", run: installDependenciesCommand },
+				{ name: "Build Hollywood", run: buildHollywoodCommand },
+				{ name: "Build local actions", run: buildLocalActionsCommand },
 				uses(testContainerProvider, { name: "Test provider" }),
 			],
 		}),

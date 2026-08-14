@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 
 import type { GitHubWorkflow } from "../src/index";
+import { buildLocalActionsCommand } from "./actions";
 import { ci } from "./ci";
 import { cla } from "./cla";
 import { docs } from "./docs";
@@ -30,8 +31,12 @@ test("repository workflows invoke Hollywood actions as local action steps", () =
 			}
 			for (const step of job.steps) {
 				if ("run" in step) {
+					assert.equal(step.run.kind, "command");
 					assert.ok(
-						!step.run.includes("dist/cli.js run"),
+						step.run.kind !== "command" ||
+							step.run.file !== "node" ||
+							step.run.args[0] !== "dist/cli.js" ||
+							step.run.args[1] !== "run",
 						`${workflow.name}/${jobName} invokes a Hollywood action through shell`,
 					);
 				}
@@ -49,7 +54,7 @@ test("repository workflows bundle ignored local actions before use", () => {
 
 			let actionsBuilt = false;
 			for (const step of job.steps) {
-				if ("run" in step && step.run === "npm run actions") {
+				if ("run" in step && step.run === buildLocalActionsCommand) {
 					actionsBuilt = true;
 				}
 				if ("uses" in step && step.uses.startsWith("./.github/actions/")) {

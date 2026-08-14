@@ -9,7 +9,13 @@ import {
 	type ScriptActionContext,
 	type ScriptFs,
 } from "../src/index";
-import { checkoutAction, setupNodeAction } from "./actions";
+import {
+	buildHollywoodCommand,
+	buildLocalActionsCommand,
+	checkoutAction,
+	installDependenciesCommand,
+	setupNodeAction,
+} from "./actions";
 
 const vouchedPath = "VOUCHED.td";
 
@@ -198,9 +204,9 @@ const setupNode = {
 const prepareHollywood = [
 	trustedBaseCheckout,
 	setupNode,
-	{ name: "Install dependencies", run: "npm ci" },
-	{ name: "Build Hollywood", run: "npm run build" },
-	{ name: "Build local actions", run: "npm run actions" },
+	{ name: "Install dependencies", run: installDependenciesCommand },
+	{ name: "Build Hollywood", run: buildHollywoodCommand },
+	{ name: "Build local actions", run: buildLocalActionsCommand },
 ] as const;
 
 const contributorWith = {

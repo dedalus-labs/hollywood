@@ -1,4 +1,4 @@
-import { job, workflow } from "../src/index";
+import { command, job, workflow } from "../src/index";
 import {
 	checkoutAction,
 	deployPagesAction,
@@ -31,9 +31,18 @@ export const docs = workflow({
 				{ uses: setupPythonAction, with: { "python-version": "3.13" } },
 				{
 					name: "Install docs dependencies",
-					run: "python -m pip install -r docs/requirements.txt",
+					run: command({
+						file: "python",
+						args: ["-m", "pip", "install", "-r", "docs/requirements.txt"],
+					}),
 				},
-				{ name: "Build docs", run: "python -m mkdocs build --strict -f mkdocs.yml" },
+				{
+					name: "Build docs",
+					run: command({
+						file: "python",
+						args: ["-m", "mkdocs", "build", "--strict", "-f", "mkdocs.yml"],
+					}),
+				},
 				{ name: "Upload pages artifact", uses: uploadPagesArtifactAction, with: { path: "site" } },
 			],
 		}),

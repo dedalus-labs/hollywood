@@ -1,3 +1,5 @@
+import { command } from "../src/index";
+
 export const checkoutAction =
 	"actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10"; // v6.0.3
 
@@ -37,4 +39,19 @@ export const dockerBuildPushAction =
 export const attestBuildProvenanceAction =
 	"actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661"; // v3
 
-export const checkHollywoodStateCommand = "node dist/cli.js check";
+export const installDependenciesCommand = command({ file: "npm", args: ["ci"] });
+export const auditDependenciesCommand = command({
+	file: "npm",
+	args: ["audit", "--audit-level=high"],
+});
+export const verifyRegistrySignaturesCommand = command({
+	file: "npm",
+	args: ["audit", "signatures"],
+});
+export const lintCommand = command({ file: "npm", args: ["run", "lint"] });
+export const typecheckCommand = command({ file: "npm", args: ["run", "typecheck"] });
+export const testCommand = command({ file: "npm", args: ["test"] });
+export const buildHollywoodCommand = command({ file: "npm", args: ["run", "build"] });
+export const buildLocalActionsCommand = command({ file: "npm", args: ["run", "actions"] });
+export const checkPackageContentsCommand = command({ file: "npm", args: ["run", "package"] });
+export const checkHollywoodStateCommand = command({ file: "node", args: ["dist/cli.js", "check"] });
