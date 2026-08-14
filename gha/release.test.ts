@@ -9,6 +9,7 @@ import {
 } from "./actions";
 import { publishNpm } from "./publish-npm";
 import { release } from "./release";
+import { publishDraftReleases } from "./release-actions";
 
 test("release please opens version pull requests without creating tags", () => {
 	const releasePlease = release.jobs["release-please"];
@@ -39,7 +40,9 @@ test("release publication selects components from typed action outputs", () => {
 	assert.equal(checkout.with?.["fetch-depth"], 0);
 	assert.deepEqual(detect.outputs, {
 		hollywood: "${{ steps.components.outputs.hollywood }}",
+		"hollywood-tag": "${{ steps.components.outputs.hollywood-tag }}",
 		runner: "${{ steps.components.outputs.runner }}",
+		"runner-tag": "${{ steps.components.outputs.runner-tag }}",
 	});
 	const components = detect.steps.find((step) => "id" in step && step.id === "components");
 	assert.deepEqual(components, {
@@ -70,6 +73,7 @@ test("release please owns independent npm and runner versions", async () => {
 	) as Record<string, unknown>;
 
 	assert.equal(config["separate-pull-requests"], true);
+	assert.equal(config["draft"], true);
 	assert.equal(config["force-tag-creation"], true);
 	assert.equal(config["include-component-in-tag"], false);
 	assert.deepEqual(config["packages"], {
@@ -104,7 +108,7 @@ test("failed npm releases can be retried from current main", () => {
 test("release please finalizes the published package lifecycle", () => {
 	const releaseJob = publishNpm.jobs.release;
 	assert.ok(releaseJob !== undefined && "steps" in releaseJob);
-	const token = releaseJob.steps.find(({ id }) => id === "cind-token");
+	const token = releaseJob.steps.find((step) => "id" in step && step.id === "cind-token");
 
 	assert.deepEqual(token, {
 		id: "cind-token",
@@ -122,9 +126,9 @@ test("release please finalizes the published package lifecycle", () => {
 		},
 	});
 
-	assert.deepEqual(releaseJob.steps.at(-1), {
+	assert.deepEqual(releaseJob.steps.at(-2), {
 		id: "release",
-		name: "Finalize release",
+		name: "Create draft releases",
 		uses: releasePleaseAction,
 		with: {
 			token: "${{ steps.cind-token.outputs.token }}",
@@ -133,6 +137,17 @@ test("release please finalizes the published package lifecycle", () => {
 			"skip-github-pull-request": "true",
 		},
 	});
+	assert.deepEqual(releaseJob.steps.at(-1), {
+		name: "Publish immutable releases",
+		uses: "./.github/actions/publish-draft-releases",
+		with: {
+			"hollywood-tag": "${{ needs.detect.outputs.hollywood-tag }}",
+			repository: "${{ github.repository }}",
+			"runner-tag": "${{ needs.detect.outputs.runner-tag }}",
+			token: "${{ steps.cind-token.outputs.token }}",
+		},
+	});
+	assert.equal(publishDraftReleases.localActionPath, "publish-draft-releases");
 });
 
 test("publishing delegates to typed local actions", () => {

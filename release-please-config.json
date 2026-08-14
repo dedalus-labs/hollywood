@@ -15,6 +15,7 @@
 		}
 	},
 	"separate-pull-requests": true,
+	"draft": true,
 	"force-tag-creation": true,
 	"include-v-in-tag": true,
 	"include-component-in-tag": false,
