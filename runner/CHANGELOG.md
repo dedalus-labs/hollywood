@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.0.1 (2026-08-14)
+## 0.0.2 (2026-08-14)
 
 
 ### Features
@@ -13,3 +13,7 @@
 ### Bug Fixes
 
 * **release:** keep runner unreleased ([9c72528](https://github.com/dedalus-labs/hollywood/commit/9c72528253e8e8afd47fc794606797614ce423d6))
+
+## 0.0.1 (unpublished)
+
+No runner image was published for this version.
