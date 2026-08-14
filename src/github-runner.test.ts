@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { once } from "node:events";
 import { access, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "vitest";
 
@@ -72,7 +73,7 @@ test("GitHub runner uses the official listener without exposing JIT configuratio
 });
 
 test("GitHub runner mounts typed hooks, diagnostics, and a Docker-compatible socket", async () => {
-	const root = await mkdtemp(join(process.cwd(), ".hollywood-runner-test-"));
+	const root = await mkdtemp(join(tmpdir(), "hollywood-runner-test-"));
 	const jobStarted = join(root, "job-started.sh");
 	const jobCompleted = join(root, "job-completed.sh");
 	const containerHooks = join(root, "container-hooks.js");
@@ -170,7 +171,7 @@ test("GitHub runner rejects malformed JIT configuration", () => {
 
 for (const provider of ["docker", "podman"] as const) {
 	test(`${provider} mounts a Docker-compatible socket without changing providers`, async () => {
-		const root = await mkdtemp(join(process.cwd(), ".hollywood-runner-test-"));
+		const root = await mkdtemp(join(tmpdir(), "hollywood-runner-test-"));
 		let command: Command | undefined;
 		try {
 			await withUnixSocket(root, async (socket) => {
@@ -199,7 +200,7 @@ for (const provider of ["docker", "podman"] as const) {
 }
 
 test("GitHub runner rejects a container engine path that is not a Unix socket", async () => {
-	const root = await mkdtemp(join(process.cwd(), ".hollywood-runner-test-"));
+	const root = await mkdtemp(join(tmpdir(), "hollywood-runner-test-"));
 	const regularFile = join(root, "engine.sock");
 	await writeFile(regularFile, "not a socket\n");
 	try {
