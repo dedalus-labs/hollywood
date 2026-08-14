@@ -5,6 +5,7 @@ import { join } from "node:path";
 import {
 	action,
 	command,
+	gh,
 	job,
 	summaryCode,
 	summaryText,
@@ -26,6 +27,7 @@ import {
 	verifyRegistrySignaturesCommand,
 } from "./actions";
 import { trustedCiRun } from "./guards";
+import { validateReleaseCandidate } from "./release-actions";
 
 const actionlintVersion = "1.7.12";
 const actionlintArchiveSha256 =
@@ -154,6 +156,11 @@ export const ci = workflow({
 				{ name: "Install dependencies", run: installDependenciesCommand },
 				{ name: "Build Hollywood", run: buildHollywoodCommand },
 				{ name: "Build local actions", run: buildLocalActionsCommand },
+				uses(validateReleaseCandidate, {
+					env: { GH_TOKEN: gh.github.token },
+					name: "Validate release candidate",
+					with: { repository: gh.github.repository },
+				}),
 				uses(checkRuntime, { name: "Check Hollywood runtime" }),
 				uses(lintWorkflows, { name: "Lint GitHub Actions workflows" }),
 			],

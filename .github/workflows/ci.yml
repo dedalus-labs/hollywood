@@ -78,6 +78,12 @@ jobs:
       - name: Build local actions
         run: npm run actions
         shell: bash
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        name: Validate release candidate
+        uses: ./.github/actions/validate-release-candidate
+        with:
+          repository: ${{ github.repository }}
       - name: Check Hollywood runtime
         uses: ./.github/actions/check-runtime
       - name: Lint GitHub Actions workflows

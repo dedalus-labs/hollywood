@@ -83,9 +83,17 @@ Release Please creates `runner/version.txt` and `runner/CHANGELOG.md` in the
 first runner release PR. Until that PR merges, the manifest omits the runner
 component and no runner release exists.
 
-Merging a release PR into `main` is the release switch. The publication
-workflow compares the previous and current Release Please manifests. It fails
-when the manifest changes without changing a configured component version.
+Merging a release PR into `main` creates a pending deployment for the protected
+`release` environment. A maintainer must approve that deployment before the
+workflow can publish npm packages, GitHub Releases, or runner images. The
+publication workflow compares the previous and current Release Please
+manifests. It fails when the manifest changes without changing a configured
+component version.
+
+Required CI also compares each manifest version with the published immutable
+GitHub Releases. The first stable component release must use `0.0.1`. Later
+stable releases must apply one major, minor, or patch increment. This check
+prevents a release PR from skipping an unpublished version.
 
 For a Hollywood release, the workflow reruns lint, typecheck, tests, and the
 build before publishing the package with npm provenance. It creates the GitHub

@@ -129,12 +129,181 @@ export const publishDraftReleases = action({
 	},
 });
 
+export const validateReleaseCandidate = action({
+	name: "Validate release candidate",
+	description: "Validate release manifest versions against immutable GitHub releases.",
+	localActionPath: "validate-release-candidate",
+	inputs: {
+		repository: stringInput({ description: "GitHub owner/repository name." }),
+	},
+	outputs: {},
+	run: async ({ exec, fs, input }) => {
+		assertRepository(input.repository);
+		const manifest = parseReleaseManifest(await fs.readText(manifestPath), manifestPath);
+		const releases = parseGitHubReleaseRecords(
+			(
+				await exec("gh", [
+					"api",
+					"--paginate",
+					`repos/${input.repository}/releases?per_page=100`,
+					"--jq",
+					".[] | {draft, id, immutable, tag_name}",
+				])
+			).stdout,
+		);
+
+		validateComponentRelease(releases, {
+			label: "Hollywood",
+			tagPrefix: "v",
+			version: manifest.hollywood,
+		});
+		if (manifest.runner !== undefined) {
+			validateComponentRelease(releases, {
+				label: "Runner",
+				tagPrefix: "runner-v",
+				version: manifest.runner,
+			});
+		}
+		return {};
+	},
+});
+
 type GitHubRelease = Readonly<{
 	draft: boolean;
 	id: number;
 	immutable: boolean;
 	tagName: string;
 }>;
+
+type ReleaseComponent = Readonly<{
+	label: string;
+	tagPrefix: "runner-v" | "v";
+	version: string;
+}>;
+
+type StableVersion = Readonly<{
+	major: number;
+	minor: number;
+	patch: number;
+	value: string;
+}>;
+
+const validateComponentRelease = (
+	releases: readonly Readonly<Record<string, unknown>>[],
+	component: ReleaseComponent,
+): void => {
+	const candidateTag = `${component.tagPrefix}${component.version}`;
+	const candidate = stableVersion(component.version, component.label);
+	if (candidate === undefined) {
+		validatePublishedCandidate(releases, candidateTag);
+		return;
+	}
+	const published = releases
+		.flatMap((record) => stableComponentRelease(record, component))
+		.sort((left, right) => compareVersions(left.version, right.version));
+	const latest = published.at(-1);
+
+	if (latest === undefined) {
+		if (candidate.value !== "0.0.1") {
+			throw new Error(
+				`First ${component.label.toLowerCase()} release must be ${component.tagPrefix}0.0.1; received ${candidateTag}.`,
+			);
+		}
+		return;
+	}
+
+	if (compareVersions(candidate, latest.version) === 0) {
+		assertImmutableRelease(latest.release);
+		return;
+	}
+	assertImmutableRelease(latest.release);
+	if (!isNextVersion(latest.version, candidate)) {
+		throw new Error(
+			`${component.label} release ${candidateTag} must increment ${latest.release.tagName} exactly once.`,
+		);
+	}
+};
+
+const validatePublishedCandidate = (
+	releases: readonly Readonly<Record<string, unknown>>[],
+	tag: string,
+): void => {
+	const matches = releases.filter((release) => release["tag_name"] === tag);
+	if (matches.length > 1) {
+		throw new Error(`Expected at most one GitHub release for ${tag}; found ${matches.length}.`);
+	}
+	const record = matches[0];
+	if (record === undefined) {
+		return;
+	}
+	const release = parseGitHubReleaseRecord(record, tag);
+	if (!release.draft) {
+		assertImmutableRelease(release);
+	}
+};
+
+const stableComponentRelease = (
+	record: Readonly<Record<string, unknown>>,
+	component: ReleaseComponent,
+): readonly Readonly<{ release: GitHubRelease; version: StableVersion }>[] => {
+	const tag = record["tag_name"];
+	if (typeof tag !== "string" || !tag.startsWith(component.tagPrefix)) {
+		return [];
+	}
+	const release = parseGitHubReleaseRecord(record, tag);
+	if (release.draft) {
+		return [];
+	}
+	const value = tag.slice(component.tagPrefix.length);
+	if (value.includes("-")) {
+		releaseVersion(value, component.label, tag);
+		return [];
+	}
+	const version = stableVersion(value, component.label);
+	if (version === undefined) {
+		throw new Error(`GitHub release ${tag} must contain a stable SemVer version.`);
+	}
+	return [
+		{
+			release,
+			version,
+		},
+	];
+};
+
+const stableVersion = (value: string, component: string): StableVersion | undefined => {
+	releaseVersion(value, component, "release manifest");
+	const match = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.exec(value);
+	if (match === null) {
+		return undefined;
+	}
+	return {
+		major: Number(match[1]),
+		minor: Number(match[2]),
+		patch: Number(match[3]),
+		value,
+	};
+};
+
+const compareVersions = (left: StableVersion, right: StableVersion): number =>
+	left.major - right.major || left.minor - right.minor || left.patch - right.patch;
+
+const isNextVersion = (previous: StableVersion, candidate: StableVersion): boolean =>
+	(candidate.major === previous.major &&
+		candidate.minor === previous.minor &&
+		candidate.patch === previous.patch + 1) ||
+	(candidate.major === previous.major &&
+		candidate.minor === previous.minor + 1 &&
+		candidate.patch === 0) ||
+	(candidate.major === previous.major + 1 && candidate.minor === 0 && candidate.patch === 0);
+
+const parseGitHubReleaseRecords = (
+	source: string,
+): readonly Readonly<Record<string, unknown>>[] =>
+	source
+		.split("\n")
+		.filter((line) => line !== "")
+		.map((line, index) => parseJsonRecord(line, `GitHub release record ${index}`));
 
 const parseGitHubRelease = (source: string, expectedTag: string): GitHubRelease => {
 	const record = parseJsonRecord(source, `GitHub release ${expectedTag}`);
