@@ -677,7 +677,7 @@ test("renderWorkflowFile supports common GitHub orchestration fields", () => {
 	assert.match(content, /cancel-in-progress: \$\{\{ !contains\(github.ref, 'release\/'\) \}\}/);
 	assert.match(content, /id-token: write/);
 	assert.match(content, /environment: Development/);
-	assert.match(content, /needs:/);
+	assert.doesNotMatch(content, /needs:/);
 	assert.match(content, /minio:/);
 	assert.match(content, /go:/);
 	assert.match(content, /os:/);

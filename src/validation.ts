@@ -14,6 +14,9 @@ import { NoOperationTraceWriter } from "@actions/workflow-parser/templates/trace
 import { WORKFLOW_ROOT } from "@actions/workflow-parser/workflows/workflow-constants";
 import { YamlObjectReader } from "@actions/workflow-parser/workflows/yaml-object-reader";
 
+import type { GitHubWorkflow } from "./generate";
+import { checkUnnecessaryNeeds } from "./lint/no-unnecessary-needs";
+
 export type GitHubYamlFile = Readonly<{
 	name: string;
 	content: string;
@@ -22,6 +25,40 @@ export type GitHubYamlFile = Readonly<{
 export type GitHubYamlValidationError = Readonly<{
 	message: string;
 }>;
+
+export type ValidationOptions = Readonly<{
+	rules?: readonly string[];
+	level?: "warn" | "error";
+}>;
+
+export type LintIssue = Readonly<{
+	ruleId: string;
+	message: string;
+	jobId: string;
+}>;
+
+export const validateWorkflowModel = (
+	workflow: GitHubWorkflow,
+	options: ValidationOptions = {},
+): Readonly<{ errors: LintIssue[]; warnings: LintIssue[] }> => {
+	const errors: LintIssue[] = [];
+	const warnings: LintIssue[] = [];
+
+	if (options.rules?.includes("no-unnecessary-needs")) {
+		for (const [jobId, job] of Object.entries(workflow.jobs)) {
+			//We cast to any here to bridge the generated types to the internal lint types seamlessly
+			const lintIssues = checkUnnecessaryNeeds(jobId, job as any, workflow.jobs as any);
+			
+			if (options.level === "error") {
+				errors.push(...lintIssues);
+			} else {
+				warnings.push(...lintIssues);
+			}
+		}
+	}
+
+	return { errors, warnings };
+};
 
 export type GitHubYamlValidation =
 	| Readonly<{ status: "valid"; errors: readonly [] }>

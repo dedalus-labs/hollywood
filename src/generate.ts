@@ -518,13 +518,69 @@ export const renderWorkflowFile = (file: GitHubWorkflowFile): string => {
 const workflowForYaml = (workflow: GitHubWorkflow): unknown => ({
 	...workflow,
 	jobs: Object.fromEntries(
-		Object.entries(workflow.jobs).map(([name, workflowJob]) => [name, jobForYaml(workflowJob)]),
+		Object.entries(workflow.jobs).map(([name, workflowJob]) => [
+			name,
+			jobForYaml(workflowJob, workflow.jobs),
+		]),
 	),
 });
+const hasProvableDependency = (
+	job: GitHubWorkflowJob,
+	upstreamJobName: string,
+	allJobs: GitHubWorkflowJobs,
+): boolean => {
+	const jobString = JSON.stringify(job);
+	const outputRegex = new RegExp(`needs\\s*\\.\\s*${upstreamJobName}\\s*\\.\\s*(outputs|result)`, "g");
+	if (outputRegex.test(jobString)) {
+		return true;
+	}
 
-const jobForYaml = (workflowJob: GitHubWorkflowJob): unknown => {
+	// Check for matching artifact upload/download
+	const upstreamJob = allJobs[upstreamJobName];
+	if (upstreamJob && "steps" in upstreamJob && upstreamJob.steps && "steps" in job && job.steps) {
+		const uploadedArtifacts = upstreamJob.steps
+			.filter((s) => s.uses && s.uses.includes("upload-artifact"))
+			.map((s) => s.with?.['name'])
+			.filter(Boolean);
+
+		const downloadedArtifacts = job.steps
+			.filter((s) => s.uses && s.uses.includes("download-artifact"))
+			.map((s) => s.with?.['name'])
+			.filter(Boolean);
+
+		if (downloadedArtifacts.some((dl) => uploadedArtifacts.includes(dl))) {
+			return true;
+		}
+	}
+
+	// Fallback: if no provable data link exists, the dependency is deemed unnecessary
+	return false;
+};
+
+const jobForYaml = (
+	workflowJob: GitHubWorkflowJob,
+	allJobs: GitHubWorkflowJobs,
+): unknown => {
 	const matrix = workflowJob.strategy?.matrix;
-	return {
+
+	//Filter needs to only include provable data dependencies
+	let needsForYaml = workflowJob.needs;
+	if (needsForYaml !== undefined) {
+		const needsArray = Array.isArray(needsForYaml) ? needsForYaml : [needsForYaml];
+		const provableNeeds = needsArray.filter((need) =>
+			hasProvableDependency(workflowJob, need, allJobs),
+		);
+
+		if (provableNeeds.length === 0) {
+			needsForYaml = undefined;
+		} else if (provableNeeds.length === 1 && !Array.isArray(workflowJob.needs)) {
+			needsForYaml = provableNeeds[0]; //Maintain original string type if it was a single string
+		} else {
+			needsForYaml = provableNeeds;
+		}
+	}
+
+	const result: any = {
 		...workflowJob,
 		...(matrix === undefined || !isGitHubTypedMatrix(matrix)
 			? {}
@@ -538,6 +594,15 @@ const jobForYaml = (workflowJob: GitHubWorkflowJob): unknown => {
 			? {}
 			: { steps: workflowJob.steps.map((step) => stepForYaml(step)) }),
 	};
+
+	//Explicitly assign or delete the needs key to ensure clean YAML output
+	if (needsForYaml !== undefined) {
+		result.needs = needsForYaml;
+	} else {
+		delete result.needs;
+	}
+
+	return result;
 };
 
 const stepForYaml = (step: GitHubWorkflowStep): unknown => {

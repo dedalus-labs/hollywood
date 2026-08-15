@@ -9,6 +9,7 @@ import { build } from "esbuild";
 import { glob } from "tinyglobby";
 import { parse } from "yaml";
 
+import { validateWorkflowModel } from "./validation";
 import {
 	generateActionEntrypointFile,
 	generateActionFile,
@@ -57,6 +58,8 @@ export type RunOptions = Readonly<{
 
 export type CheckOptions = Readonly<{
 	generated: boolean;
+	lint?: readonly string[];
+	lintLevel?: "warn" | "error";
 	output: string;
 	rootImportAlias?: string;
 	sourceRoot?: string;
@@ -64,7 +67,7 @@ export type CheckOptions = Readonly<{
 	workflowsDir: string;
 }>;
 
-export type BuildActionsOptions = Readonly<{
+export type BuildActionsOptions = Readonly<{	
 	actionsDir: string;
 	output: string;
 	target: string;
@@ -101,20 +104,25 @@ export const createCli = (
 			await generate({ ...options, ...(sources.length === 0 ? {} : { sources }) }, io);
 		});
 
-	program
+    program
 		.command("check")
 		.description("Run Hollywood repository checks")
 		.option("--generated", "Check generated files are current", false)
 		.option("--workflow-security", "Check workflow security policy", false)
+		.option("--lint <rules...>", "Run specific lint rules")
+		.option("--lint-level <level>", "Lint severity level (warn or error)", "warn")
 		.option("-o, --output <dir>", "Repository root", ".")
 		.option("--root-import-alias <alias>", "Import alias for repository-root-relative action sources")
 		.option("--source-root <dir>", "Workflow source root")
 		.option("--workflows-dir <dir>", "Generated workflows directory", ".github/workflows")
-		.action(async (options) => {
-			const selected = options.generated || options.workflowSecurity;
+        .action(async (options) => {
+			const selected = options.generated || options.workflowSecurity || (options.lint !== undefined && options.lint.length > 0);
+			const resolvedLint = selected ? options.lint : ["no-unnecessary-needs"];
 			await check(
 				{
 					generated: selected ? options.generated : true,
+					...(resolvedLint !== undefined ? { lint: resolvedLint } : {}),
+					...(options.lintLevel !== undefined ? { lintLevel: options.lintLevel as "warn" | "error" } : {}),
 					output: options.output,
 					...(options.rootImportAlias === undefined ? {} : { rootImportAlias: options.rootImportAlias }),
 					...(options.sourceRoot === undefined ? {} : { sourceRoot: options.sourceRoot }),
@@ -124,7 +132,6 @@ export const createCli = (
 				io,
 			);
 		});
-
 	program
 		.command("build")
 		.description("Bundle generated local GitHub actions")
@@ -212,6 +219,9 @@ export const check = async (options: CheckOptions, io: CliIo): Promise<void> => 
 	if (resolved.workflowSecurity) {
 		await checkWorkflowSecurity(resolved, io);
 	}
+	if (resolved.lint && resolved.lint.length > 0) {
+		await checkLint(resolved, io);
+	}
 	if (resolved.generated) {
 		await checkGeneratedFiles(resolved, io);
 	}
@@ -248,12 +258,47 @@ type ResolvedGenerateOptions = Readonly<{
 
 type ResolvedCheckOptions = Readonly<{
 	generated: boolean;
+	lint?: readonly string[];
+	lintLevel?: "warn" | "error";
 	output: string;
 	rootImportAlias?: string;
 	sourceRoot: string;
 	workflowSecurity: boolean;
 	workflowsDir: string;
 }>;
+
+const checkLint = async (options: ResolvedCheckOptions, io: CliIo): Promise<void> => {
+	const sourceRootPath = resolve(options.output, options.sourceRoot);
+	const sourceFiles = await resolveSourceFiles([`${sourceRootPath}/**/*.ts`]);
+	let hasErrors = false;
+
+	for (const sourceFile of sourceFiles) {
+		const module = await loadHollywoodModule(sourceFile);
+		for (const value of Object.values(module)) {
+			if (isGitHubWorkflow(value)) {
+				const validation = validateWorkflowModel(value, {
+					...(options.lint !== undefined ? { rules: options.lint } : {}),
+					...(options.lintLevel !== undefined ? { level: options.lintLevel } : {}),
+				});
+
+				for (const warning of validation.warnings) {
+					io.writeOut(`${warning.message}\n`);
+				}
+
+				for (const error of validation.errors) {
+					if (io.writeErr) io.writeErr(`${error.message}\n`);
+					else io.writeOut(`${error.message}\n`);
+					hasErrors = true;
+				}
+			}
+		}
+	}
+
+	if (hasErrors) {
+		throw new Error(`workflow lint check failed`);
+	}
+	io.writeOut("ok\tworkflow lint\n");
+};
 
 const checkGeneratedFiles = async (options: ResolvedCheckOptions, io: CliIo): Promise<void> => {
 	const actionsDir = ".github/actions";
@@ -513,6 +558,8 @@ const resolveCheckOptions = async (options: CheckOptions): Promise<ResolvedCheck
 			: normalizeRootImportAlias(options.rootImportAlias);
 	return {
 		generated: options.generated,
+		...(options.lint !== undefined ? { lint: options.lint } : {}),
+		...(options.lintLevel !== undefined ? { lintLevel: options.lintLevel } : {}),
 		output,
 		...(rootImportAlias === undefined ? {} : { rootImportAlias }),
 		sourceRoot,
