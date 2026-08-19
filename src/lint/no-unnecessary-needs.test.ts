@@ -55,16 +55,4 @@ describe("no-unnecessary-needs lint rule", () => {
 		const warnings = checkUnnecessaryNeeds("deploy", job as any, { build: mockUpstreamJob as any });
 		expect(warnings).toHaveLength(0);
 	});
-
-	it("should not warn if sequencing is marked as intentional via metadata", () => {
-		const job = {
-			"runs-on": "ubuntu-latest",
-			needs: ["db_migration"],
-			metadata: { sequencing: "intentional: migration" },
-			steps: [{ run: { command: "npm run start" } }],
-		};
-
-		const warnings = checkUnnecessaryNeeds("start_server", job as any, { db_migration: { "runs-on": "ubuntu-latest" } as any });
-		expect(warnings).toHaveLength(0);
-	});
 });

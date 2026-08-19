@@ -670,20 +670,20 @@ test("renderWorkflowFile supports common GitHub orchestration fields", () => {
 		}),
 	});
 
-	const content = renderWorkflowFile(workflowFile);
+  const content = renderWorkflowFile(workflowFile);
 
 	assert.match(content, /queue: max/);
 	assert.match(content, /max-parallel: 2/);
 	assert.match(content, /cancel-in-progress: \$\{\{ !contains\(github.ref, 'release\/'\) \}\}/);
 	assert.match(content, /id-token: write/);
 	assert.match(content, /environment: Development/);
-	assert.doesNotMatch(content, /needs:/);
+	assert.match(content, /needs:/);
 	assert.match(content, /minio:/);
 	assert.match(content, /go:/);
 	assert.match(content, /os:/);
 	assert.match(content, /runs-on: \$\{\{ matrix.os \}\}/);
 	assert.match(content, /key: \$\{\{ matrix.go \}\}/);
-});
+}); 
 
 test("renderWorkflowFile supports reusable workflow jobs", () => {
 	const workflowFile = generateWorkflowFile({

@@ -33,7 +33,7 @@ export function checkUnnecessaryNeeds(
 			isProvableDependency = true;
 		}
 
-		// Check for artifact passing (upload-artifact -> download-artifact)
+        // Check for artifact passing (upload-artifact -> download-artifact)
 		if (
 			!isProvableDependency && 
 			upstreamJob && 
@@ -55,16 +55,6 @@ export function checkUnnecessaryNeeds(
 			if (downloadedArtifacts.some((dl) => uploadedArtifacts.includes(dl))) {
 				isProvableDependency = true;
 			}
-		}
-		
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const metadata = (job as any).metadata;
-		if (
-			!isProvableDependency && 
-			typeof metadata?.sequencing === "string" && 
-			metadata.sequencing.includes("intentional")
-		) {
-			isProvableDependency = true;
 		}
 
 		if (!isProvableDependency) {
