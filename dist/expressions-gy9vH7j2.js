@@ -109,7 +109,8 @@ function parseGitHubExpression(body) {
 }
 const callExpression = (name, ...values) => expr(`${name}(${values.map((value) => expressionValue(value)).join(", ")})`);
 const joinExpressions = (operator, values) => {
-	return expr(values.map((value) => booleanExpressionValue(value, operator)).join(` ${operator} `));
+	const body = values.map((value) => booleanExpressionValue(value, operator)).join(` ${operator} `);
+	return expr(body);
 };
 const booleanExpressionValue = (value, operator) => {
 	if (typeof value === "string" && isGitHubExpression(value)) {

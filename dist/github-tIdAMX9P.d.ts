@@ -70,14 +70,14 @@ type OutputDefinitions = {
   readonly [name: string]: OutputDefinition;
 };
 type InputValue<Definition extends InputDefinition> = Definition["kind"] extends "integer" ? number : Definition["kind"] extends "boolean" ? boolean : Definition extends ChoiceInputDefinition<infer Options> ? Options[number] : string;
-type ActionInputValues<Inputs extends InputDefinitions> = Readonly<{ [Name in keyof Inputs]: InputValue<Inputs[Name]> }>;
-type ActionCallInputValues<Inputs extends InputDefinitions> = Readonly<{ [Name in RequiredInputName<Inputs>]: InputValue<Inputs[Name]> } & { [Name in OptionalInputName<Inputs>]?: InputValue<Inputs[Name]> }>;
-type ActionOutputValues<Outputs extends OutputDefinitions> = Readonly<{ [Name in keyof Outputs]: string }>;
+type ActionInputValues<Inputs extends InputDefinitions> = Readonly<{ [Name in keyof Inputs]: InputValue<Inputs[Name]>; }>;
+type ActionCallInputValues<Inputs extends InputDefinitions> = Readonly<{ [Name in RequiredInputName<Inputs>]: InputValue<Inputs[Name]>; } & { [Name in OptionalInputName<Inputs>]?: InputValue<Inputs[Name]>; }>;
+type ActionOutputValues<Outputs extends OutputDefinitions> = Readonly<{ [Name in keyof Outputs]: string; }>;
 type RequiredInputName<Inputs extends InputDefinitions> = { [Name in keyof Inputs]: Inputs[Name] extends {
   readonly default: string;
-} ? never : Name }[keyof Inputs];
+} ? never : Name; }[keyof Inputs];
 type OptionalInputName<Inputs extends InputDefinitions> = Exclude<keyof Inputs, RequiredInputName<Inputs>>;
-type WorkflowInputValues<Inputs extends InputDefinitions> = Readonly<{ [Name in RequiredInputName<Inputs>]: string } & { [Name in OptionalInputName<Inputs>]?: string }>;
+type WorkflowInputValues<Inputs extends InputDefinitions> = Readonly<{ [Name in RequiredInputName<Inputs>]: string; } & { [Name in OptionalInputName<Inputs>]?: string; }>;
 type ScriptActionCall = <const Inputs extends InputDefinitions, const Outputs extends OutputDefinitions>(scriptAction: ScriptAction<Inputs, Outputs>, input: ActionCallInputValues<Inputs>) => Promise<ActionOutputValues<Outputs>>;
 type ScriptActionServices = Readonly<{
   exec: ScriptExec;

@@ -35,7 +35,7 @@ type GitHubExpressionPrimitive = boolean | number | string;
 type GitHubExpressionObject = Readonly<{
   readonly [name: string]: GitHubExpressionPrimitive;
 }>;
-type GitHubMatrixRefs<Matrix extends GitHubMatrixValues> = { readonly [Name in Exclude<keyof Matrix, "exclude" | "include" | "refs" | "values"> & string]: GitHubExpression<GitHubMatrixAxisValue<Matrix[Name]>> };
+type GitHubMatrixRefs<Matrix extends GitHubMatrixValues> = { readonly [Name in Exclude<keyof Matrix, "exclude" | "include" | "refs" | "values"> & string]: GitHubExpression<GitHubMatrixAxisValue<Matrix[Name]>>; };
 type GitHubMatrixAxisValue<Value> = Value extends readonly (infer Item)[] ? Item extends GitHubExpressionPrimitive ? Item : never : never;
 declare const expr: <Value = unknown>(body: string) => GitHubExpression<Value>;
 declare const github: {

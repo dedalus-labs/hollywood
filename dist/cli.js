@@ -44,11 +44,11 @@ var __copyProps = (to, from, except, desc) => {
 	}
 	return to;
 };
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", {
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule || !__hasOwnProp.call(mod, "default") ? __defProp(target, "default", {
 	value: mod,
 	enumerable: true
 }) : target, mod));
-var __require$1 = /* @__PURE__ */ createRequire(import.meta.url);
+var __require$1 = /* #__PURE__ */ (() => createRequire(import.meta.url))();
 //#endregion
 //#region node_modules/commander/lib/error.js
 var require_error = /* @__PURE__ */ __commonJSMin(((exports) => {
@@ -120,7 +120,6 @@ var require_argument = /* @__PURE__ */ __commonJSMin(((exports) => {
 				default:
 					this.required = true;
 					this._name = name;
-					break;
 			}
 			if (this._name.endsWith("...")) {
 				this.variadic = true;
@@ -1615,16 +1614,20 @@ Expecting one of '${allowedValues.join("', '")}'`);
 				const oldValue = this.getOptionValue(name);
 				if (val !== null && option.parseArg) val = this._callParseArg(option, val, oldValue, invalidValueMessage);
 				else if (val !== null && option.variadic) val = option._collectValue(val, oldValue);
-				if (val == null) if (option.negate) val = false;
-				else if (option.isBoolean() || option.optional) val = true;
-				else val = "";
+				if (val == null) {
+					if (option.negate) val = false;
+					else if (option.isBoolean() || option.optional) val = true;
+					else val = "";
+				}
 				this.setOptionValueWithSource(name, val, valueSource);
 			};
 			this.on("option:" + oname, (val) => {
-				handleOptionValue(val, `error: option '${option.flags}' argument '${val}' is invalid.`, "cli");
+				const invalidValueMessage = `error: option '${option.flags}' argument '${val}' is invalid.`;
+				handleOptionValue(val, invalidValueMessage, "cli");
 			});
 			if (option.envVar) this.on("optionEnv:" + oname, (val) => {
-				handleOptionValue(val, `error: option '${option.flags}' value '${val}' from env '${option.envVar}' is invalid.`, "env");
+				const invalidValueMessage = `error: option '${option.flags}' value '${val}' from env '${option.envVar}' is invalid.`;
+				handleOptionValue(val, invalidValueMessage, "env");
 			});
 			return this;
 		}
@@ -2015,12 +2018,13 @@ Expecting one of '${allowedValues.join("', '")}'`);
 			}
 			launchWithNode = sourceExt.includes(path.extname(executableFile));
 			let proc;
-			if (process$1.platform !== "win32") if (launchWithNode) {
-				args.unshift(executableFile);
-				args = incrementNodeInspectorPort(process$1.execArgv).concat(args);
-				proc = childProcess.spawn(process$1.argv[0], args, { stdio: "inherit" });
-			} else proc = childProcess.spawn(executableFile, args, { stdio: "inherit" });
-			else {
+			if (process$1.platform !== "win32") {
+				if (launchWithNode) {
+					args.unshift(executableFile);
+					args = incrementNodeInspectorPort(process$1.execArgv).concat(args);
+					proc = childProcess.spawn(process$1.argv[0], args, { stdio: "inherit" });
+				} else proc = childProcess.spawn(executableFile, args, { stdio: "inherit" });
+			} else {
 				this._checkForMissingExecutable(executableFile, executableDir, subcommand._name);
 				args.unshift(executableFile);
 				args = incrementNodeInspectorPort(process$1.execArgv).concat(args);
@@ -2464,8 +2468,10 @@ Expecting one of '${allowedValues.join("', '")}'`);
 						"default",
 						"config",
 						"env"
-					].includes(this.getOptionValueSource(optionKey))) if (option.required || option.optional) this.emit(`optionEnv:${option.name()}`, process$1.env[option.envVar]);
-					else this.emit(`optionEnv:${option.name()}`);
+					].includes(this.getOptionValueSource(optionKey))) {
+						if (option.required || option.optional) this.emit(`optionEnv:${option.name()}`, process$1.env[option.envVar]);
+						else this.emit(`optionEnv:${option.name()}`);
+					}
 				}
 			});
 		}
@@ -3644,7 +3650,7 @@ var require_constants = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	};
 	module.exports = {
 		DEFAULT_MAX_EXTGLOB_RECURSION,
-		MAX_LENGTH: 1024 * 64,
+		MAX_LENGTH: 65536,
 		POSIX_REGEX_SOURCE: {
 			__proto__: null,
 			alnum: "a-zA-Z0-9",
@@ -4248,7 +4254,10 @@ var require_parse = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			}
 		}
 	};
-	const getStarExtglobSequenceOutput = (pattern) => {
+	const buildCharClassStar = (chars) => {
+		return `${chars.length === 1 ? utils.escapeRegex(chars[0]) : `[${chars.map((ch) => utils.escapeRegex(ch)).join("")}]`}*`;
+	};
+	const getStarExtglobSequenceChars = (pattern) => {
 		let index = 0;
 		const chars = [];
 		while (index < pattern.length) {
@@ -4262,7 +4271,7 @@ var require_parse = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			index += match.end + 1;
 		}
 		if (chars.length < 1) return;
-		return `${chars.length === 1 ? utils.escapeRegex(chars[0]) : `[${chars.map((ch) => utils.escapeRegex(ch)).join("")}]`}*`;
+		return chars;
 	};
 	const repeatedExtglobRecursion = (pattern) => {
 		let depth = 0;
@@ -4282,14 +4291,28 @@ var require_parse = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		if (branches.length > 1) {
 			if (branches.some((branch) => branch === "") || branches.some((branch) => /^[*?]+$/.test(branch)) || hasRepeatedCharPrefixOverlap(branches)) return { risky: true };
 		}
+		const safeChars = [];
+		let sawStarSequence = false;
+		let combinable = true;
 		for (const branch of branches) {
-			const safeOutput = getStarExtglobSequenceOutput(branch);
-			if (safeOutput) return {
-				risky: true,
-				safeOutput
-			};
+			const chars = getStarExtglobSequenceChars(branch);
+			if (chars) {
+				sawStarSequence = true;
+				safeChars.push(...chars);
+				continue;
+			}
+			const literal = normalizeSimpleBranch(branch);
+			if (literal && literal.length === 1) {
+				safeChars.push(literal);
+				continue;
+			}
+			combinable = false;
 			if (repeatedExtglobRecursion(branch) > max) return { risky: true };
 		}
+		if (sawStarSequence) return combinable ? {
+			risky: true,
+			safeOutput: buildCharClassStar([...new Set(safeChars)])
+		} : { risky: true };
 		return { risky: false };
 	};
 	/**
@@ -4440,7 +4463,8 @@ var require_parse = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		};
 		const extglobClose = (token) => {
 			const literal = input.slice(token.startIndex, state.index + 1);
-			const analysis = analyzeRepeatedExtglob(input.slice(token.startIndex + 2, state.index), opts);
+			const body = input.slice(token.startIndex + 2, state.index);
+			const analysis = analyzeRepeatedExtglob(body, opts);
 			if ((token.type === "plus" || token.type === "star") && analysis.risky) {
 				const safeOutput = analysis.safeOutput ? (token.output ? "" : ONE_CHAR) + (opts.capture ? `(${analysis.safeOutput})` : analysis.safeOutput) : void 0;
 				const open = tokens[token.tokensIndex];
@@ -4505,10 +4529,12 @@ var require_parse = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 				}
 				return esc ? m : `\\${m}`;
 			});
-			if (backslashes === true) if (opts.unescape === true) output = output.replace(/\\/g, "");
-			else output = output.replace(/\\+/g, (m) => {
-				return m.length % 2 === 0 ? "\\\\" : m ? "\\" : "";
-			});
+			if (backslashes === true) {
+				if (opts.unescape === true) output = output.replace(/\\/g, "");
+				else output = output.replace(/\\+/g, (m) => {
+					return m.length % 2 === 0 ? "\\\\" : m ? "\\" : "";
+				});
+			}
 			if (output === input && opts.contains === true) {
 				state.output = input;
 				return state;
@@ -4566,7 +4592,8 @@ var require_parse = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 						if (inner.includes(":")) {
 							const idx = prev.value.lastIndexOf("[");
 							const pre = prev.value.slice(0, idx);
-							const posix = POSIX_REGEX_SOURCE[prev.value.slice(idx + 2)];
+							const rest = prev.value.slice(idx + 2);
+							const posix = POSIX_REGEX_SOURCE[rest];
 							if (posix) {
 								prev.value = pre + posix;
 								state.backtrack = true;
@@ -5169,6 +5196,18 @@ var require_picomatch$1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* const isMatch = picomatch('*.!(*a)');
 	* console.log(isMatch('a.a')); //=> false
 	* console.log(isMatch('a.b')); //=> true
+	*
+	* // For environments without `node.js`, `picomatch/posix` provides you a dependency-free matcher, without automatic OS detection.
+	* const picomatch = require('picomatch/posix');
+	* // the same API, defaulting to posix paths
+	* const isMatch = picomatch('a/*');
+	* console.log(isMatch('a\\b')); //=> false
+	* console.log(isMatch('a/b')); //=> true
+	*
+	* // you can still configure the matcher function to accept windows paths
+	* const isMatch = picomatch('a/*', { options: windows });
+	* console.log(isMatch('a\\b')); //=> true
+	* console.log(isMatch('a/b')); //=> true
 	* ```
 	* @name picomatch
 	* @param {String|Array} `globs` One or more glob patterns.
@@ -5266,8 +5305,10 @@ var require_picomatch$1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			output = format ? format(input) : input;
 			match = output === glob;
 		}
-		if (match === false || opts.capture === true) if (opts.matchBase === true || opts.basename === true) match = picomatch.matchBase(input, regex, options, posix);
-		else match = regex.exec(output);
+		if (match === false || opts.capture === true) {
+			if (opts.matchBase === true || opts.basename === true) match = picomatch.matchBase(input, regex, options, posix);
+			else match = regex.exec(output);
+		}
 		return {
 			isMatch: Boolean(match),
 			match,
@@ -5287,8 +5328,8 @@ var require_picomatch$1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {Boolean}
 	* @api public
 	*/
-	picomatch.matchBase = (input, glob, options) => {
-		return (glob instanceof RegExp ? glob : picomatch.makeRe(glob, options)).test(utils.basename(input));
+	picomatch.matchBase = (input, glob, options, posix = options && options.windows) => {
+		return (glob instanceof RegExp ? glob : picomatch.makeRe(glob, options)).test(utils.basename(input, { windows: posix }));
 	};
 	/**
 	* Returns true if **any** of the given glob `patterns` match the specified `string`.
@@ -5882,7 +5923,8 @@ const assertWorkflowRun = (value) => {
 };
 const completeExpression = (value) => {
 	if (!value.startsWith("${{") || !value.endsWith("}}")) return null;
-	expr(value.slice(3, -2));
+	const body = value.slice(3, -2);
+	expr(body);
 	return value;
 };
 const quotePosix = (value) => {
@@ -6370,7 +6412,8 @@ const containerPath = (workspace, path) => {
 		if (normalized === githubWorkspace || normalized.startsWith(`${githubWorkspace}/`)) return normalized;
 		throw new Error(`Path is outside the container workspace: ${path}.`);
 	}
-	const child = relative(workspace, resolve(workspace, path));
+	const absolute = resolve(workspace, path);
+	const child = relative(workspace, absolute);
 	if (child === ".." || child.startsWith(`..${sep}`) || child.startsWith(sep)) throw new Error(`Path is outside the container workspace: ${path}.`);
 	return child === "" ? githubWorkspace : posix.join(githubWorkspace, ...child.split(sep));
 };
@@ -6421,8 +6464,9 @@ const runContainerAction = async (options) => {
 			...options.hostExec === void 0 ? {} : { hostExec: options.hostExec }
 		}, async ({ exec }) => {
 			const command = await exec("node", ["/github/workflow/action.mjs"], { env: inputEnvironment(options.with) });
+			const output = await exec("cat", ["/github/workflow/result.json"]);
 			return {
-				outputs: parseActionResult((await exec("cat", ["/github/workflow/result.json"])).stdout),
+				outputs: parseActionResult(output.stdout),
 				stderr: command.stderr,
 				stdout: command.stdout
 			};
@@ -6935,7 +6979,7 @@ const compareValues = (path, expected, actual) => {
 		const length = Math.max(expected.length, actual.length);
 		return Array.from({ length }, (_, index) => compareValues(joinPath(path, String(index)), expected[index], actual[index])).flat();
 	}
-	if (isRecord(expected) && isRecord(actual)) return [...new Set([...Object.keys(expected), ...Object.keys(actual)])].sort().flatMap((key) => compareValues(joinPath(path, key), expected[key], actual[key]));
+	if (isRecord(expected) && isRecord(actual)) return [.../* @__PURE__ */ new Set([...Object.keys(expected), ...Object.keys(actual)])].sort().flatMap((key) => compareValues(joinPath(path, key), expected[key], actual[key]));
 	return [{
 		category: differenceCategory(path),
 		actual,
@@ -7276,7 +7320,9 @@ const createCli = (io = processIo(), services = { run }) => {
 };
 const generate = async (options, io) => {
 	const resolved = await resolveGenerateOptions(options);
-	const results = await writeGeneratedFiles(await discoverGeneratedFiles(await resolveSourceFiles(resolved.sources), resolved), { outputDir: resolved.output });
+	const sourceFiles = await resolveSourceFiles(resolved.sources);
+	const files = await discoverGeneratedFiles(sourceFiles, resolved);
+	const results = await writeGeneratedFiles(files, { outputDir: resolved.output });
 	for (const result of results) io.writeOut(`${result.status}\t${result.path}\n`);
 	if (results.length === 0) io.writeOut("unchanged	(no generated files)\n");
 };
@@ -7309,7 +7355,8 @@ const check = async (options, io) => {
 	if (resolved.generated) await checkGeneratedFiles(resolved, io);
 };
 const buildActions = async (options, io) => {
-	const entries = await actionEntrypoints(resolve(options.output, options.actionsDir));
+	const actionsDir = resolve(options.output, options.actionsDir);
+	const entries = await actionEntrypoints(actionsDir);
 	for (const entry of entries) {
 		const outfile = join(dirname(dirname(entry)), "dist", "index.js");
 		await buildAction({
@@ -7380,7 +7427,7 @@ const workflowSecurityChecks = [
 		pattern: /uses:\s+[^#\n]*@(?![0-9a-f]{40}(?:\s|$))[^#\n\s]+/g
 	}
 ];
-const workflowSecurityExtensions = new Set([
+const workflowSecurityExtensions = /* @__PURE__ */ new Set([
 	".ts",
 	".yaml",
 	".yml"

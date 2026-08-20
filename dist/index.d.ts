@@ -1,9 +1,8 @@
 
-import { A as ScriptFs, B as choiceInput, C as RunActionOptions, D as ScriptActionContext, E as ScriptActionCall, F as SummaryTableRow, G as stringOutput, H as pathInput, I as SummaryText, K as summaryCode, L as WorkflowInputValues, M as ScriptSummary, N as SummaryCell, O as ScriptActionServices, P as SummaryCode, R as action, S as RequiredInputName, T as ScriptAction, U as runAction, V as integerInput, W as stringInput, _ as InputDefinition, a as GitHubLogColor, b as OutputDefinition, c as ActionCallInputValues, d as ChoiceInputDefinition, f as Command, g as CommandResult, h as CommandOptions, i as GitHubInputOptions, j as ScriptLog, k as ScriptExec, l as ActionInputValues, m as CommandExitPolicy, n as GitHubExec, o as RunGitHubActionOptions, p as CommandEnvironment, q as summaryText, r as GitHubExecOptions, s as runGitHubAction, t as GitHubCore, u as ActionOutputValues, v as InputDefinitions, w as RunnerContext, x as OutputDefinitions, y as InputKind, z as booleanInput } from "./github-LHaDutAi.js";
+import { A as ScriptFs, B as choiceInput, C as RunActionOptions, D as ScriptActionContext, E as ScriptActionCall, F as SummaryTableRow, G as stringOutput, H as pathInput, I as SummaryText, K as summaryCode, L as WorkflowInputValues, M as ScriptSummary, N as SummaryCell, O as ScriptActionServices, P as SummaryCode, R as action, S as RequiredInputName, T as ScriptAction, U as runAction, V as integerInput, W as stringInput, _ as InputDefinition, a as GitHubLogColor, b as OutputDefinition, c as ActionCallInputValues, d as ChoiceInputDefinition, f as Command, g as CommandResult, h as CommandOptions, i as GitHubInputOptions, j as ScriptLog, k as ScriptExec, l as ActionInputValues, m as CommandExitPolicy, n as GitHubExec, o as RunGitHubActionOptions, p as CommandEnvironment, q as summaryText, r as GitHubExecOptions, s as runGitHubAction, t as GitHubCore, u as ActionOutputValues, v as InputDefinitions, w as RunnerContext, x as OutputDefinitions, y as InputKind, z as booleanInput } from "./github-tIdAMX9P.js";
 import { AccountName, EnvironmentAccount, EnvironmentAccounts, EnvironmentDefinition, EnvironmentDefinitions, EnvironmentName, EnvironmentRegistry, EnvironmentSelector, ResolvedEnvironment, defineEnvironmentRegistry, resolveEnvironment, selectEnvironmentName } from "./environments.js";
-import { A as runner, C as ne, D as needsResultIs, E as needsResultIn, F as success, I as valueOr, M as selectString, N as startsWith, O as not, P as stepOutput, S as matrix, T as needsResult, _ as format, a as GitHubJobResultValue, b as hashFiles, c as always, d as contains, f as defineMatrix, g as failure, h as expr, i as GitHubJobResult, j as secret, k as or, l as and, m as eq, n as GitHubExpression, o as GitHubMatrixValues, p as envVar, r as GitHubExpressionValue, s as GitHubTypedMatrix, t as AnyGitHubTypedMatrix, u as cancelled, v as gh, w as needsOutput, x as input, y as github } from "./expressions-DIjnuV5Q.js";
+import { A as runner, C as ne, D as needsResultIs, E as needsResultIn, F as success, I as valueOr, M as selectString, N as startsWith, O as not, P as stepOutput, S as matrix, T as needsResult, _ as format, a as GitHubJobResultValue, b as hashFiles, c as always, d as contains, f as defineMatrix, g as failure, h as expr, i as GitHubJobResult, j as secret, k as or, l as and, m as eq, n as GitHubExpression, o as GitHubMatrixValues, p as envVar, r as GitHubExpressionValue, s as GitHubTypedMatrix, t as AnyGitHubTypedMatrix, u as cancelled, v as gh, w as needsOutput, x as input, y as github } from "./expressions-B3geXrAq.js";
 import { z } from "zod";
-
 //#region src/local.d.ts
 declare const nodeFs: ScriptFs;
 declare const nodeExec: ScriptExec;
@@ -16,201 +15,80 @@ declare const runnerArchitectures: readonly ["arm64", "x64"];
 declare const runnerEnvironmentNames: readonly ["CI", "GITHUB_ACTIONS", "ImageOS", "ImageVersion", "RUNNER_ARCH", "RUNNER_OS"];
 declare const runnerPathEnvironmentNames: readonly ["GITHUB_ENV", "GITHUB_EVENT_PATH", "GITHUB_OUTPUT", "GITHUB_PATH", "GITHUB_STATE", "GITHUB_STEP_SUMMARY", "GITHUB_WORKSPACE", "HOME", "RUNNER_TEMP", "RUNNER_TOOL_CACHE"];
 declare const runnerToolNames: readonly ["bash", "cargo", "clang", "cmake", "curl", "docker", "gcc", "gh", "git", "go", "java", "jq", "make", "node", "npm", "podman", "python3", "ruby", "rustc", "tar", "zstd"];
-declare const runnerProbeSchema: z.ZodObject<{
-  schemaVersion: z.ZodLiteral<1>;
-  environment: z.ZodRecord<z.ZodEnum<{
-    CI: "CI";
-    GITHUB_ACTIONS: "GITHUB_ACTIONS";
-    ImageOS: "ImageOS";
-    ImageVersion: "ImageVersion";
-    RUNNER_ARCH: "RUNNER_ARCH";
-    RUNNER_OS: "RUNNER_OS";
-  }> & z.core.$partial, z.ZodString>;
-  identity: z.ZodObject<{
-    gid: z.ZodNumber;
-    groups: z.ZodArray<z.ZodString>;
-    uid: z.ZodNumber;
-  }, z.core.$strict>;
-  packages: z.ZodDiscriminatedUnion<[z.ZodObject<{
-    manager: z.ZodLiteral<"none">;
-    packages: z.ZodTuple<[], null>;
-  }, z.core.$strict>, z.ZodObject<{
-    manager: z.ZodLiteral<"dpkg">;
-    packages: z.ZodArray<z.ZodObject<{
-      name: z.ZodString;
-      version: z.ZodString;
-    }, z.core.$strict>>;
-  }, z.core.$strict>], "manager">;
-  paths: z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
-    name: z.ZodEnum<{
-      GITHUB_ENV: "GITHUB_ENV";
-      GITHUB_EVENT_PATH: "GITHUB_EVENT_PATH";
-      GITHUB_OUTPUT: "GITHUB_OUTPUT";
-      GITHUB_PATH: "GITHUB_PATH";
-      GITHUB_STATE: "GITHUB_STATE";
-      GITHUB_STEP_SUMMARY: "GITHUB_STEP_SUMMARY";
-      GITHUB_WORKSPACE: "GITHUB_WORKSPACE";
-      HOME: "HOME";
-      RUNNER_TEMP: "RUNNER_TEMP";
-      RUNNER_TOOL_CACHE: "RUNNER_TOOL_CACHE";
-    }>;
-    status: z.ZodLiteral<"absent">;
-  }, z.core.$strict>, z.ZodObject<{
-    absolute: z.ZodBoolean;
-    exists: z.ZodBoolean;
-    name: z.ZodEnum<{
-      GITHUB_ENV: "GITHUB_ENV";
-      GITHUB_EVENT_PATH: "GITHUB_EVENT_PATH";
-      GITHUB_OUTPUT: "GITHUB_OUTPUT";
-      GITHUB_PATH: "GITHUB_PATH";
-      GITHUB_STATE: "GITHUB_STATE";
-      GITHUB_STEP_SUMMARY: "GITHUB_STEP_SUMMARY";
-      GITHUB_WORKSPACE: "GITHUB_WORKSPACE";
-      HOME: "HOME";
-      RUNNER_TEMP: "RUNNER_TEMP";
-      RUNNER_TOOL_CACHE: "RUNNER_TOOL_CACHE";
-    }>;
-    status: z.ZodLiteral<"ready">;
-    value: z.ZodString;
-    writable: z.ZodBoolean;
-  }, z.core.$strict>], "status">>;
-  platform: z.ZodObject<{
-    architecture: z.ZodString;
-    capabilities: z.ZodString;
-    cgroup: z.ZodEnum<{
-      v1: "v1";
-      v2: "v2";
-    }>;
-    kernelRelease: z.ZodString;
-    kernelVersion: z.ZodString;
-    os: z.ZodObject<{
-      id: z.ZodString;
-      prettyName: z.ZodString;
-      versionId: z.ZodString;
-    }, z.core.$strict>;
-  }, z.core.$strict>;
-  tools: z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
-    name: z.ZodEnum<{
-      bash: "bash";
-      cargo: "cargo";
-      clang: "clang";
-      cmake: "cmake";
-      curl: "curl";
-      docker: "docker";
-      gcc: "gcc";
-      gh: "gh";
-      git: "git";
-      go: "go";
-      java: "java";
-      jq: "jq";
-      make: "make";
-      node: "node";
-      npm: "npm";
-      podman: "podman";
-      python3: "python3";
-      ruby: "ruby";
-      rustc: "rustc";
-      tar: "tar";
-      zstd: "zstd";
-    }>;
-    status: z.ZodLiteral<"absent">;
-  }, z.core.$strict>, z.ZodObject<{
-    name: z.ZodEnum<{
-      bash: "bash";
-      cargo: "cargo";
-      clang: "clang";
-      cmake: "cmake";
-      curl: "curl";
-      docker: "docker";
-      gcc: "gcc";
-      gh: "gh";
-      git: "git";
-      go: "go";
-      java: "java";
-      jq: "jq";
-      make: "make";
-      node: "node";
-      npm: "npm";
-      podman: "podman";
-      python3: "python3";
-      ruby: "ruby";
-      rustc: "rustc";
-      tar: "tar";
-      zstd: "zstd";
-    }>;
-    path: z.ZodString;
-    status: z.ZodLiteral<"ready">;
-    version: z.ZodString;
-  }, z.core.$strict>], "status">>;
-  toolCache: z.ZodRecord<z.ZodString, z.ZodArray<z.ZodString>>;
-}, z.core.$strict>;
-declare const runnerContractSchema: z.ZodObject<{
-  schemaVersion: z.ZodLiteral<1>;
-  architectures: z.ZodArray<z.ZodEnum<{
-    arm64: "arm64";
-    x64: "x64";
-  }>>;
-  environment: z.ZodRecord<z.ZodEnum<{
-    CI: "CI";
-    GITHUB_ACTIONS: "GITHUB_ACTIONS";
-    ImageOS: "ImageOS";
-    ImageVersion: "ImageVersion";
-    RUNNER_ARCH: "RUNNER_ARCH";
-    RUNNER_OS: "RUNNER_OS";
-  }> & z.core.$partial, z.ZodString>;
-  os: z.ZodObject<{
-    id: z.ZodString;
-    versionId: z.ZodString;
-  }, z.core.$strict>;
-  paths: z.ZodArray<z.ZodEnum<{
-    GITHUB_ENV: "GITHUB_ENV";
-    GITHUB_EVENT_PATH: "GITHUB_EVENT_PATH";
-    GITHUB_OUTPUT: "GITHUB_OUTPUT";
-    GITHUB_PATH: "GITHUB_PATH";
-    GITHUB_STATE: "GITHUB_STATE";
-    GITHUB_STEP_SUMMARY: "GITHUB_STEP_SUMMARY";
-    GITHUB_WORKSPACE: "GITHUB_WORKSPACE";
-    HOME: "HOME";
-    RUNNER_TEMP: "RUNNER_TEMP";
-    RUNNER_TOOL_CACHE: "RUNNER_TOOL_CACHE";
-  }>>;
-  tools: z.ZodArray<z.ZodObject<{
-    name: z.ZodEnum<{
-      bash: "bash";
-      cargo: "cargo";
-      clang: "clang";
-      cmake: "cmake";
-      curl: "curl";
-      docker: "docker";
-      gcc: "gcc";
-      gh: "gh";
-      git: "git";
-      go: "go";
-      java: "java";
-      jq: "jq";
-      make: "make";
-      node: "node";
-      npm: "npm";
-      podman: "podman";
-      python3: "python3";
-      ruby: "ruby";
-      rustc: "rustc";
-      tar: "tar";
-      zstd: "zstd";
-    }>;
-    versionPrefix: z.ZodOptional<z.ZodString>;
-  }, z.core.$strict>>;
-}, z.core.$strict>;
-type DeepReadonly<Value> = Value extends readonly unknown[] ? { readonly [Key in keyof Value]: DeepReadonly<Value[Key]> } : Value extends object ? { readonly [Key in keyof Value]: DeepReadonly<Value[Key]> } : Value;
+type RunnerToolName = (typeof runnerToolNames)[number];
+type DeepReadonly<Value> = Value extends readonly unknown[] ? { readonly [Key in keyof Value]: DeepReadonly<Value[Key]>; } : Value extends object ? { readonly [Key in keyof Value]: DeepReadonly<Value[Key]>; } : Value;
 type RunnerArchitecture = (typeof runnerArchitectures)[number];
 type RunnerEnvironmentName = (typeof runnerEnvironmentNames)[number];
 type RunnerPathEnvironmentName = (typeof runnerPathEnvironmentNames)[number];
-type RunnerToolName = (typeof runnerToolNames)[number];
-type RunnerContract = DeepReadonly<z.infer<typeof runnerContractSchema>>;
-type RunnerProbe = DeepReadonly<z.infer<typeof runnerProbeSchema>>;
-type RunnerPackageProbe = RunnerProbe["packages"];
-type RunnerPathProbe = RunnerProbe["paths"][number];
-type RunnerToolProbe = RunnerProbe["tools"][number];
+type RunnerContract = DeepReadonly<{
+  schemaVersion: typeof runnerProbeSchemaVersion;
+  architectures: RunnerArchitecture[];
+  environment: Partial<Record<RunnerEnvironmentName, string>>;
+  os: {
+    id: string;
+    versionId: string;
+  };
+  paths: RunnerPathEnvironmentName[];
+  tools: {
+    name: RunnerToolName;
+    versionPrefix?: string | undefined;
+  }[];
+}>;
+type RunnerPackageProbe = DeepReadonly<{
+  manager: "none";
+  packages: [];
+} | {
+  manager: "dpkg";
+  packages: {
+    name: string;
+    version: string;
+  }[];
+}>;
+type RunnerPathProbe = DeepReadonly<{
+  name: RunnerPathEnvironmentName;
+  status: "absent";
+} | {
+  absolute: boolean;
+  exists: boolean;
+  name: RunnerPathEnvironmentName;
+  status: "ready";
+  value: string;
+  writable: boolean;
+}>;
+type RunnerToolProbe = DeepReadonly<{
+  name: RunnerToolName;
+  status: "absent";
+} | {
+  name: RunnerToolName;
+  path: string;
+  status: "ready";
+  version: string;
+}>;
+type RunnerProbe = DeepReadonly<{
+  schemaVersion: typeof runnerProbeSchemaVersion;
+  environment: Partial<Record<RunnerEnvironmentName, string>>;
+  identity: {
+    gid: number;
+    groups: string[];
+    uid: number;
+  };
+  packages: RunnerPackageProbe;
+  paths: RunnerPathProbe[];
+  platform: {
+    architecture: string;
+    capabilities: string;
+    cgroup: "v1" | "v2";
+    kernelRelease: string;
+    kernelVersion: string;
+    os: {
+      id: string;
+      prettyName: string;
+      versionId: string;
+    };
+  };
+  tools: RunnerToolProbe[];
+  toolCache: Record<string, string[]>;
+}>;
 type RunnerDifference = Readonly<{
   category: "contract" | "inventory" | "provider";
   actual?: unknown;
