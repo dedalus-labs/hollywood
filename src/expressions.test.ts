@@ -57,6 +57,8 @@ test("typed context helpers generate expressions without stringly property acces
 		"${{ github.event.pull_request.head.repo.full_name }}",
 	);
 	assert.equal(eq(github.eventName, "push"), "${{ github.event_name == 'push' }}");
+	assert.equal(github.mergeGroup.baseSha, "${{ github.event.merge_group.base_sha }}");
+	assert.equal(github.mergeGroup.headSha, "${{ github.event.merge_group.head_sha }}");
 	assert.equal(
 		ne(github.repository, "acme/widgets-sandbox"),
 		"${{ github.repository != 'acme/widgets-sandbox' }}",
