@@ -140,7 +140,6 @@ export type {
 	GitHubMatrix,
 	GitHubMatrixObject,
 	GitHubMatrixValue,
-	GitHubMergeGroupTrigger,
 	GitHubNeeds,
 	GitHubPermission,
 	GitHubPermissions,
@@ -161,8 +160,13 @@ export type {
 	GitHubWorkflowJob,
 	GitHubWorkflowOptions,
 	GitHubWorkflowStep,
-	GitHubWorkflowTriggers,
 } from "./generate";
+export type {
+	GitHubMergeGroupTrigger,
+	GitHubWorkflowDispatchInput,
+	GitHubWorkflowDispatchTrigger,
+	GitHubWorkflowTriggers,
+} from "./workflow-triggers";
 export {
 	generateActionEntrypointFile,
 	generateActionFile,
