@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 
 import { currentRunner, runAction } from "../src/index";
-import { detectReleaseComponents, publishDraftReleases } from "./release-actions";
+import {
+	detectReleaseComponents,
+	publishDraftReleases,
+	validateReleaseCandidate,
+} from "./release-actions";
 
 const before = "0123456789abcdef0123456789abcdef01234567";
 const currentRevision = "89abcdef0123456789abcdef0123456789abcdef";
@@ -30,6 +34,21 @@ const releaseFiles = (
 		}
 	},
 });
+
+const releasePages = (...tags: readonly string[]): string =>
+	tags
+		.map((tag_name, index) =>
+			JSON.stringify({ draft: false, id: index + 1, immutable: true, tag_name }),
+		)
+		.join("\n");
+
+const validateCandidate = (hollywood: string, runner: string, ...tags: readonly string[]) =>
+	runAction(validateReleaseCandidate, {
+		with: { repository: "dedalus-labs/hollywood" },
+		exec: async () => ({ exitCode: 0, stderr: "", stdout: releasePages(...tags) }),
+		fs: releaseFiles(hollywood, runner),
+		runner: currentRunner(),
+	});
 
 test("release component detection reports the npm package independently", async () => {
 	const outputs = await runAction(detectReleaseComponents, {
@@ -384,4 +403,62 @@ test.each([
 		}),
 		example.message,
 	);
+});
+
+test("release candidate validation rejects a skipped initial runner version", async () => {
+	await assert.rejects(
+		validateCandidate("0.0.3", "0.0.2", "v0.0.3"),
+		/First runner release must be runner-v0\.0\.1; received runner-v0\.0\.2/,
+	);
+});
+
+test("release candidate validation accepts the first runner version", async () => {
+	const outputs = await runAction(validateReleaseCandidate, {
+		with: { repository: "dedalus-labs/hollywood" },
+		exec: async (file, args) => {
+			assert.equal(file, "gh");
+			assert.deepEqual(args, [
+				"api",
+				"--paginate",
+				"repos/dedalus-labs/hollywood/releases?per_page=100",
+				"--jq",
+				".[] | {draft, id, immutable, tag_name}",
+			]);
+			return {
+				exitCode: 0,
+				stderr: "",
+				stdout: releasePages("v0.0.3"),
+			};
+		},
+		fs: releaseFiles("0.0.3", "0.0.1"),
+		runner: currentRunner(),
+	});
+	assert.deepEqual(outputs, {});
+});
+
+test("release candidate validation accepts one semantic version increment", async () => {
+	const outputs = await validateCandidate("0.0.3", "0.0.2", "v0.0.3", "runner-v0.0.1");
+	assert.deepEqual(outputs, {});
+});
+
+test("release candidate validation leaves prereleases outside stable lineage", async () => {
+	const outputs = await validateCandidate(
+		"0.0.3",
+		"0.0.8-alpha.1",
+		"v0.0.3",
+		"runner-v0.0.2",
+	);
+	assert.deepEqual(outputs, {});
+});
+
+test("release candidate validation rejects a skipped published version", async () => {
+	await assert.rejects(
+		validateCandidate("0.0.3", "0.0.3", "v0.0.3", "runner-v0.0.1"),
+		/Runner release runner-v0\.0\.3 must increment runner-v0\.0\.1 exactly once/,
+	);
+});
+
+test("release candidate validation accepts current immutable releases", async () => {
+	const outputs = await validateCandidate("0.0.3", "0.0.2", "v0.0.3", "runner-v0.0.2");
+	assert.deepEqual(outputs, {});
 });

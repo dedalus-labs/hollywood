@@ -9,7 +9,7 @@ import {
 } from "./actions";
 import { publishNpm } from "./publish-npm";
 import { release } from "./release";
-import { publishDraftReleases } from "./release-actions";
+import { publishDraftReleases, validateReleaseCandidate } from "./release-actions";
 
 test("release please opens version pull requests without creating tags", () => {
 	const releasePlease = release.jobs["release-please"];
@@ -25,11 +25,27 @@ test("GitHub release finalization waits for applicable publication jobs", () => 
 		branches: ["main"],
 		paths: [".release-please-manifest.json"],
 	});
-	assert.deepEqual(publishNpm.jobs.release?.needs, ["detect", "publish"]);
+	assert.deepEqual(publishNpm.jobs.release?.needs, ["detect", "approval", "publish"]);
 	assert.equal(
 		publishNpm.jobs.release?.if,
-		"${{ always() && github.repository == 'dedalus-labs/hollywood' && needs.detect.result == 'success' && (needs.publish.result == 'success' || needs.publish.result == 'skipped') }}",
+		"${{ always() && github.repository == 'dedalus-labs/hollywood' && needs.detect.result == 'success' && needs.approval.result == 'success' && (needs.publish.result == 'success' || needs.publish.result == 'skipped') }}",
 	);
+});
+
+test("release publication requires one protected approval before side effects", () => {
+	const approval = publishNpm.jobs.approval;
+	assert.ok(approval !== undefined && "steps" in approval);
+	assert.equal(approval.environment, "release");
+	assert.equal(approval.needs, "detect");
+	assert.deepEqual(publishNpm.jobs.publish.needs, ["detect", "approval"]);
+	assert.deepEqual(publishNpm.jobs.release?.needs, ["detect", "approval", "publish"]);
+	assert.deepEqual(approval.steps.at(-1), {
+		env: { GH_TOKEN: "${{ github.token }}" },
+		name: "Validate release candidate",
+		uses: "./.github/actions/validate-release-candidate",
+		with: { repository: "${{ github.repository }}" },
+	});
+	assert.equal(validateReleaseCandidate.localActionPath, "validate-release-candidate");
 });
 
 test("release publication selects components from typed action outputs", () => {
@@ -56,7 +72,7 @@ test("release publication selects components from typed action outputs", () => {
 	});
 
 	const publish = publishNpm.jobs.publish;
-	assert.equal(publish.needs, "detect");
+	assert.deepEqual(publish.needs, ["detect", "approval"]);
 	assert.equal(
 		publish.if,
 		"${{ github.repository == 'dedalus-labs/hollywood' && needs.detect.outputs.hollywood == 'true' }}",

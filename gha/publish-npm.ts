@@ -10,6 +10,7 @@ import {
 	needsOutput,
 	needsResultIn,
 	needsResultIs,
+	or,
 	pathInput,
 	stepOutput,
 	uses,
@@ -28,7 +29,11 @@ import {
 	testCommand,
 	typecheckCommand,
 } from "./actions";
-import { detectReleaseComponents, publishDraftReleases } from "./release-actions";
+import {
+	detectReleaseComponents,
+	publishDraftReleases,
+	validateReleaseCandidate,
+} from "./release-actions";
 
 export const publishNpmPackage = action({
 	name: "Publish npm package",
@@ -97,9 +102,35 @@ export const publishNpm = workflow({
 				}),
 			],
 		}),
+		approval: job({
+			name: "Release approval",
+			needs: "detect",
+			if: and(
+				eq(gh.github.repository, "dedalus-labs/hollywood"),
+				or(
+					eq(needsOutput("detect", "hollywood"), "true"),
+					eq(needsOutput("detect", "runner"), "true"),
+				),
+			),
+			environment: "release",
+			"runs-on": "ubuntu-latest",
+			permissions: { contents: "read" },
+			steps: [
+				{ uses: checkoutAction, with: { "persist-credentials": false } },
+				{ uses: setupNodeAction, with: { "node-version": "24" } },
+				{ name: "Install dependencies", run: installDependenciesCommand },
+				{ name: "Build Hollywood", run: buildHollywoodCommand },
+				{ name: "Build local actions", run: buildLocalActionsCommand },
+				uses(validateReleaseCandidate, {
+					env: { GH_TOKEN: gh.github.token },
+					name: "Validate release candidate",
+					with: { repository: gh.github.repository },
+				}),
+			],
+		}),
 		publish: job({
 			name: "Publish",
-			needs: "detect",
+			needs: ["detect", "approval"],
 			if: and(
 				eq(gh.github.repository, "dedalus-labs/hollywood"),
 				eq(needsOutput("detect", "hollywood"), "true"),
@@ -139,11 +170,12 @@ export const publishNpm = workflow({
 		}),
 		release: job({
 			name: "Create GitHub Release",
-			needs: ["detect", "publish"],
+			needs: ["detect", "approval", "publish"],
 			if: and(
 				always(),
 				eq(gh.github.repository, "dedalus-labs/hollywood"),
 				needsResultIs("detect", GitHubJobResult.Success),
+				needsResultIs("approval", GitHubJobResult.Success),
 				needsResultIn("publish", [GitHubJobResult.Success, GitHubJobResult.Skipped]),
 			),
 			"runs-on": "ubuntu-latest",
