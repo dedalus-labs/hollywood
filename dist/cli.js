@@ -14,8 +14,6 @@ import { basename as basename$1, dirname as dirname$1, isAbsolute as isAbsolute$
 import { fileURLToPath as fileURLToPath$1 } from "url";
 import { createRequire as createRequire$1 } from "module";
 import { parse, stringify } from "yaml";
-import { dirname as dirname$2, isAbsolute as isAbsolute$2, normalize as normalize$1, relative as relative$2 } from "node:path/posix";
-import { Lexer, Parser } from "@actions/expressions";
 import { ACTION_ROOT } from "@actions/workflow-parser/actions/action-constants";
 import { JSONObjectReader } from "@actions/workflow-parser/templates/json-object-reader";
 import { TemplateContext, TemplateValidationErrors } from "@actions/workflow-parser/templates/template-context";
@@ -24,6 +22,8 @@ import { TemplateSchema } from "@actions/workflow-parser/templates/schema/index"
 import { NoOperationTraceWriter } from "@actions/workflow-parser/templates/trace-writer";
 import { WORKFLOW_ROOT } from "@actions/workflow-parser/workflows/workflow-constants";
 import { YamlObjectReader } from "@actions/workflow-parser/workflows/yaml-object-reader";
+import { Lexer, Parser } from "@actions/expressions";
+import { dirname as dirname$2, isAbsolute as isAbsolute$2, normalize as normalize$1, relative as relative$2 } from "node:path/posix";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 //#region \0rolldown/runtime.js
@@ -5754,15 +5754,24 @@ const githubTypedMatrixValues = (matrix) => {
 	if (values === void 0) throw new Error("Hollywood matrix values are missing");
 	return values;
 };
-function parseGitHubExpression(body) {
+function parseGitHubExpressionAST(body) {
 	try {
 		const tokens = new Lexer(body).lex().tokens;
-		new Parser(tokens, githubExpressionContexts(), githubExpressionFunctions()).parse();
+		return new Parser(tokens, githubExpressionContexts(), githubExpressionFunctions()).parse();
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		throw new Error(`invalid GitHub expression: ${message}`);
 	}
 }
+function parseGitHubExpression(body) {
+	parseGitHubExpressionAST(body);
+}
+const isGitHubExpression = (value) => value.startsWith("${{") && value.endsWith("}}");
+const expressionBody = (value) => {
+	const match = /^\$\{\{\s*([\s\S]*?)\s*\}\}$/.exec(value);
+	if (!match?.[1]) throw new Error(`invalid GitHub expression wrapper: ${value}`);
+	return match[1];
+};
 function githubExpressionContexts() {
 	return [
 		"github",
@@ -5808,10 +5817,85 @@ function githubExpressionFunctions() {
 	];
 }
 //#endregion
-//#region src/names.ts
-const toGitHubName = (value) => value.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
+//#region src/lint/no-unnecessary-needs.ts
+function extractExpressionsAndStrings(value) {
+	const results = [];
+	if (typeof value === "string") {
+		results.push(value);
+		if (isGitHubExpression(value)) try {
+			results.push(expressionBody(value));
+		} catch {}
+	} else if (Array.isArray(value)) for (const item of value) results.push(...extractExpressionsAndStrings(item));
+	else if (value !== null && typeof value === "object") for (const val of Object.values(value)) results.push(...extractExpressionsAndStrings(val));
+	return results;
+}
+function astReferencesJob(node, upstreamJobName) {
+	if (!node || typeof node !== "object") return false;
+	const nodeObj = node;
+	if ((nodeObj["type"] === "PropertyAccess" || nodeObj["kind"] === "PropertyAccess") && (nodeObj["property"] === "outputs" || nodeObj["property"] === "result")) {
+		const target = nodeObj["target"] ?? nodeObj["object"];
+		if (target && typeof target === "object" && (target["property"] === upstreamJobName || target["value"] === upstreamJobName)) return true;
+	}
+	if ((nodeObj["type"] === "IndexAccess" || nodeObj["kind"] === "IndexAccess") && (nodeObj["index"] === "outputs" || nodeObj["index"] === "result")) {
+		const target = nodeObj["target"] ?? nodeObj["object"];
+		if (target && typeof target === "object" && (target["index"] === upstreamJobName || target["value"] === upstreamJobName)) return true;
+	}
+	for (const child of Object.values(nodeObj)) if (Array.isArray(child)) {
+		for (const item of child) if (astReferencesJob(item, upstreamJobName)) return true;
+	} else if (child && typeof child === "object") {
+		if (astReferencesJob(child, upstreamJobName)) return true;
+	}
+	return false;
+}
+function hasExpressionReference(job, upstreamJobName) {
+	const allStrings = extractExpressionsAndStrings(job);
+	for (const str of allStrings) try {
+		if (astReferencesJob(parseGitHubExpressionAST(isGitHubExpression(str) ? expressionBody(str) : str), upstreamJobName)) return true;
+	} catch {
+		if (str.includes(`needs.${upstreamJobName}.outputs`) || str.includes(`needs.${upstreamJobName}.result`) || str.includes(`needs['${upstreamJobName}'].outputs`) || str.includes(`needs["${upstreamJobName}"].outputs`)) return true;
+	}
+	return false;
+}
+function hasArtifactHandoff(job, upstreamJob) {
+	if (!upstreamJob || !("steps" in upstreamJob) || !upstreamJob.steps || !("steps" in job) || !job.steps) return false;
+	const uploadedArtifacts = upstreamJob.steps.filter((s) => s.uses && (s.uses.includes("upload-artifact") || s.uses.includes("upload-pages-artifact"))).map((s) => {
+		if (s.uses?.includes("upload-pages-artifact")) return s.with?.["name"] ?? "github-pages";
+		return s.with?.["name"];
+	}).filter((name) => typeof name === "string");
+	return job.steps.filter((s) => s.uses && (s.uses.includes("download-artifact") || s.uses.includes("deploy-pages"))).map((s) => {
+		if (s.uses?.includes("deploy-pages")) return s.with?.["artifact_name"] ?? s.with?.["name"] ?? "github-pages";
+		return s.with?.["name"];
+	}).filter((name) => typeof name === "string").some((dl) => uploadedArtifacts.includes(dl));
+}
+function checkUnnecessaryNeeds(jobId, job, allJobs) {
+	const warnings = [];
+	if (job.needs === void 0) return warnings;
+	const needsArray = Array.isArray(job.needs) ? job.needs : [job.needs];
+	for (const need of needsArray) {
+		const upstreamJob = allJobs[need];
+		if (!(hasExpressionReference(job, need) || hasArtifactHandoff(job, upstreamJob))) warnings.push({
+			ruleId: "no-unnecessary-needs",
+			jobId,
+			message: `job '${jobId}' declares needs '${need}' but does not reference any outputs from it. Remove the dependency or document why sequencing is required.`
+		});
+	}
+	return warnings;
+}
 //#endregion
 //#region src/validation.ts
+const validateWorkflowModel = (workflow, options = {}) => {
+	const errors = [];
+	const warnings = [];
+	if (options.rules?.includes("no-unnecessary-needs")) for (const [jobId, job] of Object.entries(workflow.jobs)) {
+		const lintIssues = checkUnnecessaryNeeds(jobId, job, workflow.jobs);
+		if (options.level === "error") errors.push(...lintIssues);
+		else warnings.push(...lintIssues);
+	}
+	return {
+		errors,
+		warnings
+	};
+};
 const validateWorkflowContent = (file) => validateContent(file, workflowSchema(), WORKFLOW_ROOT);
 const validateActionMetadataContent = (file) => validateContent(file, actionSchema(), ACTION_ROOT);
 const assertValidWorkflowContent = (file) => assertValid("GitHub workflow YAML", validateWorkflowContent(file));
@@ -5853,6 +5937,9 @@ const loadSchema = (schemaFileName) => {
 	return TemplateSchema.load(new JSONObjectReader(void 0, json));
 };
 const workflowParserDistDir = () => dirname(dirname(fileURLToPath(import.meta.resolve("@actions/workflow-parser/workflows/workflow-constants"))));
+//#endregion
+//#region src/names.ts
+const toGitHubName = (value) => value.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
 //#endregion
 //#region src/workflow-command.ts
 const workflowRunBrand = Symbol.for("@dedalus-labs/hollywood.workflow-run");
@@ -7246,10 +7333,17 @@ const createCli = (io = processIo(), services = { run }) => {
 			...sources.length === 0 ? {} : { sources }
 		}, io);
 	});
-	program.command("check").description("Run Hollywood repository checks").option("--generated", "Check generated files are current", false).option("--workflow-security", "Check workflow security policy", false).option("-o, --output <dir>", "Repository root", ".").option("--root-import-alias <alias>", "Import alias for repository-root-relative action sources").option("--source-root <dir>", "Workflow source root").option("--workflows-dir <dir>", "Generated workflows directory", ".github/workflows").action(async (options) => {
-		const selected = options.generated || options.workflowSecurity;
+	program.command("check").description("Run Hollywood repository checks").option("--generated", "Check generated files are current", false).option("--workflow-security", "Check workflow security policy", false).option("--rule <rules...>", "Run specific lint rules").option("--rule-level <level>", "Lint severity level (warn or error)", "warn").option("-o, --output <dir>", "Repository root", ".").option("--root-import-alias <alias>", "Import alias for repository-root-relative action sources").option("--source-root <dir>", "Workflow source root").option("--workflows-dir <dir>", "Generated workflows directory", ".github/workflows").action(async (options) => {
+		const selected = options.generated || options.workflowSecurity || options.rule !== void 0 && options.rule.length > 0;
+		const resolvedRule = selected ? options.rule : ["no-unnecessary-needs"];
+		if (resolvedRule !== void 0) {
+			for (const r of resolvedRule) if (r !== "no-unnecessary-needs") throw new Error(`unknown lint rule: ${r}`);
+		}
+		if (options.ruleLevel !== void 0 && options.ruleLevel !== "warn" && options.ruleLevel !== "error") throw new Error(`invalid rule level: ${options.ruleLevel}. Must be 'warn' or 'error'`);
 		await check({
 			generated: selected ? options.generated : true,
+			...resolvedRule !== void 0 ? { rule: resolvedRule } : {},
+			...options.ruleLevel !== void 0 ? { ruleLevel: options.ruleLevel } : {},
 			output: options.output,
 			...options.rootImportAlias === void 0 ? {} : { rootImportAlias: options.rootImportAlias },
 			...options.sourceRoot === void 0 ? {} : { sourceRoot: options.sourceRoot },
@@ -7306,6 +7400,7 @@ const run = async (options, io) => {
 const check = async (options, io) => {
 	const resolved = await resolveCheckOptions(options);
 	if (resolved.workflowSecurity) await checkWorkflowSecurity(resolved, io);
+	if (resolved.rule && resolved.rule.length > 0) await checkLint(resolved, io);
 	if (resolved.generated) await checkGeneratedFiles(resolved, io);
 };
 const buildActions = async (options, io) => {
@@ -7320,6 +7415,28 @@ const buildActions = async (options, io) => {
 		io.writeOut(`built\t${relative(options.output, outfile).split(sep).join("/")}\n`);
 	}
 	if (entries.length === 0) io.writeOut("unchanged	(no local actions)\n");
+};
+const checkLint = async (options, io) => {
+	const sourceFiles = await resolveSourceFiles([`${resolve(options.output, options.sourceRoot).replace(/\\/g, "/")}/**/*.ts`]);
+	let hasErrors = false;
+	for (const sourceFile of sourceFiles) {
+		const module = await loadHollywoodModule(sourceFile);
+		for (const value of Object.values(module)) if (isGitHubWorkflow(value)) {
+			const validation = validateWorkflowModel(value, {
+				...options.rule !== void 0 ? { rules: options.rule } : {},
+				...options.ruleLevel !== void 0 ? { level: options.ruleLevel } : {}
+			});
+			for (const warning of validation.warnings) io.writeOut(`warn[${warning.ruleId}]: ${warning.message}\n`);
+			for (const error of validation.errors) {
+				const msg = `error[${error.ruleId}]: ${error.message}\n`;
+				if (io.writeErr) io.writeErr(msg);
+				else io.writeOut(msg);
+				hasErrors = true;
+			}
+		}
+	}
+	if (hasErrors) throw new Error(`workflow lint check failed`);
+	io.writeOut("ok	workflow lint\n");
 };
 const checkGeneratedFiles = async (options, io) => {
 	const actionsDir = ".github/actions";
@@ -7485,6 +7602,8 @@ const resolveCheckOptions = async (options) => {
 	const rootImportAlias = options.rootImportAlias === void 0 ? await detectRootImportAlias(output) : normalizeRootImportAlias(options.rootImportAlias);
 	return {
 		generated: options.generated,
+		...options.rule !== void 0 ? { rule: options.rule } : {},
+		...options.ruleLevel !== void 0 ? { ruleLevel: options.ruleLevel } : {},
 		output,
 		...rootImportAlias === void 0 ? {} : { rootImportAlias },
 		sourceRoot,

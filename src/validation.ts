@@ -44,10 +44,9 @@ export const validateWorkflowModel = (
 	const errors: LintIssue[] = [];
 	const warnings: LintIssue[] = [];
 
-	if (options.rules?.includes("no-unnecessary-needs")) {
+    if (options.rules?.includes("no-unnecessary-needs")) {
 		for (const [jobId, job] of Object.entries(workflow.jobs)) {
-			//We cast to any here to bridge the generated types to the internal lint types seamlessly
-			const lintIssues = checkUnnecessaryNeeds(jobId, job as any, workflow.jobs as any);
+			const lintIssues = checkUnnecessaryNeeds(jobId, job, workflow.jobs);
 			
 			if (options.level === "error") {
 				errors.push(...lintIssues);
