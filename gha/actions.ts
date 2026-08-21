@@ -7,7 +7,7 @@ export const setupNodeAction =
 	"actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e"; // v6.4.0
 
 export const setupPythonAction =
-	"actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405"; // v6.2.0
+	"actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97"; // v7.0.0
 
 export const createGitHubAppTokenAction =
 	"actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1"; // v3.2.0
