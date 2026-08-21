@@ -31,7 +31,7 @@ export const dockerSetupBuildxAction =
 	"docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f"; // v3
 
 export const dockerSetupQemuAction =
-	"docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130"; // v3
+	"docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8"; // v4.2.0
 
 export const dockerBuildPushAction =
 	"docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8"; // v6
