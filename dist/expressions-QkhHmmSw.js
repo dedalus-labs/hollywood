@@ -23,6 +23,22 @@ const github = {
 	},
 	eventName: expr("github.event_name"),
 	headRef: expr("github.head_ref"),
+	mergeGroup: {
+		baseSha: expr("github.event.merge_group.base_sha"),
+		headSha: expr("github.event.merge_group.head_sha")
+	},
+	pullRequest: {
+		baseRef: expr("github.event.pull_request.base.ref"),
+		stack: {
+			baseRef: expr("github.event.pull_request.stack.base.ref"),
+			baseSha: expr("github.event.pull_request.stack.base.sha"),
+			id: expr("github.event.pull_request.stack.id"),
+			isPresent: expr("github.event.pull_request.stack != null"),
+			number: expr("github.event.pull_request.stack.number"),
+			position: expr("github.event.pull_request.stack.position"),
+			size: expr("github.event.pull_request.stack.size")
+		}
+	},
 	ref: expr("github.ref"),
 	refName: expr("github.ref_name"),
 	repositoryOwner: expr("github.repository_owner"),

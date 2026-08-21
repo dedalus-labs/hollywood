@@ -23,6 +23,7 @@ import {
 	type UnsafeShell,
 	type WorkflowCommand,
 } from "./workflow-command";
+import type { GitHubWorkflowTriggers } from "./workflow-triggers";
 
 type ScriptActionDescriptor<
 	Inputs extends InputDefinitions,
@@ -282,10 +283,6 @@ export type GitHubWorkflow = Readonly<{
 	jobs: GitHubWorkflowJobs;
 }>;
 
-export type GitHubWorkflowTriggers = {
-	readonly [name: string]: unknown;
-};
-
 export type GitHubWorkflowJobs = {
 	readonly [name: string]: GitHubWorkflowJob;
 };
@@ -316,8 +313,14 @@ export class InvalidWorkflowFilenameError extends Error {
 
 const workflowFilenameKey = Symbol.for("@dedalus-labs/hollywood/workflow-filename");
 
-export const workflow = <const Workflow extends GitHubWorkflow>(
-	definition: Workflow,
+type ExactWorkflowTriggers<Triggers extends GitHubWorkflowTriggers> = Triggers &
+	Readonly<Record<Exclude<keyof Triggers, keyof GitHubWorkflowTriggers>, never>>;
+
+export const workflow = <
+	const Triggers extends GitHubWorkflowTriggers,
+	const Workflow extends GitHubWorkflow & Readonly<{ on: Triggers }>,
+>(
+	definition: Workflow & Readonly<{ on: ExactWorkflowTriggers<Triggers> }>,
 	options?: GitHubWorkflowOptions,
 ): Workflow => {
 	if (options === undefined) {

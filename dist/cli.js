@@ -5746,7 +5746,7 @@ const expr = (body) => {
 	parseGitHubExpression(trimmed);
 	return `\${{ ${trimmed} }}`;
 };
-expr("github.actor"), expr("github.base_ref"), expr("github.event.before"), expr("github.event.pull_request.head.repo.full_name"), expr("github.event_name"), expr("github.head_ref"), expr("github.ref"), expr("github.ref_name"), expr("github.repository_owner"), expr("github.repository"), expr("github.run_id"), expr("github.sha"), expr("github.token"), expr("github.workflow");
+expr("github.actor"), expr("github.base_ref"), expr("github.event.before"), expr("github.event.pull_request.head.repo.full_name"), expr("github.event_name"), expr("github.head_ref"), expr("github.event.merge_group.base_sha"), expr("github.event.merge_group.head_sha"), expr("github.event.pull_request.base.ref"), expr("github.event.pull_request.stack.base.ref"), expr("github.event.pull_request.stack.base.sha"), expr("github.event.pull_request.stack.id"), expr("github.event.pull_request.stack != null"), expr("github.event.pull_request.stack.number"), expr("github.event.pull_request.stack.position"), expr("github.event.pull_request.stack.size"), expr("github.ref"), expr("github.ref_name"), expr("github.repository_owner"), expr("github.repository"), expr("github.run_id"), expr("github.sha"), expr("github.token"), expr("github.workflow");
 expr("runner.arch"), expr("runner.name"), expr("runner.os");
 const isGitHubTypedMatrix = (value) => typeof value === "object" && value !== null && typedMatrixSymbol in value;
 const githubTypedMatrixValues = (matrix) => {

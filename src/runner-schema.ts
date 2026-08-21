@@ -50,10 +50,12 @@ export const runnerToolNames = [
 	"zstd",
 ] as const;
 
+export type RunnerToolName = (typeof runnerToolNames)[number];
+
 const text = z.string().min(1);
 const environment = z.partialRecord(z.enum(runnerEnvironmentNames), z.string());
 const pathName = z.enum(runnerPathEnvironmentNames);
-const toolName = z.enum(runnerToolNames);
+const toolName: z.ZodType<RunnerToolName> = z.enum(runnerToolNames);
 
 const pathProbe = z.discriminatedUnion("status", [
 	z.strictObject({ name: pathName, status: z.literal("absent") }),
@@ -103,7 +105,7 @@ export const runnerProbeSchema = z.strictObject({
 	}),
 	tools: z.array(toolProbe),
 	toolCache: z.record(z.string(), z.array(text)),
-});
+}) satisfies z.ZodType<RunnerProbe>;
 
 export const runnerContractSchema = z.strictObject({
 	schemaVersion: z.literal(runnerProbeSchemaVersion),
@@ -117,7 +119,7 @@ export const runnerContractSchema = z.strictObject({
 			versionPrefix: z.string().min(1).optional(),
 		}),
 	),
-});
+}) satisfies z.ZodType<RunnerContract>;
 
 type DeepReadonly<Value> = Value extends readonly unknown[]
 	? { readonly [Key in keyof Value]: DeepReadonly<Value[Key]> }
@@ -128,12 +130,50 @@ type DeepReadonly<Value> = Value extends readonly unknown[]
 export type RunnerArchitecture = (typeof runnerArchitectures)[number];
 export type RunnerEnvironmentName = (typeof runnerEnvironmentNames)[number];
 export type RunnerPathEnvironmentName = (typeof runnerPathEnvironmentNames)[number];
-export type RunnerToolName = (typeof runnerToolNames)[number];
-export type RunnerContract = DeepReadonly<z.infer<typeof runnerContractSchema>>;
-export type RunnerProbe = DeepReadonly<z.infer<typeof runnerProbeSchema>>;
-export type RunnerPackageProbe = RunnerProbe["packages"];
-export type RunnerPathProbe = RunnerProbe["paths"][number];
-export type RunnerToolProbe = RunnerProbe["tools"][number];
+export type RunnerContract = DeepReadonly<{
+	schemaVersion: typeof runnerProbeSchemaVersion;
+	architectures: RunnerArchitecture[];
+	environment: Partial<Record<RunnerEnvironmentName, string>>;
+	os: { id: string; versionId: string };
+	paths: RunnerPathEnvironmentName[];
+	tools: { name: RunnerToolName; versionPrefix?: string | undefined }[];
+}>;
+export type RunnerPackageProbe = DeepReadonly<
+	| { manager: "none"; packages: [] }
+	| { manager: "dpkg"; packages: { name: string; version: string }[] }
+>;
+export type RunnerPathProbe = DeepReadonly<
+	| { name: RunnerPathEnvironmentName; status: "absent" }
+	| {
+			absolute: boolean;
+			exists: boolean;
+			name: RunnerPathEnvironmentName;
+			status: "ready";
+			value: string;
+			writable: boolean;
+		}
+>;
+export type RunnerToolProbe = DeepReadonly<
+	| { name: RunnerToolName; status: "absent" }
+	| { name: RunnerToolName; path: string; status: "ready"; version: string }
+>;
+export type RunnerProbe = DeepReadonly<{
+	schemaVersion: typeof runnerProbeSchemaVersion;
+	environment: Partial<Record<RunnerEnvironmentName, string>>;
+	identity: { gid: number; groups: string[]; uid: number };
+	packages: RunnerPackageProbe;
+	paths: RunnerPathProbe[];
+	platform: {
+		architecture: string;
+		capabilities: string;
+		cgroup: "v1" | "v2";
+		kernelRelease: string;
+		kernelVersion: string;
+		os: { id: string; prettyName: string; versionId: string };
+	};
+	tools: RunnerToolProbe[];
+	toolCache: Record<string, string[]>;
+}>;
 
 export type RunnerDifference = Readonly<{
 	category: "contract" | "inventory" | "provider";

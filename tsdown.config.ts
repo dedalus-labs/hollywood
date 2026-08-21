@@ -22,6 +22,7 @@ export default defineConfig([
 		format: "esm",
 		platform: "node",
 		target,
+		tsconfig: "./tsconfig.build.json",
 	},
 	{
 		banner: { js: banner },
@@ -43,6 +44,7 @@ export default defineConfig([
 		format: "esm",
 		platform: "node",
 		target,
+		tsconfig: "./tsconfig.build.json",
 	},
 	{
 		banner: { js: banner },
@@ -55,5 +57,6 @@ export default defineConfig([
 		format: "esm",
 		platform: "node",
 		target,
+		tsconfig: "./tsconfig.build.json",
 	},
 ]);

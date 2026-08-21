@@ -161,6 +161,12 @@ export type {
 	GitHubWorkflowOptions,
 	GitHubWorkflowStep,
 } from "./generate";
+export type {
+	GitHubMergeGroupTrigger,
+	GitHubWorkflowDispatchInput,
+	GitHubWorkflowDispatchTrigger,
+	GitHubWorkflowTriggers,
+} from "./workflow-triggers";
 export {
 	generateActionEntrypointFile,
 	generateActionFile,

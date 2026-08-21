@@ -1,7 +1,7 @@
 
 import { A as ScriptFs, B as choiceInput, C as RunActionOptions, D as ScriptActionContext, E as ScriptActionCall, F as SummaryTableRow, G as stringOutput, H as pathInput, I as SummaryText, K as summaryCode, L as WorkflowInputValues, M as ScriptSummary, N as SummaryCell, O as ScriptActionServices, P as SummaryCode, R as action, S as RequiredInputName, T as ScriptAction, U as runAction, V as integerInput, W as stringInput, _ as InputDefinition, a as GitHubLogColor, b as OutputDefinition, c as ActionCallInputValues, d as ChoiceInputDefinition, f as Command, g as CommandResult, h as CommandOptions, i as GitHubInputOptions, j as ScriptLog, k as ScriptExec, l as ActionInputValues, m as CommandExitPolicy, n as GitHubExec, o as RunGitHubActionOptions, p as CommandEnvironment, q as summaryText, r as GitHubExecOptions, s as runGitHubAction, t as GitHubCore, u as ActionOutputValues, v as InputDefinitions, w as RunnerContext, x as OutputDefinitions, y as InputKind, z as booleanInput } from "./github-LHaDutAi.js";
 import { AccountName, EnvironmentAccount, EnvironmentAccounts, EnvironmentDefinition, EnvironmentDefinitions, EnvironmentName, EnvironmentRegistry, EnvironmentSelector, ResolvedEnvironment, defineEnvironmentRegistry, resolveEnvironment, selectEnvironmentName } from "./environments.js";
-import { A as runner, C as ne, D as needsResultIs, E as needsResultIn, F as success, I as valueOr, M as selectString, N as startsWith, O as not, P as stepOutput, S as matrix, T as needsResult, _ as format, a as GitHubJobResultValue, b as hashFiles, c as always, d as contains, f as defineMatrix, g as failure, h as expr, i as GitHubJobResult, j as secret, k as or, l as and, m as eq, n as GitHubExpression, o as GitHubMatrixValues, p as envVar, r as GitHubExpressionValue, s as GitHubTypedMatrix, t as AnyGitHubTypedMatrix, u as cancelled, v as gh, w as needsOutput, x as input, y as github } from "./expressions-DIjnuV5Q.js";
+import { A as runner, C as ne, D as needsResultIs, E as needsResultIn, F as success, I as valueOr, M as selectString, N as startsWith, O as not, P as stepOutput, S as matrix, T as needsResult, _ as format, a as GitHubJobResultValue, b as hashFiles, c as always, d as contains, f as defineMatrix, g as failure, h as expr, i as GitHubJobResult, j as secret, k as or, l as and, m as eq, n as GitHubExpression, o as GitHubMatrixValues, p as envVar, r as GitHubExpressionValue, s as GitHubTypedMatrix, t as AnyGitHubTypedMatrix, u as cancelled, v as gh, w as needsOutput, x as input, y as github } from "./expressions-sbe0iTuP.js";
 import { z } from "zod";
 
 //#region src/local.d.ts
@@ -16,201 +16,80 @@ declare const runnerArchitectures: readonly ["arm64", "x64"];
 declare const runnerEnvironmentNames: readonly ["CI", "GITHUB_ACTIONS", "ImageOS", "ImageVersion", "RUNNER_ARCH", "RUNNER_OS"];
 declare const runnerPathEnvironmentNames: readonly ["GITHUB_ENV", "GITHUB_EVENT_PATH", "GITHUB_OUTPUT", "GITHUB_PATH", "GITHUB_STATE", "GITHUB_STEP_SUMMARY", "GITHUB_WORKSPACE", "HOME", "RUNNER_TEMP", "RUNNER_TOOL_CACHE"];
 declare const runnerToolNames: readonly ["bash", "cargo", "clang", "cmake", "curl", "docker", "gcc", "gh", "git", "go", "java", "jq", "make", "node", "npm", "podman", "python3", "ruby", "rustc", "tar", "zstd"];
-declare const runnerProbeSchema: z.ZodObject<{
-  schemaVersion: z.ZodLiteral<1>;
-  environment: z.ZodRecord<z.ZodEnum<{
-    CI: "CI";
-    GITHUB_ACTIONS: "GITHUB_ACTIONS";
-    ImageOS: "ImageOS";
-    ImageVersion: "ImageVersion";
-    RUNNER_ARCH: "RUNNER_ARCH";
-    RUNNER_OS: "RUNNER_OS";
-  }> & z.core.$partial, z.ZodString>;
-  identity: z.ZodObject<{
-    gid: z.ZodNumber;
-    groups: z.ZodArray<z.ZodString>;
-    uid: z.ZodNumber;
-  }, z.core.$strict>;
-  packages: z.ZodDiscriminatedUnion<[z.ZodObject<{
-    manager: z.ZodLiteral<"none">;
-    packages: z.ZodTuple<[], null>;
-  }, z.core.$strict>, z.ZodObject<{
-    manager: z.ZodLiteral<"dpkg">;
-    packages: z.ZodArray<z.ZodObject<{
-      name: z.ZodString;
-      version: z.ZodString;
-    }, z.core.$strict>>;
-  }, z.core.$strict>], "manager">;
-  paths: z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
-    name: z.ZodEnum<{
-      GITHUB_ENV: "GITHUB_ENV";
-      GITHUB_EVENT_PATH: "GITHUB_EVENT_PATH";
-      GITHUB_OUTPUT: "GITHUB_OUTPUT";
-      GITHUB_PATH: "GITHUB_PATH";
-      GITHUB_STATE: "GITHUB_STATE";
-      GITHUB_STEP_SUMMARY: "GITHUB_STEP_SUMMARY";
-      GITHUB_WORKSPACE: "GITHUB_WORKSPACE";
-      HOME: "HOME";
-      RUNNER_TEMP: "RUNNER_TEMP";
-      RUNNER_TOOL_CACHE: "RUNNER_TOOL_CACHE";
-    }>;
-    status: z.ZodLiteral<"absent">;
-  }, z.core.$strict>, z.ZodObject<{
-    absolute: z.ZodBoolean;
-    exists: z.ZodBoolean;
-    name: z.ZodEnum<{
-      GITHUB_ENV: "GITHUB_ENV";
-      GITHUB_EVENT_PATH: "GITHUB_EVENT_PATH";
-      GITHUB_OUTPUT: "GITHUB_OUTPUT";
-      GITHUB_PATH: "GITHUB_PATH";
-      GITHUB_STATE: "GITHUB_STATE";
-      GITHUB_STEP_SUMMARY: "GITHUB_STEP_SUMMARY";
-      GITHUB_WORKSPACE: "GITHUB_WORKSPACE";
-      HOME: "HOME";
-      RUNNER_TEMP: "RUNNER_TEMP";
-      RUNNER_TOOL_CACHE: "RUNNER_TOOL_CACHE";
-    }>;
-    status: z.ZodLiteral<"ready">;
-    value: z.ZodString;
-    writable: z.ZodBoolean;
-  }, z.core.$strict>], "status">>;
-  platform: z.ZodObject<{
-    architecture: z.ZodString;
-    capabilities: z.ZodString;
-    cgroup: z.ZodEnum<{
-      v1: "v1";
-      v2: "v2";
-    }>;
-    kernelRelease: z.ZodString;
-    kernelVersion: z.ZodString;
-    os: z.ZodObject<{
-      id: z.ZodString;
-      prettyName: z.ZodString;
-      versionId: z.ZodString;
-    }, z.core.$strict>;
-  }, z.core.$strict>;
-  tools: z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
-    name: z.ZodEnum<{
-      bash: "bash";
-      cargo: "cargo";
-      clang: "clang";
-      cmake: "cmake";
-      curl: "curl";
-      docker: "docker";
-      gcc: "gcc";
-      gh: "gh";
-      git: "git";
-      go: "go";
-      java: "java";
-      jq: "jq";
-      make: "make";
-      node: "node";
-      npm: "npm";
-      podman: "podman";
-      python3: "python3";
-      ruby: "ruby";
-      rustc: "rustc";
-      tar: "tar";
-      zstd: "zstd";
-    }>;
-    status: z.ZodLiteral<"absent">;
-  }, z.core.$strict>, z.ZodObject<{
-    name: z.ZodEnum<{
-      bash: "bash";
-      cargo: "cargo";
-      clang: "clang";
-      cmake: "cmake";
-      curl: "curl";
-      docker: "docker";
-      gcc: "gcc";
-      gh: "gh";
-      git: "git";
-      go: "go";
-      java: "java";
-      jq: "jq";
-      make: "make";
-      node: "node";
-      npm: "npm";
-      podman: "podman";
-      python3: "python3";
-      ruby: "ruby";
-      rustc: "rustc";
-      tar: "tar";
-      zstd: "zstd";
-    }>;
-    path: z.ZodString;
-    status: z.ZodLiteral<"ready">;
-    version: z.ZodString;
-  }, z.core.$strict>], "status">>;
-  toolCache: z.ZodRecord<z.ZodString, z.ZodArray<z.ZodString>>;
-}, z.core.$strict>;
-declare const runnerContractSchema: z.ZodObject<{
-  schemaVersion: z.ZodLiteral<1>;
-  architectures: z.ZodArray<z.ZodEnum<{
-    arm64: "arm64";
-    x64: "x64";
-  }>>;
-  environment: z.ZodRecord<z.ZodEnum<{
-    CI: "CI";
-    GITHUB_ACTIONS: "GITHUB_ACTIONS";
-    ImageOS: "ImageOS";
-    ImageVersion: "ImageVersion";
-    RUNNER_ARCH: "RUNNER_ARCH";
-    RUNNER_OS: "RUNNER_OS";
-  }> & z.core.$partial, z.ZodString>;
-  os: z.ZodObject<{
-    id: z.ZodString;
-    versionId: z.ZodString;
-  }, z.core.$strict>;
-  paths: z.ZodArray<z.ZodEnum<{
-    GITHUB_ENV: "GITHUB_ENV";
-    GITHUB_EVENT_PATH: "GITHUB_EVENT_PATH";
-    GITHUB_OUTPUT: "GITHUB_OUTPUT";
-    GITHUB_PATH: "GITHUB_PATH";
-    GITHUB_STATE: "GITHUB_STATE";
-    GITHUB_STEP_SUMMARY: "GITHUB_STEP_SUMMARY";
-    GITHUB_WORKSPACE: "GITHUB_WORKSPACE";
-    HOME: "HOME";
-    RUNNER_TEMP: "RUNNER_TEMP";
-    RUNNER_TOOL_CACHE: "RUNNER_TOOL_CACHE";
-  }>>;
-  tools: z.ZodArray<z.ZodObject<{
-    name: z.ZodEnum<{
-      bash: "bash";
-      cargo: "cargo";
-      clang: "clang";
-      cmake: "cmake";
-      curl: "curl";
-      docker: "docker";
-      gcc: "gcc";
-      gh: "gh";
-      git: "git";
-      go: "go";
-      java: "java";
-      jq: "jq";
-      make: "make";
-      node: "node";
-      npm: "npm";
-      podman: "podman";
-      python3: "python3";
-      ruby: "ruby";
-      rustc: "rustc";
-      tar: "tar";
-      zstd: "zstd";
-    }>;
-    versionPrefix: z.ZodOptional<z.ZodString>;
-  }, z.core.$strict>>;
-}, z.core.$strict>;
+type RunnerToolName = (typeof runnerToolNames)[number];
 type DeepReadonly<Value> = Value extends readonly unknown[] ? { readonly [Key in keyof Value]: DeepReadonly<Value[Key]> } : Value extends object ? { readonly [Key in keyof Value]: DeepReadonly<Value[Key]> } : Value;
 type RunnerArchitecture = (typeof runnerArchitectures)[number];
 type RunnerEnvironmentName = (typeof runnerEnvironmentNames)[number];
 type RunnerPathEnvironmentName = (typeof runnerPathEnvironmentNames)[number];
-type RunnerToolName = (typeof runnerToolNames)[number];
-type RunnerContract = DeepReadonly<z.infer<typeof runnerContractSchema>>;
-type RunnerProbe = DeepReadonly<z.infer<typeof runnerProbeSchema>>;
-type RunnerPackageProbe = RunnerProbe["packages"];
-type RunnerPathProbe = RunnerProbe["paths"][number];
-type RunnerToolProbe = RunnerProbe["tools"][number];
+type RunnerContract = DeepReadonly<{
+  schemaVersion: typeof runnerProbeSchemaVersion;
+  architectures: RunnerArchitecture[];
+  environment: Partial<Record<RunnerEnvironmentName, string>>;
+  os: {
+    id: string;
+    versionId: string;
+  };
+  paths: RunnerPathEnvironmentName[];
+  tools: {
+    name: RunnerToolName;
+    versionPrefix?: string | undefined;
+  }[];
+}>;
+type RunnerPackageProbe = DeepReadonly<{
+  manager: "none";
+  packages: [];
+} | {
+  manager: "dpkg";
+  packages: {
+    name: string;
+    version: string;
+  }[];
+}>;
+type RunnerPathProbe = DeepReadonly<{
+  name: RunnerPathEnvironmentName;
+  status: "absent";
+} | {
+  absolute: boolean;
+  exists: boolean;
+  name: RunnerPathEnvironmentName;
+  status: "ready";
+  value: string;
+  writable: boolean;
+}>;
+type RunnerToolProbe = DeepReadonly<{
+  name: RunnerToolName;
+  status: "absent";
+} | {
+  name: RunnerToolName;
+  path: string;
+  status: "ready";
+  version: string;
+}>;
+type RunnerProbe = DeepReadonly<{
+  schemaVersion: typeof runnerProbeSchemaVersion;
+  environment: Partial<Record<RunnerEnvironmentName, string>>;
+  identity: {
+    gid: number;
+    groups: string[];
+    uid: number;
+  };
+  packages: RunnerPackageProbe;
+  paths: RunnerPathProbe[];
+  platform: {
+    architecture: string;
+    capabilities: string;
+    cgroup: "v1" | "v2";
+    kernelRelease: string;
+    kernelVersion: string;
+    os: {
+      id: string;
+      prettyName: string;
+      versionId: string;
+    };
+  };
+  tools: RunnerToolProbe[];
+  toolCache: Record<string, string[]>;
+}>;
 type RunnerDifference = Readonly<{
   category: "contract" | "inventory" | "provider";
   actual?: unknown;
@@ -373,6 +252,130 @@ type UnsafeShell = Readonly<{
 type WorkflowRun = UnsafeShell | WorkflowCommand;
 declare const command: (options: WorkflowCommandOptions) => WorkflowCommand;
 declare const unsafeShell: (script: string) => UnsafeShell;
+//#endregion
+//#region src/workflow-triggers.d.ts
+type GitHubActivityTrigger = Readonly<{
+  types?: readonly string[];
+}>;
+type GitHubBranchFilter = Readonly<{
+  branches?: readonly string[];
+  "branches-ignore"?: readonly string[];
+}>;
+type GitHubPathFilter = Readonly<{
+  paths?: readonly string[];
+  "paths-ignore"?: readonly string[];
+}>;
+type GitHubTagFilter = Readonly<{
+  tags?: readonly string[];
+  "tags-ignore"?: readonly string[];
+}>;
+type GitHubPullRequestTrigger = GitHubActivityTrigger & GitHubBranchFilter & GitHubPathFilter;
+type GitHubPushTrigger = GitHubBranchFilter & GitHubPathFilter & GitHubTagFilter;
+type GitHubMergeGroupTrigger = GitHubBranchFilter & Readonly<{
+  types?: readonly ["checks_requested"];
+}>;
+type GitHubWorkflowDispatchInputBase = Readonly<{
+  description?: string;
+  required?: boolean;
+}>;
+type GitHubWorkflowDispatchInput = (GitHubWorkflowDispatchInputBase & Readonly<{
+  type: "boolean";
+  default?: boolean;
+  options?: never;
+}>) | (GitHubWorkflowDispatchInputBase & Readonly<{
+  type: "choice";
+  default?: string;
+  options: readonly string[];
+}>) | (GitHubWorkflowDispatchInputBase & Readonly<{
+  type: "environment";
+  default?: string;
+  options?: never;
+}>) | (GitHubWorkflowDispatchInputBase & Readonly<{
+  type: "number";
+  default?: number;
+  options?: never;
+}>) | (GitHubWorkflowDispatchInputBase & Readonly<{
+  type?: "string";
+  default?: string;
+  options?: never;
+}>);
+type GitHubWorkflowDispatchTrigger = Readonly<{
+  inputs?: Readonly<Record<string, GitHubWorkflowDispatchInput>>;
+}>;
+type GitHubWorkflowCallInput = Readonly<{
+  type: "boolean";
+  description?: string;
+  required?: boolean;
+  default?: boolean;
+}> | Readonly<{
+  type: "number";
+  description?: string;
+  required?: boolean;
+  default?: number;
+}> | Readonly<{
+  type: "string";
+  description?: string;
+  required?: boolean;
+  default?: string;
+}>;
+type GitHubWorkflowCallTrigger = Readonly<{
+  inputs?: Readonly<Record<string, GitHubWorkflowCallInput>>;
+  outputs?: Readonly<Record<string, Readonly<{
+    description?: string;
+    value: string;
+  }>>>;
+  secrets?: Readonly<Record<string, Readonly<{
+    description?: string;
+    required?: boolean;
+  }>>>;
+}>;
+type GitHubScheduleTrigger = readonly Readonly<{
+  cron: string;
+  timezone?: string;
+}>[];
+type GitHubWorkflowRunTrigger = GitHubActivityTrigger & GitHubBranchFilter & Readonly<{
+  workflows?: readonly string[];
+}>;
+type GitHubImageVersionTrigger = GitHubActivityTrigger & Readonly<{
+  names?: readonly string[];
+  versions?: readonly string[];
+}>;
+type GitHubWorkflowTriggers = Readonly<{
+  branch_protection_rule?: GitHubActivityTrigger | null;
+  check_run?: GitHubActivityTrigger | null;
+  check_suite?: GitHubActivityTrigger | null;
+  create?: null;
+  delete?: null;
+  deployment?: null;
+  deployment_status?: null;
+  discussion?: GitHubActivityTrigger | null;
+  discussion_comment?: GitHubActivityTrigger | null;
+  fork?: null;
+  gollum?: null;
+  image_version?: GitHubImageVersionTrigger | null;
+  issue_comment?: GitHubActivityTrigger | null;
+  issues?: GitHubActivityTrigger | null;
+  label?: GitHubActivityTrigger | null;
+  merge_group?: GitHubMergeGroupTrigger | null;
+  milestone?: GitHubActivityTrigger | null;
+  page_build?: null;
+  public?: null;
+  pull_request?: GitHubPullRequestTrigger | null;
+  pull_request_comment?: GitHubActivityTrigger | null;
+  pull_request_review?: GitHubActivityTrigger | null;
+  pull_request_review_comment?: GitHubActivityTrigger | null;
+  pull_request_target?: GitHubPullRequestTrigger | null;
+  push?: GitHubPushTrigger | null;
+  registry_package?: GitHubActivityTrigger | null;
+  release?: GitHubActivityTrigger | null;
+  repository_dispatch?: GitHubActivityTrigger | null;
+  schedule?: GitHubScheduleTrigger;
+  status?: null;
+  watch?: GitHubActivityTrigger | null;
+  workflow_call?: GitHubWorkflowCallTrigger | null;
+  workflow_dispatch?: GitHubWorkflowDispatchTrigger | null;
+  workflow_run?: GitHubWorkflowRunTrigger | null;
+}>;
 //#endregion
 //#region src/generate.d.ts
 type ScriptActionDescriptor<Inputs extends InputDefinitions, Outputs extends OutputDefinitions> = Pick<ScriptAction<Inputs, Outputs>, "description" | "inputs" | "localActionPath" | "name" | "outputs">;
@@ -568,9 +571,6 @@ type GitHubWorkflow = Readonly<{
   env?: GitHubEnvironmentVariables;
   jobs: GitHubWorkflowJobs;
 }>;
-type GitHubWorkflowTriggers = {
-  readonly [name: string]: unknown;
-};
 type GitHubWorkflowJobs = {
   readonly [name: string]: GitHubWorkflowJob;
 };
@@ -589,7 +589,12 @@ declare class InvalidWorkflowFilenameError extends Error {
   readonly reason: string;
   constructor(filename: string, reason: string);
 }
-declare const workflow: <const Workflow extends GitHubWorkflow>(definition: Workflow, options?: GitHubWorkflowOptions) => Workflow;
+type ExactWorkflowTriggers<Triggers extends GitHubWorkflowTriggers> = Triggers & Readonly<Record<Exclude<keyof Triggers, keyof GitHubWorkflowTriggers>, never>>;
+declare const workflow: <const Triggers extends GitHubWorkflowTriggers, const Workflow extends GitHubWorkflow & Readonly<{
+  on: Triggers;
+}>>(definition: Workflow & Readonly<{
+  on: ExactWorkflowTriggers<Triggers>;
+}>, options?: GitHubWorkflowOptions) => Workflow;
 declare const job: <const Job extends GitHubWorkflowJob>(definition: Job) => Job;
 declare const localAction: <const Inputs extends InputDefinitions>(definition: GitHubLocalAction<Inputs>) => GitHubLocalAction<Inputs>;
 declare const generateActionMetadata: <const Inputs extends InputDefinitions, const Outputs extends OutputDefinitions>(action: ScriptActionDescriptor<Inputs, Outputs>) => GitHubActionMetadata;
@@ -685,4 +690,4 @@ declare const assertValidActionMetadataContent: (file: GitHubYamlFile) => void;
 //#region src/lint/no-unnecessary-needs.d.ts
 declare function checkUnnecessaryNeeds(jobId: string, job: GitHubWorkflowJob, allJobs: GitHubWorkflowJobs): LintIssue[];
 //#endregion
-export { type AccountName, type ActionCallInputValues, type ActionInputValues, type ActionOutputValues, type ChoiceInputDefinition, type Command, type CommandEnvironment, type CommandExitPolicy, type CommandOptions, type CommandResult, type ContainerOptions, type ContainerProvider, ContainerProviderUnavailableError, type ContainerServices, type EncodedGitHubJitConfig, type EnvironmentAccount, type EnvironmentAccounts, type EnvironmentDefinition, type EnvironmentDefinitions, type EnvironmentName, type EnvironmentRegistry, type EnvironmentSelector, type GenerateGitHubRepositoryRunnerJitConfigOptions, type GeneratedFile, GeneratedFilePathCollisionError, type GeneratedFileWriteResult, type GeneratedFileWriteStatus, type GitHubActionEntrypointFile, type GitHubActionFile, type GitHubActionInputMetadata, type GitHubActionMetadata, type GitHubActionOutputMetadata, type GitHubApiToken, type GitHubCommandStep, type GitHubConcurrency, type GitHubCore, type GitHubEnvironmentVariables, type GitHubExec, type GitHubExecOptions, type GitHubExpression, type GitHubExpressionString, type GitHubExpressionValue, type GitHubInputOptions, type GitHubJobOutputs, GitHubJobResult, type GitHubJobResultValue, type GitHubLocalAction, type GitHubLocalActionStepOptions, type GitHubLogColor, type GitHubMatrix, type GitHubMatrixObject, type GitHubMatrixValue, type GitHubMatrixValues, type GitHubNeeds, type GitHubPermission, type GitHubPermissions, type GitHubRepository, type GitHubReusableWorkflowJob, type GitHubReusableWorkflowSecrets, type GitHubRunStep, GitHubRunnerApiError, type GitHubRunnerApiRequest, type GitHubRunnerApiResponse, type GitHubRunnerApiServices, type GitHubRunnerContainerEngine, type GitHubRunnerHooks, type GitHubRunnerJitRegistration, type GitHubRunnerJitRegistrationOptions, type GitHubRunnerOptions, type GitHubRunnerProcess, type GitHubService, type GitHubServices, type GitHubStepWorkflowJob, type GitHubStrategy, type GitHubTypedMatrix, type GitHubUnsafeShellStep, type GitHubUsesStep, type GitHubUsesStepOptions, type GitHubWithValues, type GitHubWorkflow, type GitHubWorkflowCallWithValues, type GitHubWorkflowFile, type GitHubWorkflowJob, type GitHubWorkflowOptions, type GitHubWorkflowStep, type GitHubYamlFile, type GitHubYamlValidation, type GitHubYamlValidationError, type InputDefinition, type InputDefinitions, type InputKind, InvalidWorkflowFilenameError, type LintIssue, type OutputDefinition, type OutputDefinitions, type RenderedGeneratedFile, type ResolvedEnvironment, type RunActionOptions, type RunGitHubActionOptions, type RunnerArchitecture, type RunnerContext, type RunnerContract, type RunnerDifference, type RunnerEnvironmentName, type RunnerPackageProbe, type RunnerPathEnvironmentName, type RunnerPathProbe, type RunnerProbe, type RunnerProbeSource, type RunnerToolName, type RunnerToolProbe, type ScriptAction, type ScriptActionCall, type ScriptActionContext, type ScriptActionServices, type ScriptExec, type ScriptFs, type ScriptLog, type ScriptSummary, type SummaryCell, type SummaryCode, type SummaryTableRow, type SummaryText, type UnsafeShell, type ValidationOptions, type WorkflowCommand, type WorkflowCommandOptions, type WorkflowInputValues, type WorkflowRun, type WriteGeneratedFilesOptions, action, always, and, assertValidActionMetadataContent, assertValidWorkflowContent, booleanInput, cancelled, checkUnnecessaryNeeds, choiceInput, command, compareRunnerProbes, contains, currentRunner, defineEnvironmentRegistry, defineGitHubRunnerJitRegistration, defineMatrix, defineRunnerContract, envVar, eq, expr, failure, format, generateActionEntrypointFile, generateActionFile, generateActionFiles, generateActionMetadata, generateGitHubRepositoryRunnerJitConfig, generateUsesStep, generateWorkflowFile, gh, github, githubActionsRunnerImage, githubActionsRunnerVersion, hashFiles, input, integerInput, job, localAction, matrix, ne, needsOutput, needsResult, needsResultIn, needsResultIs, nodeExec, nodeFs, nodeLog, not, or, parseEncodedGitHubJitConfig, parseGitHubApiToken, parseGitHubRepository, parseRunnerContract, parseRunnerProbe, pathInput, probeRunner, readEncodedGitHubJitConfig, readRunnerContract, readRunnerProbe, renderActionFile, renderGeneratedFile, renderWorkflowFile, resolveEnvironment, runAction, runGitHubAction, runGitHubRunner, runner, runnerProbeSchemaVersion, secret, selectEnvironmentName, selectString, startsWith, stepOutput, stringInput, stringOutput, success, summaryCode, summaryText, unsafeShell, uses, validateActionMetadataContent, validateWorkflowContent, validateWorkflowModel, valueOr, verifyRunner, withContainer, withLocalContainer, workflow, writeEncodedGitHubJitConfig, writeGeneratedFiles, writeRunnerProbe };
+export { type AccountName, type ActionCallInputValues, type ActionInputValues, type ActionOutputValues, type ChoiceInputDefinition, type Command, type CommandEnvironment, type CommandExitPolicy, type CommandOptions, type CommandResult, type ContainerOptions, type ContainerProvider, ContainerProviderUnavailableError, type ContainerServices, type EncodedGitHubJitConfig, type EnvironmentAccount, type EnvironmentAccounts, type EnvironmentDefinition, type EnvironmentDefinitions, type EnvironmentName, type EnvironmentRegistry, type EnvironmentSelector, type GenerateGitHubRepositoryRunnerJitConfigOptions, type GeneratedFile, GeneratedFilePathCollisionError, type GeneratedFileWriteResult, type GeneratedFileWriteStatus, type GitHubActionEntrypointFile, type GitHubActionFile, type GitHubActionInputMetadata, type GitHubActionMetadata, type GitHubActionOutputMetadata, type GitHubApiToken, type GitHubCommandStep, type GitHubConcurrency, type GitHubCore, type GitHubEnvironmentVariables, type GitHubExec, type GitHubExecOptions, type GitHubExpression, type GitHubExpressionString, type GitHubExpressionValue, type GitHubInputOptions, type GitHubJobOutputs, GitHubJobResult, type GitHubJobResultValue, type GitHubLocalAction, type GitHubLocalActionStepOptions, type GitHubLogColor, type GitHubMatrix, type GitHubMatrixObject, type GitHubMatrixValue, type GitHubMatrixValues, type GitHubMergeGroupTrigger, type GitHubNeeds, type GitHubPermission, type GitHubPermissions, type GitHubRepository, type GitHubReusableWorkflowJob, type GitHubReusableWorkflowSecrets, type GitHubRunStep, GitHubRunnerApiError, type GitHubRunnerApiRequest, type GitHubRunnerApiResponse, type GitHubRunnerApiServices, type GitHubRunnerContainerEngine, type GitHubRunnerHooks, type GitHubRunnerJitRegistration, type GitHubRunnerJitRegistrationOptions, type GitHubRunnerOptions, type GitHubRunnerProcess, type GitHubService, type GitHubServices, type GitHubStepWorkflowJob, type GitHubStrategy, type GitHubTypedMatrix, type GitHubUnsafeShellStep, type GitHubUsesStep, type GitHubUsesStepOptions, type GitHubWithValues, type GitHubWorkflow, type GitHubWorkflowCallWithValues, type GitHubWorkflowDispatchInput, type GitHubWorkflowDispatchTrigger, type GitHubWorkflowFile, type GitHubWorkflowJob, type GitHubWorkflowOptions, type GitHubWorkflowStep, type GitHubWorkflowTriggers, type GitHubYamlFile, type GitHubYamlValidation, type GitHubYamlValidationError, type InputDefinition, type InputDefinitions, type InputKind, InvalidWorkflowFilenameError, type LintIssue, type OutputDefinition, type OutputDefinitions, type RenderedGeneratedFile, type ResolvedEnvironment, type RunActionOptions, type RunGitHubActionOptions, type RunnerArchitecture, type RunnerContext, type RunnerContract, type RunnerDifference, type RunnerEnvironmentName, type RunnerPackageProbe, type RunnerPathEnvironmentName, type RunnerPathProbe, type RunnerProbe, type RunnerProbeSource, type RunnerToolName, type RunnerToolProbe, type ScriptAction, type ScriptActionCall, type ScriptActionContext, type ScriptActionServices, type ScriptExec, type ScriptFs, type ScriptLog, type ScriptSummary, type SummaryCell, type SummaryCode, type SummaryTableRow, type SummaryText, type UnsafeShell, type ValidationOptions, type WorkflowCommand, type WorkflowCommandOptions, type WorkflowInputValues, type WorkflowRun, type WriteGeneratedFilesOptions, action, always, and, assertValidActionMetadataContent, assertValidWorkflowContent, booleanInput, cancelled, checkUnnecessaryNeeds, choiceInput, command, compareRunnerProbes, contains, currentRunner, defineEnvironmentRegistry, defineGitHubRunnerJitRegistration, defineMatrix, defineRunnerContract, envVar, eq, expr, failure, format, generateActionEntrypointFile, generateActionFile, generateActionFiles, generateActionMetadata, generateGitHubRepositoryRunnerJitConfig, generateUsesStep, generateWorkflowFile, gh, github, githubActionsRunnerImage, githubActionsRunnerVersion, hashFiles, input, integerInput, job, localAction, matrix, ne, needsOutput, needsResult, needsResultIn, needsResultIs, nodeExec, nodeFs, nodeLog, not, or, parseEncodedGitHubJitConfig, parseGitHubApiToken, parseGitHubRepository, parseRunnerContract, parseRunnerProbe, pathInput, probeRunner, readEncodedGitHubJitConfig, readRunnerContract, readRunnerProbe, renderActionFile, renderGeneratedFile, renderWorkflowFile, resolveEnvironment, runAction, runGitHubAction, runGitHubRunner, runner, runnerProbeSchemaVersion, secret, selectEnvironmentName, selectString, startsWith, stepOutput, stringInput, stringOutput, success, summaryCode, summaryText, unsafeShell, uses, validateActionMetadataContent, validateWorkflowContent, validateWorkflowModel, valueOr, verifyRunner, withContainer, withLocalContainer, workflow, writeEncodedGitHubJitConfig, writeGeneratedFiles, writeRunnerProbe };

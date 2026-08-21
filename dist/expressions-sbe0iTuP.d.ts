@@ -53,6 +53,22 @@ declare const github: {
   };
   readonly eventName: GitHubExpression<string>;
   readonly headRef: GitHubExpression<string>;
+  readonly mergeGroup: {
+    readonly baseSha: GitHubExpression<string>;
+    readonly headSha: GitHubExpression<string>;
+  };
+  readonly pullRequest: {
+    readonly baseRef: GitHubExpression<string>;
+    readonly stack: {
+      readonly baseRef: GitHubExpression<string>;
+      readonly baseSha: GitHubExpression<string>;
+      readonly id: GitHubExpression<number>;
+      readonly isPresent: GitHubExpression<boolean>;
+      readonly number: GitHubExpression<number>;
+      readonly position: GitHubExpression<number>;
+      readonly size: GitHubExpression<number>;
+    };
+  };
   readonly ref: GitHubExpression<string>;
   readonly refName: GitHubExpression<string>;
   readonly repositoryOwner: GitHubExpression<string>;
@@ -83,6 +99,22 @@ declare const gh: {
     };
     readonly eventName: GitHubExpression<string>;
     readonly headRef: GitHubExpression<string>;
+    readonly mergeGroup: {
+      readonly baseSha: GitHubExpression<string>;
+      readonly headSha: GitHubExpression<string>;
+    };
+    readonly pullRequest: {
+      readonly baseRef: GitHubExpression<string>;
+      readonly stack: {
+        readonly baseRef: GitHubExpression<string>;
+        readonly baseSha: GitHubExpression<string>;
+        readonly id: GitHubExpression<number>;
+        readonly isPresent: GitHubExpression<boolean>;
+        readonly number: GitHubExpression<number>;
+        readonly position: GitHubExpression<number>;
+        readonly size: GitHubExpression<number>;
+      };
+    };
     readonly ref: GitHubExpression<string>;
     readonly refName: GitHubExpression<string>;
     readonly repositoryOwner: GitHubExpression<string>;
