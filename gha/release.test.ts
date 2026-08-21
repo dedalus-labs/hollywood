@@ -114,7 +114,7 @@ test("release please owns independent npm and runner versions", async () => {
 	assert.deepEqual(manifest, { ".": hollywoodVersion, runner: runnerVersion });
 	assert.notEqual(`v${hollywoodVersion}`, `runner-v${runnerVersion}`);
 	assert.ok((await readFile("CHANGELOG.md", "utf8")).includes(`## [${hollywoodVersion}]`));
-	assert.ok((await readFile("runner/CHANGELOG.md", "utf8")).includes(`## ${runnerVersion} (`));
+	assert.ok((await readFile("runner/CHANGELOG.md", "utf8")).includes(`## [${runnerVersion}]`));
 });
 
 test("failed npm releases can be retried from current main", () => {
