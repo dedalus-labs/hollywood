@@ -25,7 +25,7 @@ export const uploadArtifactAction =
 	"actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02"; // v4
 
 export const dockerLoginAction =
-	"docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9"; // v3
+	"docker/login-action@dbcb813823bdd20940b903addbd779551569679f"; // v4.6.0
 
 export const dockerSetupBuildxAction =
 	"docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f"; // v3
