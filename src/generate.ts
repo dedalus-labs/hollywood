@@ -521,12 +521,16 @@ export const renderWorkflowFile = (file: GitHubWorkflowFile): string => {
 const workflowForYaml = (workflow: GitHubWorkflow): unknown => ({
 	...workflow,
 	jobs: Object.fromEntries(
-		Object.entries(workflow.jobs).map(([name, workflowJob]) => [name, jobForYaml(workflowJob)]),
+		Object.entries(workflow.jobs).map(([name, workflowJob]) => [
+			name,
+			jobForYaml(workflowJob),
+		]),
 	),
 });
 
 const jobForYaml = (workflowJob: GitHubWorkflowJob): unknown => {
 	const matrix = workflowJob.strategy?.matrix;
+
 	return {
 		...workflowJob,
 		...(matrix === undefined || !isGitHubTypedMatrix(matrix)

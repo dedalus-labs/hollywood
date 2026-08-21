@@ -9,6 +9,7 @@ import { build } from "esbuild";
 import { glob } from "tinyglobby";
 import { parse } from "yaml";
 
+import { validateWorkflowModel } from "./validation";
 import {
 	generateActionEntrypointFile,
 	generateActionFile,
@@ -57,6 +58,8 @@ export type RunOptions = Readonly<{
 
 export type CheckOptions = Readonly<{
 	generated: boolean;
+	rule?: readonly string[];
+	ruleLevel?: "warn" | "error";
 	output: string;
 	rootImportAlias?: string;
 	sourceRoot?: string;
@@ -64,7 +67,7 @@ export type CheckOptions = Readonly<{
 	workflowsDir: string;
 }>;
 
-export type BuildActionsOptions = Readonly<{
+export type BuildActionsOptions = Readonly<{	
 	actionsDir: string;
 	output: string;
 	target: string;
@@ -101,20 +104,37 @@ export const createCli = (
 			await generate({ ...options, ...(sources.length === 0 ? {} : { sources }) }, io);
 		});
 
-	program
+    program
 		.command("check")
 		.description("Run Hollywood repository checks")
 		.option("--generated", "Check generated files are current", false)
 		.option("--workflow-security", "Check workflow security policy", false)
+		.option("--rule <rules...>", "Run specific lint rules")
+		.option("--rule-level <level>", "Lint severity level (warn or error)", "warn")
 		.option("-o, --output <dir>", "Repository root", ".")
 		.option("--root-import-alias <alias>", "Import alias for repository-root-relative action sources")
 		.option("--source-root <dir>", "Workflow source root")
 		.option("--workflows-dir <dir>", "Generated workflows directory", ".github/workflows")
 		.action(async (options) => {
-			const selected = options.generated || options.workflowSecurity;
+			const selected = options.generated || options.workflowSecurity || (options.rule !== undefined && options.rule.length > 0);
+			const resolvedRule = selected ? options.rule : ["no-unnecessary-needs"];
+
+			if (resolvedRule !== undefined) {
+				for (const r of resolvedRule) {
+					if (r !== "no-unnecessary-needs") {
+						throw new Error(`unknown lint rule: ${r}`);
+					}
+				}
+			}
+			if (options.ruleLevel !== undefined && options.ruleLevel !== "warn" && options.ruleLevel !== "error") {
+				throw new Error(`invalid rule level: ${options.ruleLevel}. Must be 'warn' or 'error'`);
+			}
+
 			await check(
 				{
 					generated: selected ? options.generated : true,
+					...(resolvedRule !== undefined ? { rule: resolvedRule } : {}),
+					...(options.ruleLevel !== undefined ? { ruleLevel: options.ruleLevel as "warn" | "error" } : {}),
 					output: options.output,
 					...(options.rootImportAlias === undefined ? {} : { rootImportAlias: options.rootImportAlias }),
 					...(options.sourceRoot === undefined ? {} : { sourceRoot: options.sourceRoot }),
@@ -124,7 +144,6 @@ export const createCli = (
 				io,
 			);
 		});
-
 	program
 		.command("build")
 		.description("Bundle generated local GitHub actions")
@@ -212,6 +231,9 @@ export const check = async (options: CheckOptions, io: CliIo): Promise<void> => 
 	if (resolved.workflowSecurity) {
 		await checkWorkflowSecurity(resolved, io);
 	}
+	if (resolved.rule && resolved.rule.length > 0) {
+		await checkLint(resolved, io);
+	}
 	if (resolved.generated) {
 		await checkGeneratedFiles(resolved, io);
 	}
@@ -248,12 +270,48 @@ type ResolvedGenerateOptions = Readonly<{
 
 type ResolvedCheckOptions = Readonly<{
 	generated: boolean;
+	rule?: readonly string[];
+	ruleLevel?: "warn" | "error";
 	output: string;
 	rootImportAlias?: string;
 	sourceRoot: string;
 	workflowSecurity: boolean;
 	workflowsDir: string;
 }>;
+
+const checkLint = async (options: ResolvedCheckOptions, io: CliIo): Promise<void> => {
+	const sourceRootPath = resolve(options.output, options.sourceRoot);
+	const sourceFiles = await resolveSourceFiles([`${sourceRootPath.replace(/\\/g, '/')}/**/*.ts`]);
+	let hasErrors = false;
+
+	for (const sourceFile of sourceFiles) {
+		const module = await loadHollywoodModule(sourceFile);
+		for (const value of Object.values(module)) {
+			if (isGitHubWorkflow(value)) {
+				const validation = validateWorkflowModel(value, {
+					...(options.rule !== undefined ? { rules: options.rule } : {}),
+					...(options.ruleLevel !== undefined ? { level: options.ruleLevel } : {}),
+				});
+
+				for (const warning of validation.warnings) {
+					io.writeOut(`warn[${warning.ruleId}]: ${warning.message}\n`);
+				}
+
+				for (const error of validation.errors) {
+					const msg = `error[${error.ruleId}]: ${error.message}\n`;
+					if (io.writeErr) io.writeErr(msg);
+					else io.writeOut(msg);
+					hasErrors = true;
+				}
+			}
+		}
+	}
+
+	if (hasErrors) {
+		throw new Error(`workflow lint check failed`);
+	}
+	io.writeOut("ok\tworkflow lint\n");
+};
 
 const checkGeneratedFiles = async (options: ResolvedCheckOptions, io: CliIo): Promise<void> => {
 	const actionsDir = ".github/actions";
@@ -513,6 +571,8 @@ const resolveCheckOptions = async (options: CheckOptions): Promise<ResolvedCheck
 			: normalizeRootImportAlias(options.rootImportAlias);
 	return {
 		generated: options.generated,
+		...(options.rule !== undefined ? { rule: options.rule } : {}),
+		...(options.ruleLevel !== undefined ? { ruleLevel: options.ruleLevel } : {}),
 		output,
 		...(rootImportAlias === undefined ? {} : { rootImportAlias }),
 		sourceRoot,

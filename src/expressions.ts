@@ -275,14 +275,18 @@ export const failure = (): GitHubExpression<boolean> => expr("failure()");
 
 export const success = (): GitHubExpression<boolean> => expr("success()");
 
-function parseGitHubExpression(body: string): void {
+export function parseGitHubExpressionAST(body: string) {
 	try {
 		const tokens = new Lexer(body).lex().tokens;
-		new Parser(tokens, githubExpressionContexts(), githubExpressionFunctions()).parse();
+		return new Parser(tokens, githubExpressionContexts(), githubExpressionFunctions()).parse();
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		throw new Error(`invalid GitHub expression: ${message}`);
 	}
+}
+
+function parseGitHubExpression(body: string): void {
+	parseGitHubExpressionAST(body);
 }
 
 const callExpression = <Value = unknown>(
@@ -367,10 +371,10 @@ const comparisonExpressionValue = (value: GitHubExpressionValue): string => {
 	return expressionValue(value);
 };
 
-const isGitHubExpression = (value: string): value is GitHubExpression<unknown> =>
+export const isGitHubExpression = (value: string): value is GitHubExpression<unknown> =>
 	value.startsWith("${{") && value.endsWith("}}");
 
-const expressionBody = (value: GitHubExpression<unknown>): string => {
+export const expressionBody = (value: GitHubExpression<unknown> | string): string => {
 	const match = /^\$\{\{\s*([\s\S]*?)\s*\}\}$/.exec(value);
 	if (!match?.[1]) {
 		throw new Error(`invalid GitHub expression wrapper: ${value}`);

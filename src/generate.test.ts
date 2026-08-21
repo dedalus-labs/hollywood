@@ -670,7 +670,7 @@ test("renderWorkflowFile supports common GitHub orchestration fields", () => {
 		}),
 	});
 
-	const content = renderWorkflowFile(workflowFile);
+  const content = renderWorkflowFile(workflowFile);
 
 	assert.match(content, /queue: max/);
 	assert.match(content, /merge_group:\n    types:\n      - checks_requested/);
@@ -684,7 +684,7 @@ test("renderWorkflowFile supports common GitHub orchestration fields", () => {
 	assert.match(content, /os:/);
 	assert.match(content, /runs-on: \$\{\{ matrix.os \}\}/);
 	assert.match(content, /key: \$\{\{ matrix.go \}\}/);
-});
+}); 
 
 test("renderWorkflowFile supports reusable workflow jobs", () => {
 	const workflowFile = generateWorkflowFile({

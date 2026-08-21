@@ -114,19 +114,21 @@ const always = () => expr("always()");
 const cancelled = () => expr("cancelled()");
 const failure = () => expr("failure()");
 const success = () => expr("success()");
-function parseGitHubExpression(body) {
+function parseGitHubExpressionAST(body) {
 	try {
 		const tokens = new Lexer(body).lex().tokens;
-		new Parser(tokens, githubExpressionContexts(), githubExpressionFunctions()).parse();
+		return new Parser(tokens, githubExpressionContexts(), githubExpressionFunctions()).parse();
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		throw new Error(`invalid GitHub expression: ${message}`);
 	}
 }
+function parseGitHubExpression(body) {
+	parseGitHubExpressionAST(body);
+}
 const callExpression = (name, ...values) => expr(`${name}(${values.map((value) => expressionValue(value)).join(", ")})`);
 const joinExpressions = (operator, values) => {
-	const body = values.map((value) => booleanExpressionValue(value, operator)).join(` ${operator} `);
-	return expr(body);
+	return expr(values.map((value) => booleanExpressionValue(value, operator)).join(` ${operator} `));
 };
 const booleanExpressionValue = (value, operator) => {
 	if (typeof value === "string" && isGitHubExpression(value)) {
@@ -239,4 +241,4 @@ function githubExpressionFunctions() {
 	];
 }
 //#endregion
-export { stepOutput as A, needsResultIs as C, secret as D, runner as E, valueOr as M, selectString as O, needsResultIn as S, or as T, isGitHubTypedMatrix as _, contains as a, needsOutput as b, eq as c, format as d, gh as f, input as g, hashFiles as h, cancelled as i, success as j, startsWith as k, expr as l, githubTypedMatrixValues as m, always as n, defineMatrix as o, github as p, and as r, envVar as s, GitHubJobResult as t, failure as u, matrix as v, not as w, needsResult as x, ne as y };
+export { secret as A, needsResult as C, or as D, not as E, valueOr as F, startsWith as M, stepOutput as N, parseGitHubExpressionAST as O, success as P, needsOutput as S, needsResultIs as T, input as _, contains as a, matrix as b, eq as c, failure as d, format as f, hashFiles as g, githubTypedMatrixValues as h, cancelled as i, selectString as j, runner as k, expr as l, github as m, always as n, defineMatrix as o, gh as p, and as r, envVar as s, GitHubJobResult as t, expressionBody as u, isGitHubExpression as v, needsResultIn as w, ne as x, isGitHubTypedMatrix as y };

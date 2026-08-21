@@ -14,8 +14,6 @@ import { basename as basename$1, dirname as dirname$1, isAbsolute as isAbsolute$
 import { fileURLToPath as fileURLToPath$1 } from "url";
 import { createRequire as createRequire$1 } from "module";
 import { parse, stringify } from "yaml";
-import { dirname as dirname$2, isAbsolute as isAbsolute$2, normalize as normalize$1, relative as relative$2 } from "node:path/posix";
-import { Lexer, Parser } from "@actions/expressions";
 import { ACTION_ROOT } from "@actions/workflow-parser/actions/action-constants";
 import { JSONObjectReader } from "@actions/workflow-parser/templates/json-object-reader";
 import { TemplateContext, TemplateValidationErrors } from "@actions/workflow-parser/templates/template-context";
@@ -24,6 +22,8 @@ import { TemplateSchema } from "@actions/workflow-parser/templates/schema/index"
 import { NoOperationTraceWriter } from "@actions/workflow-parser/templates/trace-writer";
 import { WORKFLOW_ROOT } from "@actions/workflow-parser/workflows/workflow-constants";
 import { YamlObjectReader } from "@actions/workflow-parser/workflows/yaml-object-reader";
+import { Lexer, Parser } from "@actions/expressions";
+import { dirname as dirname$2, isAbsolute as isAbsolute$2, normalize as normalize$1, relative as relative$2 } from "node:path/posix";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 //#region \0rolldown/runtime.js
@@ -44,11 +44,11 @@ var __copyProps = (to, from, except, desc) => {
 	}
 	return to;
 };
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule || !__hasOwnProp.call(mod, "default") ? __defProp(target, "default", {
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", {
 	value: mod,
 	enumerable: true
 }) : target, mod));
-var __require$1 = /* #__PURE__ */ (() => createRequire(import.meta.url))();
+var __require$1 = /* @__PURE__ */ createRequire(import.meta.url);
 //#endregion
 //#region node_modules/commander/lib/error.js
 var require_error = /* @__PURE__ */ __commonJSMin(((exports) => {
@@ -120,6 +120,7 @@ var require_argument = /* @__PURE__ */ __commonJSMin(((exports) => {
 				default:
 					this.required = true;
 					this._name = name;
+					break;
 			}
 			if (this._name.endsWith("...")) {
 				this.variadic = true;
@@ -1614,20 +1615,16 @@ Expecting one of '${allowedValues.join("', '")}'`);
 				const oldValue = this.getOptionValue(name);
 				if (val !== null && option.parseArg) val = this._callParseArg(option, val, oldValue, invalidValueMessage);
 				else if (val !== null && option.variadic) val = option._collectValue(val, oldValue);
-				if (val == null) {
-					if (option.negate) val = false;
-					else if (option.isBoolean() || option.optional) val = true;
-					else val = "";
-				}
+				if (val == null) if (option.negate) val = false;
+				else if (option.isBoolean() || option.optional) val = true;
+				else val = "";
 				this.setOptionValueWithSource(name, val, valueSource);
 			};
 			this.on("option:" + oname, (val) => {
-				const invalidValueMessage = `error: option '${option.flags}' argument '${val}' is invalid.`;
-				handleOptionValue(val, invalidValueMessage, "cli");
+				handleOptionValue(val, `error: option '${option.flags}' argument '${val}' is invalid.`, "cli");
 			});
 			if (option.envVar) this.on("optionEnv:" + oname, (val) => {
-				const invalidValueMessage = `error: option '${option.flags}' value '${val}' from env '${option.envVar}' is invalid.`;
-				handleOptionValue(val, invalidValueMessage, "env");
+				handleOptionValue(val, `error: option '${option.flags}' value '${val}' from env '${option.envVar}' is invalid.`, "env");
 			});
 			return this;
 		}
@@ -2018,13 +2015,12 @@ Expecting one of '${allowedValues.join("', '")}'`);
 			}
 			launchWithNode = sourceExt.includes(path.extname(executableFile));
 			let proc;
-			if (process$1.platform !== "win32") {
-				if (launchWithNode) {
-					args.unshift(executableFile);
-					args = incrementNodeInspectorPort(process$1.execArgv).concat(args);
-					proc = childProcess.spawn(process$1.argv[0], args, { stdio: "inherit" });
-				} else proc = childProcess.spawn(executableFile, args, { stdio: "inherit" });
-			} else {
+			if (process$1.platform !== "win32") if (launchWithNode) {
+				args.unshift(executableFile);
+				args = incrementNodeInspectorPort(process$1.execArgv).concat(args);
+				proc = childProcess.spawn(process$1.argv[0], args, { stdio: "inherit" });
+			} else proc = childProcess.spawn(executableFile, args, { stdio: "inherit" });
+			else {
 				this._checkForMissingExecutable(executableFile, executableDir, subcommand._name);
 				args.unshift(executableFile);
 				args = incrementNodeInspectorPort(process$1.execArgv).concat(args);
@@ -2468,10 +2464,8 @@ Expecting one of '${allowedValues.join("', '")}'`);
 						"default",
 						"config",
 						"env"
-					].includes(this.getOptionValueSource(optionKey))) {
-						if (option.required || option.optional) this.emit(`optionEnv:${option.name()}`, process$1.env[option.envVar]);
-						else this.emit(`optionEnv:${option.name()}`);
-					}
+					].includes(this.getOptionValueSource(optionKey))) if (option.required || option.optional) this.emit(`optionEnv:${option.name()}`, process$1.env[option.envVar]);
+					else this.emit(`optionEnv:${option.name()}`);
 				}
 			});
 		}
@@ -3650,7 +3644,7 @@ var require_constants = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	};
 	module.exports = {
 		DEFAULT_MAX_EXTGLOB_RECURSION,
-		MAX_LENGTH: 65536,
+		MAX_LENGTH: 1024 * 64,
 		POSIX_REGEX_SOURCE: {
 			__proto__: null,
 			alnum: "a-zA-Z0-9",
@@ -4254,10 +4248,7 @@ var require_parse = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			}
 		}
 	};
-	const buildCharClassStar = (chars) => {
-		return `${chars.length === 1 ? utils.escapeRegex(chars[0]) : `[${chars.map((ch) => utils.escapeRegex(ch)).join("")}]`}*`;
-	};
-	const getStarExtglobSequenceChars = (pattern) => {
+	const getStarExtglobSequenceOutput = (pattern) => {
 		let index = 0;
 		const chars = [];
 		while (index < pattern.length) {
@@ -4271,7 +4262,7 @@ var require_parse = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			index += match.end + 1;
 		}
 		if (chars.length < 1) return;
-		return chars;
+		return `${chars.length === 1 ? utils.escapeRegex(chars[0]) : `[${chars.map((ch) => utils.escapeRegex(ch)).join("")}]`}*`;
 	};
 	const repeatedExtglobRecursion = (pattern) => {
 		let depth = 0;
@@ -4291,28 +4282,14 @@ var require_parse = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		if (branches.length > 1) {
 			if (branches.some((branch) => branch === "") || branches.some((branch) => /^[*?]+$/.test(branch)) || hasRepeatedCharPrefixOverlap(branches)) return { risky: true };
 		}
-		const safeChars = [];
-		let sawStarSequence = false;
-		let combinable = true;
 		for (const branch of branches) {
-			const chars = getStarExtglobSequenceChars(branch);
-			if (chars) {
-				sawStarSequence = true;
-				safeChars.push(...chars);
-				continue;
-			}
-			const literal = normalizeSimpleBranch(branch);
-			if (literal && literal.length === 1) {
-				safeChars.push(literal);
-				continue;
-			}
-			combinable = false;
+			const safeOutput = getStarExtglobSequenceOutput(branch);
+			if (safeOutput) return {
+				risky: true,
+				safeOutput
+			};
 			if (repeatedExtglobRecursion(branch) > max) return { risky: true };
 		}
-		if (sawStarSequence) return combinable ? {
-			risky: true,
-			safeOutput: buildCharClassStar([...new Set(safeChars)])
-		} : { risky: true };
 		return { risky: false };
 	};
 	/**
@@ -4463,8 +4440,7 @@ var require_parse = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		};
 		const extglobClose = (token) => {
 			const literal = input.slice(token.startIndex, state.index + 1);
-			const body = input.slice(token.startIndex + 2, state.index);
-			const analysis = analyzeRepeatedExtglob(body, opts);
+			const analysis = analyzeRepeatedExtglob(input.slice(token.startIndex + 2, state.index), opts);
 			if ((token.type === "plus" || token.type === "star") && analysis.risky) {
 				const safeOutput = analysis.safeOutput ? (token.output ? "" : ONE_CHAR) + (opts.capture ? `(${analysis.safeOutput})` : analysis.safeOutput) : void 0;
 				const open = tokens[token.tokensIndex];
@@ -4529,12 +4505,10 @@ var require_parse = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 				}
 				return esc ? m : `\\${m}`;
 			});
-			if (backslashes === true) {
-				if (opts.unescape === true) output = output.replace(/\\/g, "");
-				else output = output.replace(/\\+/g, (m) => {
-					return m.length % 2 === 0 ? "\\\\" : m ? "\\" : "";
-				});
-			}
+			if (backslashes === true) if (opts.unescape === true) output = output.replace(/\\/g, "");
+			else output = output.replace(/\\+/g, (m) => {
+				return m.length % 2 === 0 ? "\\\\" : m ? "\\" : "";
+			});
 			if (output === input && opts.contains === true) {
 				state.output = input;
 				return state;
@@ -4592,8 +4566,7 @@ var require_parse = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 						if (inner.includes(":")) {
 							const idx = prev.value.lastIndexOf("[");
 							const pre = prev.value.slice(0, idx);
-							const rest = prev.value.slice(idx + 2);
-							const posix = POSIX_REGEX_SOURCE[rest];
+							const posix = POSIX_REGEX_SOURCE[prev.value.slice(idx + 2)];
 							if (posix) {
 								prev.value = pre + posix;
 								state.backtrack = true;
@@ -5196,18 +5169,6 @@ var require_picomatch$1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* const isMatch = picomatch('*.!(*a)');
 	* console.log(isMatch('a.a')); //=> false
 	* console.log(isMatch('a.b')); //=> true
-	*
-	* // For environments without `node.js`, `picomatch/posix` provides you a dependency-free matcher, without automatic OS detection.
-	* const picomatch = require('picomatch/posix');
-	* // the same API, defaulting to posix paths
-	* const isMatch = picomatch('a/*');
-	* console.log(isMatch('a\\b')); //=> false
-	* console.log(isMatch('a/b')); //=> true
-	*
-	* // you can still configure the matcher function to accept windows paths
-	* const isMatch = picomatch('a/*', { options: windows });
-	* console.log(isMatch('a\\b')); //=> true
-	* console.log(isMatch('a/b')); //=> true
 	* ```
 	* @name picomatch
 	* @param {String|Array} `globs` One or more glob patterns.
@@ -5305,10 +5266,8 @@ var require_picomatch$1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			output = format ? format(input) : input;
 			match = output === glob;
 		}
-		if (match === false || opts.capture === true) {
-			if (opts.matchBase === true || opts.basename === true) match = picomatch.matchBase(input, regex, options, posix);
-			else match = regex.exec(output);
-		}
+		if (match === false || opts.capture === true) if (opts.matchBase === true || opts.basename === true) match = picomatch.matchBase(input, regex, options, posix);
+		else match = regex.exec(output);
 		return {
 			isMatch: Boolean(match),
 			match,
@@ -5328,8 +5287,8 @@ var require_picomatch$1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @return {Boolean}
 	* @api public
 	*/
-	picomatch.matchBase = (input, glob, options, posix = options && options.windows) => {
-		return (glob instanceof RegExp ? glob : picomatch.makeRe(glob, options)).test(utils.basename(input, { windows: posix }));
+	picomatch.matchBase = (input, glob, options) => {
+		return (glob instanceof RegExp ? glob : picomatch.makeRe(glob, options)).test(utils.basename(input));
 	};
 	/**
 	* Returns true if **any** of the given glob `patterns` match the specified `string`.
@@ -5795,15 +5754,24 @@ const githubTypedMatrixValues = (matrix) => {
 	if (values === void 0) throw new Error("Hollywood matrix values are missing");
 	return values;
 };
-function parseGitHubExpression(body) {
+function parseGitHubExpressionAST(body) {
 	try {
 		const tokens = new Lexer(body).lex().tokens;
-		new Parser(tokens, githubExpressionContexts(), githubExpressionFunctions()).parse();
+		return new Parser(tokens, githubExpressionContexts(), githubExpressionFunctions()).parse();
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		throw new Error(`invalid GitHub expression: ${message}`);
 	}
 }
+function parseGitHubExpression(body) {
+	parseGitHubExpressionAST(body);
+}
+const isGitHubExpression = (value) => value.startsWith("${{") && value.endsWith("}}");
+const expressionBody = (value) => {
+	const match = /^\$\{\{\s*([\s\S]*?)\s*\}\}$/.exec(value);
+	if (!match?.[1]) throw new Error(`invalid GitHub expression wrapper: ${value}`);
+	return match[1];
+};
 function githubExpressionContexts() {
 	return [
 		"github",
@@ -5849,10 +5817,85 @@ function githubExpressionFunctions() {
 	];
 }
 //#endregion
-//#region src/names.ts
-const toGitHubName = (value) => value.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
+//#region src/lint/no-unnecessary-needs.ts
+function extractExpressionsAndStrings(value) {
+	const results = [];
+	if (typeof value === "string") {
+		results.push(value);
+		if (isGitHubExpression(value)) try {
+			results.push(expressionBody(value));
+		} catch {}
+	} else if (Array.isArray(value)) for (const item of value) results.push(...extractExpressionsAndStrings(item));
+	else if (value !== null && typeof value === "object") for (const val of Object.values(value)) results.push(...extractExpressionsAndStrings(val));
+	return results;
+}
+function astReferencesJob(node, upstreamJobName) {
+	if (!node || typeof node !== "object") return false;
+	const nodeObj = node;
+	if ((nodeObj["type"] === "PropertyAccess" || nodeObj["kind"] === "PropertyAccess") && (nodeObj["property"] === "outputs" || nodeObj["property"] === "result")) {
+		const target = nodeObj["target"] ?? nodeObj["object"];
+		if (target && typeof target === "object" && (target["property"] === upstreamJobName || target["value"] === upstreamJobName)) return true;
+	}
+	if ((nodeObj["type"] === "IndexAccess" || nodeObj["kind"] === "IndexAccess") && (nodeObj["index"] === "outputs" || nodeObj["index"] === "result")) {
+		const target = nodeObj["target"] ?? nodeObj["object"];
+		if (target && typeof target === "object" && (target["index"] === upstreamJobName || target["value"] === upstreamJobName)) return true;
+	}
+	for (const child of Object.values(nodeObj)) if (Array.isArray(child)) {
+		for (const item of child) if (astReferencesJob(item, upstreamJobName)) return true;
+	} else if (child && typeof child === "object") {
+		if (astReferencesJob(child, upstreamJobName)) return true;
+	}
+	return false;
+}
+function hasExpressionReference(job, upstreamJobName) {
+	const allStrings = extractExpressionsAndStrings(job);
+	for (const str of allStrings) try {
+		if (astReferencesJob(parseGitHubExpressionAST(isGitHubExpression(str) ? expressionBody(str) : str), upstreamJobName)) return true;
+	} catch {
+		if (str.includes(`needs.${upstreamJobName}.outputs`) || str.includes(`needs.${upstreamJobName}.result`) || str.includes(`needs['${upstreamJobName}'].outputs`) || str.includes(`needs["${upstreamJobName}"].outputs`)) return true;
+	}
+	return false;
+}
+function hasArtifactHandoff(job, upstreamJob) {
+	if (!upstreamJob || !("steps" in upstreamJob) || !upstreamJob.steps || !("steps" in job) || !job.steps) return false;
+	const uploadedArtifacts = upstreamJob.steps.filter((s) => s.uses && (s.uses.includes("upload-artifact") || s.uses.includes("upload-pages-artifact"))).map((s) => {
+		if (s.uses?.includes("upload-pages-artifact")) return s.with?.["name"] ?? "github-pages";
+		return s.with?.["name"];
+	}).filter((name) => typeof name === "string");
+	return job.steps.filter((s) => s.uses && (s.uses.includes("download-artifact") || s.uses.includes("deploy-pages"))).map((s) => {
+		if (s.uses?.includes("deploy-pages")) return s.with?.["artifact_name"] ?? s.with?.["name"] ?? "github-pages";
+		return s.with?.["name"];
+	}).filter((name) => typeof name === "string").some((dl) => uploadedArtifacts.includes(dl));
+}
+function checkUnnecessaryNeeds(jobId, job, allJobs) {
+	const warnings = [];
+	if (job.needs === void 0) return warnings;
+	const needsArray = Array.isArray(job.needs) ? job.needs : [job.needs];
+	for (const need of needsArray) {
+		const upstreamJob = allJobs[need];
+		if (!(hasExpressionReference(job, need) || hasArtifactHandoff(job, upstreamJob))) warnings.push({
+			ruleId: "no-unnecessary-needs",
+			jobId,
+			message: `job '${jobId}' declares needs '${need}' but does not reference any outputs from it. Remove the dependency or document why sequencing is required.`
+		});
+	}
+	return warnings;
+}
 //#endregion
 //#region src/validation.ts
+const validateWorkflowModel = (workflow, options = {}) => {
+	const errors = [];
+	const warnings = [];
+	if (options.rules?.includes("no-unnecessary-needs")) for (const [jobId, job] of Object.entries(workflow.jobs)) {
+		const lintIssues = checkUnnecessaryNeeds(jobId, job, workflow.jobs);
+		if (options.level === "error") errors.push(...lintIssues);
+		else warnings.push(...lintIssues);
+	}
+	return {
+		errors,
+		warnings
+	};
+};
 const validateWorkflowContent = (file) => validateContent(file, workflowSchema(), WORKFLOW_ROOT);
 const validateActionMetadataContent = (file) => validateContent(file, actionSchema(), ACTION_ROOT);
 const assertValidWorkflowContent = (file) => assertValid("GitHub workflow YAML", validateWorkflowContent(file));
@@ -5895,6 +5938,9 @@ const loadSchema = (schemaFileName) => {
 };
 const workflowParserDistDir = () => dirname(dirname(fileURLToPath(import.meta.resolve("@actions/workflow-parser/workflows/workflow-constants"))));
 //#endregion
+//#region src/names.ts
+const toGitHubName = (value) => value.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
+//#endregion
 //#region src/workflow-command.ts
 const workflowRunBrand = Symbol.for("@dedalus-labs/hollywood.workflow-run");
 const renderWorkflowRun = (workflowRun, environment) => {
@@ -5923,8 +5969,7 @@ const assertWorkflowRun = (value) => {
 };
 const completeExpression = (value) => {
 	if (!value.startsWith("${{") || !value.endsWith("}}")) return null;
-	const body = value.slice(3, -2);
-	expr(body);
+	expr(value.slice(3, -2));
 	return value;
 };
 const quotePosix = (value) => {
@@ -6412,8 +6457,7 @@ const containerPath = (workspace, path) => {
 		if (normalized === githubWorkspace || normalized.startsWith(`${githubWorkspace}/`)) return normalized;
 		throw new Error(`Path is outside the container workspace: ${path}.`);
 	}
-	const absolute = resolve(workspace, path);
-	const child = relative(workspace, absolute);
+	const child = relative(workspace, resolve(workspace, path));
 	if (child === ".." || child.startsWith(`..${sep}`) || child.startsWith(sep)) throw new Error(`Path is outside the container workspace: ${path}.`);
 	return child === "" ? githubWorkspace : posix.join(githubWorkspace, ...child.split(sep));
 };
@@ -6464,9 +6508,8 @@ const runContainerAction = async (options) => {
 			...options.hostExec === void 0 ? {} : { hostExec: options.hostExec }
 		}, async ({ exec }) => {
 			const command = await exec("node", ["/github/workflow/action.mjs"], { env: inputEnvironment(options.with) });
-			const output = await exec("cat", ["/github/workflow/result.json"]);
 			return {
-				outputs: parseActionResult(output.stdout),
+				outputs: parseActionResult((await exec("cat", ["/github/workflow/result.json"])).stdout),
 				stderr: command.stderr,
 				stdout: command.stdout
 			};
@@ -6979,7 +7022,7 @@ const compareValues = (path, expected, actual) => {
 		const length = Math.max(expected.length, actual.length);
 		return Array.from({ length }, (_, index) => compareValues(joinPath(path, String(index)), expected[index], actual[index])).flat();
 	}
-	if (isRecord(expected) && isRecord(actual)) return [.../* @__PURE__ */ new Set([...Object.keys(expected), ...Object.keys(actual)])].sort().flatMap((key) => compareValues(joinPath(path, key), expected[key], actual[key]));
+	if (isRecord(expected) && isRecord(actual)) return [...new Set([...Object.keys(expected), ...Object.keys(actual)])].sort().flatMap((key) => compareValues(joinPath(path, key), expected[key], actual[key]));
 	return [{
 		category: differenceCategory(path),
 		actual,
@@ -7290,10 +7333,17 @@ const createCli = (io = processIo(), services = { run }) => {
 			...sources.length === 0 ? {} : { sources }
 		}, io);
 	});
-	program.command("check").description("Run Hollywood repository checks").option("--generated", "Check generated files are current", false).option("--workflow-security", "Check workflow security policy", false).option("-o, --output <dir>", "Repository root", ".").option("--root-import-alias <alias>", "Import alias for repository-root-relative action sources").option("--source-root <dir>", "Workflow source root").option("--workflows-dir <dir>", "Generated workflows directory", ".github/workflows").action(async (options) => {
-		const selected = options.generated || options.workflowSecurity;
+	program.command("check").description("Run Hollywood repository checks").option("--generated", "Check generated files are current", false).option("--workflow-security", "Check workflow security policy", false).option("--rule <rules...>", "Run specific lint rules").option("--rule-level <level>", "Lint severity level (warn or error)", "warn").option("-o, --output <dir>", "Repository root", ".").option("--root-import-alias <alias>", "Import alias for repository-root-relative action sources").option("--source-root <dir>", "Workflow source root").option("--workflows-dir <dir>", "Generated workflows directory", ".github/workflows").action(async (options) => {
+		const selected = options.generated || options.workflowSecurity || options.rule !== void 0 && options.rule.length > 0;
+		const resolvedRule = selected ? options.rule : ["no-unnecessary-needs"];
+		if (resolvedRule !== void 0) {
+			for (const r of resolvedRule) if (r !== "no-unnecessary-needs") throw new Error(`unknown lint rule: ${r}`);
+		}
+		if (options.ruleLevel !== void 0 && options.ruleLevel !== "warn" && options.ruleLevel !== "error") throw new Error(`invalid rule level: ${options.ruleLevel}. Must be 'warn' or 'error'`);
 		await check({
 			generated: selected ? options.generated : true,
+			...resolvedRule !== void 0 ? { rule: resolvedRule } : {},
+			...options.ruleLevel !== void 0 ? { ruleLevel: options.ruleLevel } : {},
 			output: options.output,
 			...options.rootImportAlias === void 0 ? {} : { rootImportAlias: options.rootImportAlias },
 			...options.sourceRoot === void 0 ? {} : { sourceRoot: options.sourceRoot },
@@ -7320,9 +7370,7 @@ const createCli = (io = processIo(), services = { run }) => {
 };
 const generate = async (options, io) => {
 	const resolved = await resolveGenerateOptions(options);
-	const sourceFiles = await resolveSourceFiles(resolved.sources);
-	const files = await discoverGeneratedFiles(sourceFiles, resolved);
-	const results = await writeGeneratedFiles(files, { outputDir: resolved.output });
+	const results = await writeGeneratedFiles(await discoverGeneratedFiles(await resolveSourceFiles(resolved.sources), resolved), { outputDir: resolved.output });
 	for (const result of results) io.writeOut(`${result.status}\t${result.path}\n`);
 	if (results.length === 0) io.writeOut("unchanged	(no generated files)\n");
 };
@@ -7352,11 +7400,11 @@ const run = async (options, io) => {
 const check = async (options, io) => {
 	const resolved = await resolveCheckOptions(options);
 	if (resolved.workflowSecurity) await checkWorkflowSecurity(resolved, io);
+	if (resolved.rule && resolved.rule.length > 0) await checkLint(resolved, io);
 	if (resolved.generated) await checkGeneratedFiles(resolved, io);
 };
 const buildActions = async (options, io) => {
-	const actionsDir = resolve(options.output, options.actionsDir);
-	const entries = await actionEntrypoints(actionsDir);
+	const entries = await actionEntrypoints(resolve(options.output, options.actionsDir));
 	for (const entry of entries) {
 		const outfile = join(dirname(dirname(entry)), "dist", "index.js");
 		await buildAction({
@@ -7367,6 +7415,28 @@ const buildActions = async (options, io) => {
 		io.writeOut(`built\t${relative(options.output, outfile).split(sep).join("/")}\n`);
 	}
 	if (entries.length === 0) io.writeOut("unchanged	(no local actions)\n");
+};
+const checkLint = async (options, io) => {
+	const sourceFiles = await resolveSourceFiles([`${resolve(options.output, options.sourceRoot).replace(/\\/g, "/")}/**/*.ts`]);
+	let hasErrors = false;
+	for (const sourceFile of sourceFiles) {
+		const module = await loadHollywoodModule(sourceFile);
+		for (const value of Object.values(module)) if (isGitHubWorkflow(value)) {
+			const validation = validateWorkflowModel(value, {
+				...options.rule !== void 0 ? { rules: options.rule } : {},
+				...options.ruleLevel !== void 0 ? { level: options.ruleLevel } : {}
+			});
+			for (const warning of validation.warnings) io.writeOut(`warn[${warning.ruleId}]: ${warning.message}\n`);
+			for (const error of validation.errors) {
+				const msg = `error[${error.ruleId}]: ${error.message}\n`;
+				if (io.writeErr) io.writeErr(msg);
+				else io.writeOut(msg);
+				hasErrors = true;
+			}
+		}
+	}
+	if (hasErrors) throw new Error(`workflow lint check failed`);
+	io.writeOut("ok	workflow lint\n");
 };
 const checkGeneratedFiles = async (options, io) => {
 	const actionsDir = ".github/actions";
@@ -7427,7 +7497,7 @@ const workflowSecurityChecks = [
 		pattern: /uses:\s+[^#\n]*@(?![0-9a-f]{40}(?:\s|$))[^#\n\s]+/g
 	}
 ];
-const workflowSecurityExtensions = /* @__PURE__ */ new Set([
+const workflowSecurityExtensions = new Set([
 	".ts",
 	".yaml",
 	".yml"
@@ -7532,6 +7602,8 @@ const resolveCheckOptions = async (options) => {
 	const rootImportAlias = options.rootImportAlias === void 0 ? await detectRootImportAlias(output) : normalizeRootImportAlias(options.rootImportAlias);
 	return {
 		generated: options.generated,
+		...options.rule !== void 0 ? { rule: options.rule } : {},
+		...options.ruleLevel !== void 0 ? { ruleLevel: options.ruleLevel } : {},
 		output,
 		...rootImportAlias === void 0 ? {} : { rootImportAlias },
 		sourceRoot,
