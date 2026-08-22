@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.0.4](https://github.com/dedalus-labs/hollywood/compare/v0.0.3...v0.0.4) (2026-08-21)
+
+
+### Features
+
+* **expressions:** expose stacked pull request context ([#39](https://github.com/dedalus-labs/hollywood/issues/39)) ([cb0d8f7](https://github.com/dedalus-labs/hollywood/commit/cb0d8f706eff22525a4cc2b2b29ee4289b73ce22))
+* **workflows:** type merge groups ([#37](https://github.com/dedalus-labs/hollywood/issues/37)) ([a6b5fdc](https://github.com/dedalus-labs/hollywood/commit/a6b5fdcfba8188fc7e2b34f1b4d7e13115ede6f6))
+
+
+### Bug Fixes
+
+* **release:** create immutable tags explicitly ([ec43662](https://github.com/dedalus-labs/hollywood/commit/ec436623d5b759ebf8e4f5f9f8dafd49f954a3c2))
+* **release:** publish immutable component drafts ([#76](https://github.com/dedalus-labs/hollywood/issues/76)) ([5b1dc5b](https://github.com/dedalus-labs/hollywood/commit/5b1dc5b8e939868e2bd85cc8dac6a4df8dfe9df0))
+* **release:** require approved sequential publication ([#80](https://github.com/dedalus-labs/hollywood/issues/80)) ([70780cd](https://github.com/dedalus-labs/hollywood/commit/70780cd421a2911761d922638f403510838929fd))
+* **release:** resolve immutable drafts by list ([#77](https://github.com/dedalus-labs/hollywood/issues/77)) ([c319161](https://github.com/dedalus-labs/hollywood/commit/c319161a05bb3991240f01770349beb93f0ae156))
+
+
+### Chores
+
+* **deps-dev:** bump @types/node from 24.13.2 to 26.2.0 ([#87](https://github.com/dedalus-labs/hollywood/issues/87)) ([9b2a7d9](https://github.com/dedalus-labs/hollywood/commit/9b2a7d950dafa2fbac805b82bdf5591f2f5d58a7))
+* **deps-dev:** bump commander from 14.0.3 to 15.0.0 ([#86](https://github.com/dedalus-labs/hollywood/issues/86)) ([bb20e8c](https://github.com/dedalus-labs/hollywood/commit/bb20e8cfcc2258030e37ba9741db28c30ea3c13c))
+* **deps-dev:** bump commander packages to 15.0.0 ([bb20e8c](https://github.com/dedalus-labs/hollywood/commit/bb20e8cfcc2258030e37ba9741db28c30ea3c13c))
+* **deps-dev:** bump oxlint from 1.70.0 to 1.78.0 ([#68](https://github.com/dedalus-labs/hollywood/issues/68)) ([c265703](https://github.com/dedalus-labs/hollywood/commit/c2657039164582def4513f9f9e43814a88e00a59))
+* **deps-dev:** bump oxlint-tsgolint from 0.22.1 to 7.0.2001 ([#66](https://github.com/dedalus-labs/hollywood/issues/66)) ([56ba05c](https://github.com/dedalus-labs/hollywood/commit/56ba05c66a34e8cd77281d9369a053e39f958448))
+* **deps-dev:** bump typescript from 6.0.3 to 7.0.2 ([#67](https://github.com/dedalus-labs/hollywood/issues/67)) ([c0f092c](https://github.com/dedalus-labs/hollywood/commit/c0f092c2e755dfc39c2d340486e16e7a80c3b02f))
+* **deps-dev:** bump vitest from 4.1.9 to 4.1.11 ([#88](https://github.com/dedalus-labs/hollywood/issues/88)) ([eebafa9](https://github.com/dedalus-labs/hollywood/commit/eebafa9bac66df50cd6661b9fc133db4c79ed2e5))
+* **deps:** bump actions/checkout from 6.0.3 to 7.0.1 ([#62](https://github.com/dedalus-labs/hollywood/issues/62)) ([b7bbd14](https://github.com/dedalus-labs/hollywood/commit/b7bbd1495e02997049f87d9f82ec18d01afac636))
+* **deps:** bump actions/setup-python from 6.2.0 to 7.0.0 ([#84](https://github.com/dedalus-labs/hollywood/issues/84)) ([f808e7d](https://github.com/dedalus-labs/hollywood/commit/f808e7d99dd4944368eac48f5e87d2b489adb497))
+* **deps:** bump docker/login-action from 3.7.0 to 4.6.0 ([#83](https://github.com/dedalus-labs/hollywood/issues/83)) ([3ca94f7](https://github.com/dedalus-labs/hollywood/commit/3ca94f7f775824b5d2de2d177706409c8c04f419))
+* **deps:** bump docker/setup-qemu-action from 3.7.0 to 4.2.0 ([#85](https://github.com/dedalus-labs/hollywood/issues/85)) ([80f5a79](https://github.com/dedalus-labs/hollywood/commit/80f5a791b752c8c967c7675fafc8e0410dc724af))
+* **repo:** untrack build output ([#34](https://github.com/dedalus-labs/hollywood/issues/34)) ([0e93ba1](https://github.com/dedalus-labs/hollywood/commit/0e93ba1068b044acf9632e6de1f60208e9e71019))
+
+
+### Documentation
+
+* remove unused motto styles ([#38](https://github.com/dedalus-labs/hollywood/issues/38)) ([37ede53](https://github.com/dedalus-labs/hollywood/commit/37ede53accdb06c41114e4f4bc4c9cdac09c005f))
+
+
+### Refactors
+
+* **types:** make workflow triggers exact ([#41](https://github.com/dedalus-labs/hollywood/issues/41)) ([50b27b7](https://github.com/dedalus-labs/hollywood/commit/50b27b7f2e57ffbe852afca3e1bc2adedc2763b7))
+
 ## [0.0.3](https://github.com/dedalus-labs/hollywood/compare/v0.0.2...v0.0.3) (2026-08-14)
 
 
