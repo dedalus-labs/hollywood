@@ -52,9 +52,10 @@ void runGitHubAction(publishImage);
 
 `runGitHubAction` uses GitHub's official TypeScript packages. Inputs and
 outputs go through `@actions/core`. Commands go through `@actions/exec`.
-Child output streams unchanged. Hollywood adds a compact command group, elapsed
-status, and failure annotation without replaying the child output or printing a
-runtime stack trace.
+Child output streams unchanged unless the command requests `{ output: "capture" }`.
+Captured output remains available to the action without flooding the job log.
+Hollywood adds a compact command group, elapsed status, and failure annotation
+without replaying the child output or printing a runtime stack trace.
 
 ## Action composition
 
