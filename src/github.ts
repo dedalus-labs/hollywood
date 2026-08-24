@@ -184,6 +184,9 @@ const logCommandMetadata = (
 			githubCore.info(logStyle.dim(`  env  ${names.join(", ")}`));
 		}
 	}
+	if (commandOptions.output === "capture") {
+		githubCore.info(logStyle.dim("  output  capture"));
+	}
 };
 
 const logCommandStatus = (
@@ -401,6 +404,17 @@ const statusColor = (status: CommandStatus): number => {
 const color = (code: number, message: string): string => `\u001B[${code}m${message}\u001B[0m`;
 
 const githubExecOptions = (commandOptions: CommandOptions): GitHubExecOptions => {
+	const listeners: GitHubExecListeners =
+		commandOptions.output === "capture"
+			? {}
+			: {
+					stderr: (data) => {
+						process.stderr.write(data);
+					},
+					stdout: (data) => {
+						process.stdout.write(data);
+					},
+				};
 	const options: {
 		cwd?: string;
 		env?: CommandEnvironment;
@@ -409,14 +423,7 @@ const githubExecOptions = (commandOptions: CommandOptions): GitHubExecOptions =>
 		silent: boolean;
 	} = {
 		ignoreReturnCode: true,
-		listeners: {
-			stderr: (data) => {
-				process.stderr.write(data);
-			},
-			stdout: (data) => {
-				process.stdout.write(data);
-			},
-		},
+		listeners,
 		silent: true,
 	};
 	if (commandOptions.cwd !== undefined) {

@@ -367,6 +367,54 @@ test("runGitHubAction tells the GitHub exec toolkit when nonzero exits are expec
 	assert.deepEqual([...outputs], [["status", "7"]]);
 });
 
+test("runGitHubAction captures command output without streaming it", async () => {
+	const captureProbe = action({
+		name: "capture-probe",
+		description: "Capture machine-readable output.",
+		inputs: {},
+		outputs: { value: stringOutput({ description: "Captured value." }) },
+		run: async ({ exec }) => {
+			const result = await exec("probe", [], { output: "capture" });
+			return { value: result.stdout.trim() };
+		},
+	});
+	const commands: CapturedCommand[] = [];
+	const events: string[] = [];
+	const outputs = new Map<string, string>();
+
+	await runGitHubAction(captureProbe, {
+		core: {
+			getInput: () => "",
+			group: async (name, run) => {
+				events.push(`group:${name}`);
+				return run();
+			},
+			info: (message) => events.push(`info:${message}`),
+			setOutput: (name, value) => outputs.set(name, value),
+			setFailed: (message) => assert.fail(message),
+			warning: () => {},
+		},
+		exec: {
+			getExecOutput: async (file, args, options) => {
+				const command: CapturedCommandDraft = { file };
+				if (args !== undefined) command.args = args;
+				if (options !== undefined) command.options = options;
+				commands.push(command);
+				return { exitCode: 0, stdout: "machine-readable\n", stderr: "" };
+			},
+		},
+		fs: { readText: async () => "" },
+		logColor: "never",
+		runner: { uidGid: "1001:1001" },
+	});
+
+	assert.equal(commands[0]?.options?.listeners?.stdout, undefined);
+	assert.equal(commands[0]?.options?.listeners?.stderr, undefined);
+	assert.equal(events[0], "group:probe");
+	assert.match(events[1] ?? "", /output\s+capture/);
+	assert.deepEqual([...outputs], [["value", "machine-readable"]]);
+});
+
 test("runGitHubAction keeps long command reports bounded and recognizable", async () => {
 	const events: string[] = [];
 	const { summary, writes } = captureSummary();

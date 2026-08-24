@@ -41,6 +41,8 @@ export type CommandOptions = Readonly<{
 	cwd?: string;
 	env?: CommandEnvironment;
 	exitPolicy?: CommandExitPolicy;
+	/** Capture stdout and stderr without streaming them into the runtime log. */
+	output?: "capture";
 }>;
 
 export type Command = Readonly<{
