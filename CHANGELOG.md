@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.5](https://github.com/dedalus-labs/hollywood/compare/v0.0.4...v0.0.5) (2026-08-24)
+
+
+### Bug Fixes
+
+* **exec:** capture command output silently ([#91](https://github.com/dedalus-labs/hollywood/issues/91)) ([cf123cd](https://github.com/dedalus-labs/hollywood/commit/cf123cd0fd2fbff5ef94b76f60fd98cb52d64c29))
+
 ## [0.0.4](https://github.com/dedalus-labs/hollywood/compare/v0.0.3...v0.0.4) (2026-08-21)
 
 
