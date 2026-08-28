@@ -86,7 +86,7 @@
 	"devDependencies": {
 		"@commander-js/extra-typings": "15.0.0",
 		"@types/node": "^26.2.0",
-		"@typescript/native-preview": "7.0.0-dev.20260514.1",
+		"@typescript/native-preview": "7.0.0-dev.20260707.2",
 		"commander": "15.0.0",
 		"oxlint": "^1.70.0",
 		"oxlint-tsgolint": "^7.0.2001",
