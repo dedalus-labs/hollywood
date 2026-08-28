@@ -80,7 +80,7 @@
 		"@actions/workflow-parser": "0.3.61",
 		"@octokit/openapi-types": "28.0.0",
 		"esbuild": "0.28.1",
-		"yaml": "2.8.4",
+		"yaml": "2.9.0",
 		"zod": "4.4.3"
 	},
 	"devDependencies": {
