@@ -172,3 +172,16 @@ contract are documented in [Runner Image](../backends/runner-image.md).
 | `validateWorkflowContent`          | Return parser diagnostics for a workflow file.         |
 | `assertValidActionMetadataContent` | Throw if action metadata is invalid.                   |
 | `assertValidWorkflowContent`       | Throw if workflow YAML is invalid.                     |
+
+## Action Pinning
+
+| API                       | Purpose                                                        |
+| ------------------------- | -------------------------------------------------------------- |
+| `parseActionReference`    | Read a `uses:` value into a typed action reference.            |
+| `isPinnedActionReference` | Report whether a parsed reference is immutable.                |
+| `findUnpinnedActions`     | List unpinned references in a workflow or TypeScript source.   |
+| `validateActionPinning`   | Return pinning diagnostics for a file.                         |
+| `assertPinnedActions`     | Throw if a file contains an unpinned reference.                |
+
+The policy these functions enforce is documented in [Action
+Pinning](action-pinning.md).

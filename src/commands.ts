@@ -15,6 +15,11 @@ import {
 	generateWorkflowFile,
 	type GitHubWorkflow,
 } from "./generate";
+import {
+	findUnpinnedActions,
+	type ActionPinningFinding,
+	type ActionPinningOptions,
+} from "./action-pinning";
 import { writeGeneratedFiles, type GeneratedFile } from "./files";
 import { nodeExec } from "./local";
 import { runContainerAction } from "./container-action";
@@ -30,6 +35,7 @@ import {
 	type ScriptAction,
 	type ScriptExec,
 } from "./script";
+import { type GitHubYamlFile } from "./validation";
 
 type HollywoodModule = Readonly<{ readonly [name: string]: unknown }>;
 
@@ -56,6 +62,7 @@ export type RunOptions = Readonly<{
 }>;
 
 export type CheckOptions = Readonly<{
+	allowUnpinned?: readonly string[];
 	generated: boolean;
 	output: string;
 	rootImportAlias?: string;
@@ -106,6 +113,12 @@ export const createCli = (
 		.description("Run Hollywood repository checks")
 		.option("--generated", "Check generated files are current", false)
 		.option("--workflow-security", "Check workflow security policy", false)
+		.option(
+			"--allow-unpinned <pattern>",
+			"Action reference exempt from commit SHA pinning (repeatable).",
+			collect,
+			[] as string[],
+		)
 		.option("-o, --output <dir>", "Repository root", ".")
 		.option("--root-import-alias <alias>", "Import alias for repository-root-relative action sources")
 		.option("--source-root <dir>", "Workflow source root")
@@ -114,6 +127,7 @@ export const createCli = (
 			const selected = options.generated || options.workflowSecurity;
 			await check(
 				{
+					allowUnpinned: options.allowUnpinned,
 					generated: selected ? options.generated : true,
 					output: options.output,
 					...(options.rootImportAlias === undefined ? {} : { rootImportAlias: options.rootImportAlias }),
@@ -247,6 +261,7 @@ type ResolvedGenerateOptions = Readonly<{
 }>;
 
 type ResolvedCheckOptions = Readonly<{
+	allowUnpinned: readonly string[];
 	generated: boolean;
 	output: string;
 	rootImportAlias?: string;
@@ -333,10 +348,20 @@ const isActionMetadataYaml = (file: string): boolean => {
 	return name === "action.yaml" || name === "action.yml";
 };
 
-type WorkflowSecurityCheck = Readonly<{
-	name: string;
-	pattern: RegExp;
-}>;
+type WorkflowSecurityCheck =
+	| Readonly<{
+			name: string;
+			pattern: RegExp;
+			find?: never;
+	  }>
+	| Readonly<{
+			name: string;
+			pattern?: never;
+			find: (
+				file: GitHubYamlFile,
+				options: ActionPinningOptions,
+			) => readonly ActionPinningFinding[];
+	  }>;
 
 const workflowSecurityChecks: readonly WorkflowSecurityCheck[] = [
 	{
@@ -349,7 +374,7 @@ const workflowSecurityChecks: readonly WorkflowSecurityCheck[] = [
 	},
 	{
 		name: "mutable action references",
-		pattern: /uses:\s+[^#\n]*@(?![0-9a-f]{40}(?:\s|$))[^#\n\s]+/g,
+		find: findUnpinnedActions,
 	},
 ];
 
@@ -363,14 +388,22 @@ const checkWorkflowSecurity = async (options: ResolvedCheckOptions, io: CliIo): 
 		resolve(outputDir, options.sourceRoot),
 	])) {
 		const content = await readFile(file, "utf8");
+		const path = relative(outputDir, file).split(sep).join("/");
 		for (const check of workflowSecurityChecks) {
+			if (check.find !== undefined) {
+				const source = { name: path, content };
+				const pinning = { allowUnpinned: options.allowUnpinned };
+				for (const finding of check.find(source, pinning)) {
+					findings.push(`${path}:${finding.line}: ${check.name}: ${finding.uses}`);
+				}
+				continue;
+			}
 			for (const match of content.matchAll(check.pattern)) {
 				const index = match.index;
 				if (index === undefined) {
 					continue;
 				}
 				const line = content.slice(0, index).split("\n").length;
-				const path = relative(outputDir, file).split(sep).join("/");
 				findings.push(`${path}:${line}: ${check.name}: ${match[0].trim()}`);
 			}
 		}
@@ -512,6 +545,7 @@ const resolveCheckOptions = async (options: CheckOptions): Promise<ResolvedCheck
 			? await detectRootImportAlias(output)
 			: normalizeRootImportAlias(options.rootImportAlias);
 	return {
+		allowUnpinned: options.allowUnpinned ?? [],
 		generated: options.generated,
 		output,
 		...(rootImportAlias === undefined ? {} : { rootImportAlias }),

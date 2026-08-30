@@ -268,3 +268,17 @@ export {
 	validateActionMetadataContent,
 	validateWorkflowContent,
 } from "./validation";
+
+export type {
+	ActionPinningFinding,
+	ActionPinningOptions,
+	ActionPinningReason,
+	ActionReference,
+} from "./action-pinning";
+export {
+	assertPinnedActions,
+	findUnpinnedActions,
+	isPinnedActionReference,
+	parseActionReference,
+	validateActionPinning,
+} from "./action-pinning";

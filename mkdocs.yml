@@ -82,6 +82,7 @@ plugins:
           - recipes/publish-container-image.md
         Reference:
           - reference/api.md
+          - reference/action-pinning.md
           - reference/generated-files.md
           - reference/publishing.md
   - llmstxt-md:
@@ -152,6 +153,7 @@ nav:
   - Reference:
       - Overview: reference/index.md
       - API Surface: reference/api.md
+      - Action Pinning: reference/action-pinning.md
       - Generated Files: reference/generated-files.md
       - Publishing Boundary: reference/publishing.md
 

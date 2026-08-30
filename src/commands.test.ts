@@ -361,6 +361,9 @@ test("check accepts pinned workflows", async () => {
 		"    runs-on: ubuntu-latest",
 		"    steps:",
 		"      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10",
+		"      - uses: ./.github/actions/hello",
+		"      # - uses: actions/stale@v9",
+		"      - uses: docker://alpine@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 		"",
 	]);
 
@@ -405,6 +408,64 @@ test("check rejects mutable workflow actions", async () => {
 			),
 		/mutable action references/,
 	);
+});
+
+test("check rejects unpinned container actions", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
+	await writeSource(join(root, ".github/workflows/ci.yml"), [
+		"name: CI",
+		"on: push",
+		"jobs:",
+		"  test:",
+		"    runs-on: ubuntu-latest",
+		"    steps:",
+		"      - uses: docker://alpine:3.19",
+		"",
+	]);
+
+	await assert.rejects(
+		() =>
+			check(
+				{
+					generated: false,
+					output: root,
+					sourceRoot: "ci",
+					workflowSecurity: true,
+					workflowsDir: ".github/workflows",
+				},
+				{ writeOut: () => {} },
+			),
+		/mutable action references: docker:\/\/alpine:3\.19/,
+	);
+});
+
+test("check accepts action references matching an allow pattern", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
+	const output: string[] = [];
+	await writeSource(join(root, ".github/workflows/ci.yml"), [
+		"name: CI",
+		"on: push",
+		"jobs:",
+		"  test:",
+		"    runs-on: ubuntu-latest",
+		"    steps:",
+		"      - uses: my-org/my-action@v1",
+		"",
+	]);
+
+	await check(
+		{
+			allowUnpinned: ["my-org/*"],
+			generated: false,
+			output: root,
+			sourceRoot: "ci",
+			workflowSecurity: true,
+			workflowsDir: ".github/workflows",
+		},
+		{ writeOut: (message) => output.push(message) },
+	);
+
+	assert.deepEqual(output, ["ok\tworkflow security\n"]);
 });
 
 test("check rejects handwritten workflow yaml", async () => {
@@ -480,6 +541,37 @@ test("createCli parses space-separated check command", async () => {
 		"hollywood",
 		"check",
 		"--workflow-security",
+		"--output",
+		root,
+	]);
+
+	assert.deepEqual(output, ["ok\tworkflow security\n"]);
+});
+
+test("createCli parses repeated check allow-unpinned patterns", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
+	const output: string[] = [];
+	await writeSource(join(root, ".github/workflows/ci.yml"), [
+		"name: CI",
+		"on: push",
+		"jobs:",
+		"  test:",
+		"    runs-on: ubuntu-latest",
+		"    steps:",
+		"      - uses: my-org/my-action@v1",
+		"      - uses: docker://alpine:3.19",
+		"",
+	]);
+
+	await createCli({ writeOut: (message) => output.push(message) }).parseAsync([
+		"node",
+		"hollywood",
+		"check",
+		"--workflow-security",
+		"--allow-unpinned",
+		"my-org/*",
+		"--allow-unpinned",
+		"docker://alpine",
 		"--output",
 		root,
 	]);
