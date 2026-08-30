@@ -57,7 +57,9 @@ When adding or changing CI/CD:
 
 1. Edit Hollywood source under `gha/`.
 2. Regenerate workflows with `npm run generate`.
-3. Run `npm run check` before opening or merging the change.
+3. Run `npm run check` before opening or merging the change. It fails on unsafe
+   triggers, shared caches, and third-party `uses:` references that are not
+   pinned to a commit SHA.
 4. Keep verification jobs separate from release or publish jobs.
 5. If Hollywood cannot express a required workflow field, extend Hollywood
    first instead of hand-editing generated YAML.
