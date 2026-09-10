@@ -270,3 +270,16 @@ export {
 } from "./validation";
 
 export { verifyGitHubDeploymentReceipt } from "./deployment-receipt";
+
+export type {
+	GitHubMergePlan,
+	GitHubMergeDecision,
+	GitHubMergeServices,
+	GitHubMergeAdmissionServices,
+} from "./merge-plan";
+export {
+	GitHubMergePlanError,
+	parseGitHubMergePlan,
+	evaluateGitHubMergePlan,
+	admitGitHubMergePlan,
+} from "./merge-plan";
