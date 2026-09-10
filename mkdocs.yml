@@ -147,6 +147,7 @@ nav:
       - Runner Image: backends/runner-image.md
   - Recipes:
       - Overview: recipes/index.md
+      - Merge After Deployment: recipes/merge-plan.md
       - S3 Cache: recipes/s3-cache.md
       - Publish Container Image: recipes/publish-container-image.md
   - Reference:

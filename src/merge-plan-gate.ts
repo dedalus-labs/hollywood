@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { readGitHubMergeQueue } from "./merge-queue";
+import { nextCursor, pageInfoSchema, queryGitHub, readGitHubMergeQueue } from "./merge-queue";
 import {
 	submitGitHubMergeDecisions,
 	evaluateGitHubMergePlan,
@@ -7,6 +7,8 @@ import {
 	GitHubMergePlanError,
 	parseGitHubMergePlan,
 	type GitHubMergeDecision,
+	type GitHubMergePlan,
+	type GitHubMergeServices,
 	type GitHubMergeAdmissionServices,
 } from "./merge-plan";
 
@@ -24,6 +26,7 @@ export type GitHubMergeGateOptions = Readonly<{
 	base: string;
 	statusPublisher: string;
 	runUrl: string;
+	initialize?: boolean;
 }>;
 
 /** Read only trusted plan source. Invalid source invalidates queued revisions too. */
@@ -105,6 +108,14 @@ export const reconcileGitHubMergePlan = async (
 			}
 		}
 		for (const [head, state] of states) await writeStatus(api, head, state, options);
+		if (options.initialize)
+			await initializeOrdinaryPulls(
+				routing,
+				services,
+				knownHeads,
+				new Set(pulls.map((pull) => pull.number)),
+				options,
+			);
 		await submitGitHubMergeDecisions(plan.repository, services, decisions);
 		return decisions;
 	} catch (error) {
@@ -174,4 +185,80 @@ const publishStatus = async (
 	) {
 		throw new GitHubMergePlanError("GitHub status receipt has the wrong publisher or state");
 	}
+};
+
+const initializeOrdinaryPulls = async (
+	plan: GitHubMergePlan,
+	services: GitHubMergeServices,
+	knownHeads: ReadonlySet<string>,
+	plannedPulls: ReadonlySet<number>,
+	options: GitHubMergeGateOptions,
+): Promise<void> => {
+	const api = githubMergeApi(plan.repository, services);
+	const schema = z.object({
+		data: z.object({
+			repository: z.object({
+				pullRequests: z.object({
+					pageInfo: pageInfoSchema,
+					nodes: z.array(
+						z.object({
+							number: z.number(),
+							headRefOid: sha,
+							commits: z.object({
+								nodes: z
+									.array(
+										z.object({
+											commit: z.object({
+												oid: sha,
+												status: z
+													.object({
+														context: z
+															.object({
+																state: z.string(),
+																creator: z.object({ login: z.string() }).nullable(),
+															})
+															.nullable(),
+													})
+													.nullable(),
+											}),
+										}),
+									)
+									.length(1),
+							}),
+						}),
+					),
+				}),
+			}),
+		}),
+		errors: z.never().optional(),
+	});
+	let after: string | null = null;
+	do {
+		const data = await queryGitHub(
+			plan,
+			services,
+			`query($owner:String!,$name:String!,$after:String){
+		  repository(owner:$owner,name:$name){pullRequests(first:100,after:$after,states:OPEN){
+		    nodes{number headRefOid commits(last:1){nodes{commit{oid status{context(name:"${githubMergePlanContext}"){state creator{login}}}}}}}
+		    pageInfo{hasNextPage endCursor}
+		  }}
+		}`,
+			after,
+		);
+		const page = schema.parse(data).data.repository.pullRequests;
+		for (const pull of page.nodes) {
+			const commit = pull.commits.nodes[0]!.commit;
+			if (commit.oid !== pull.headRefOid)
+				throw new GitHubMergePlanError("PR head changed during initialization");
+			if (
+				!plannedPulls.has(pull.number) &&
+				!knownHeads.has(pull.headRefOid) &&
+				(commit.status?.context?.creator?.login !== options.statusPublisher ||
+					commit.status?.context?.state !== "SUCCESS")
+			) {
+				await publishStatus(api, pull.headRefOid, "success", options);
+			}
+		}
+		after = nextCursor(page.pageInfo, after);
+	} while (after !== null);
 };
