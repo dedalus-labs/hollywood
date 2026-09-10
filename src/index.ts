@@ -285,3 +285,6 @@ export {
 } from "./merge-plan";
 
 export { readGitHubMergeQueue } from "./merge-queue";
+
+export { githubMergePlanContext, reconcileGitHubMergePlan } from "./merge-plan-gate";
+export type { GitHubMergeGateOptions } from "./merge-plan-gate";
