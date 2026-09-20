@@ -41,3 +41,5 @@ export type {
 	SummaryText,
 	WorkflowInputValues,
 } from "./script";
+export { gitTreeMatch, GitTreeMatchError } from "./git-tree-match";
+export type { GitTreeMatchOptions, GitTreeMatchResult } from "./git-tree-match";

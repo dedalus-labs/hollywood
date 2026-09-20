@@ -130,3 +130,37 @@ log.warning("Cache upload failed");
 
 Local runs can write to stdout and stderr. GitHub runs route the same calls
 through `@actions/core`.
+
+## Compare committed inputs
+
+Use `gitTreeMatch` to compare selected files and directories at two full commit
+object IDs. Both commits must exist in the local repository. Paths are literal,
+repository-relative names, including when the command runs from a subdirectory.
+
+```typescript
+import { gitTreeMatch } from "@dedalus-labs/hollywood/action-runtime";
+
+// Inside an action's run function:
+const comparison = await gitTreeMatch({
+	candidateCommit: input.candidateCommit,
+	referenceCommit: input.referenceCommit,
+	paths: ["src", "package-lock.json", ".github/workflows/ci.yml"],
+	exec,
+});
+log.info(JSON.stringify(comparison));
+```
+
+The result records both commits and each path's Git entry identity: file mode,
+object type, and full object ID. `matches` is true only when every declared entry
+is equal. Directories include their committed descendants. Submodules record
+only their commit pointers. Uncommitted files are outside the comparison.
+Missing paths, invalid revisions, and Git failures throw `GitTreeMatchError`.
+
+The caller owns the complete input list. Include workflow definitions, lockfiles,
+build configuration, and other tracked dependencies that affect the result.
+A matching comparison proves equality of those inputs. Reusing CI results also
+requires trusted evidence of a successful run and matching external inputs,
+such as the toolchain, environment, and execution options. Deployment readiness
+requires its own checks of the target environment.
+
+The comparison uses Git's [tree entry format](https://git-scm.com/docs/git-ls-tree#_output_format).
