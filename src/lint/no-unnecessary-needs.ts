@@ -1,3 +1,5 @@
+import { ContextAccess, type Expr, type ExprVisitor, IndexAccess, Literal, Star } from "@actions/expressions/ast";
+import { StringData } from "@actions/expressions/data/string";
 import type { GitHubWorkflowJob, GitHubWorkflowJobs } from "../generate";
 import { parseGitHubExpressionAST, isGitHubExpression, expressionBody } from "../expressions";
 import type { LintIssue } from "../validation";
@@ -28,59 +30,34 @@ function extractExpressionsAndStrings(value: unknown): string[] {
 	return results;
 }
 
-
- // Checks AST node structures recursively to find references to `needs.<upstreamJobName>.(outputs|result)`
- 
-function astReferencesJob(node: unknown, upstreamJobName: string): boolean {
-	if (!node || typeof node !== "object") {
-		return false;
-	}
-
-	const nodeObj = node as Record<string, unknown>;
-
-	// Handle property access: node.target.property or node.object.property
-	if (
-		(nodeObj["type"] === "PropertyAccess" || nodeObj["kind"] === "PropertyAccess") &&
-		(nodeObj["property"] === "outputs" || nodeObj["property"] === "result")
-	) {
-		const target = nodeObj["target"] ?? nodeObj["object"];
-		if (
-			target &&
-			typeof target === "object" &&
-			((target as Record<string, unknown>)["property"] === upstreamJobName ||
-				(target as Record<string, unknown>)["value"] === upstreamJobName)
-		) {
-			return true;
-		}
-	}
-
-	// Handle index access: needs['job_name'].outputs
-	if (
-		(nodeObj["type"] === "IndexAccess" || nodeObj["kind"] === "IndexAccess") &&
-		(nodeObj["index"] === "outputs" || nodeObj["index"] === "result")
-	) {
-		const target = nodeObj["target"] ?? nodeObj["object"];
-		if (
-			target &&
-			typeof target === "object" &&
-			((target as Record<string, unknown>)["index"] === upstreamJobName ||
-				(target as Record<string, unknown>)["value"] === upstreamJobName)
-		) {
-			return true;
-		}
-	}
-
-	for (const child of Object.values(nodeObj)) {
-		if (Array.isArray(child)) {
-			for (const item of child) {
-				if (astReferencesJob(item, upstreamJobName)) return true;
+function astReferencesJob(node: Expr, upstreamJobName: string): boolean {
+	const references = (expr: Expr): boolean => !(expr instanceof Star) && expr.accept(visitor);
+	const visitor: ExprVisitor<boolean> = {
+		visitLiteral: () => false,
+		visitContextAccess: () => false,
+		visitUnary: ({ expr }) => references(expr),
+		visitBinary: ({ left, right }) => references(left) || references(right),
+		visitLogical: ({ args }) => args.some(references),
+		visitGrouping: ({ group }) => references(group),
+		visitFunctionCall: ({ args }) => args.some(references),
+		visitIndexAccess: ({ expr, index }) => {
+			if (
+				index instanceof Literal &&
+				index.literal instanceof StringData &&
+				["outputs", "result"].includes(index.literal.value.toLowerCase()) &&
+				expr instanceof IndexAccess &&
+				expr.expr instanceof ContextAccess &&
+				expr.expr.name.lexeme.toLowerCase() === "needs" &&
+				expr.index instanceof Literal &&
+				expr.index.literal instanceof StringData &&
+				expr.index.literal.value.toLowerCase() === upstreamJobName.toLowerCase()
+			) {
+				return true;
 			}
-		} else if (child && typeof child === "object") {
-			if (astReferencesJob(child, upstreamJobName)) return true;
-		}
-	}
-
-	return false;
+			return references(expr) || references(index);
+		},
+	};
+	return references(node);
 }
 
 function hasExpressionReference(job: GitHubWorkflowJob, upstreamJobName: string): boolean {

@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import type { GitHubWorkflowJob } from "../generate";
 import { checkUnnecessaryNeeds } from "./no-unnecessary-needs";
 
 describe("no-unnecessary-needs lint rule", () => {
@@ -6,6 +7,33 @@ describe("no-unnecessary-needs lint rule", () => {
 		"runs-on": "ubuntu-latest",
 		steps: [{ uses: "actions/upload-artifact@v4", with: { name: "build-output" } }],
 	};
+
+	it.each([
+		["needs.test.result == 'success'", 0],
+		["needs.test.outputs.ready", 0],
+		["needs['test'].result == 'success'", 0],
+		["needs['test']['outputs']['ready']", 0],
+		["NEEDS.TEST.RESULT == 'success'", 0],
+		["always() && !(needs.test.result != 'success')", 0],
+		["contains(needs.test.outputs.ready, 'yes')", 0],
+		["needs.other.outputs[needs.test.outputs.key]", 0],
+		["contains(github.event.labels.*.name, 'ready') && needs.test.result == 'success'", 0],
+		["needs.other.result == 'success'", 1],
+		["steps.test.outputs.ready", 1],
+		["'needs.test.outputs.ready'", 1],
+	])("preserves dependencies while checking %s", (expression, warningCount) => {
+		const job: GitHubWorkflowJob = {
+			"runs-on": "ubuntu-latest",
+			needs: ["test"],
+			if: `\${{ ${expression} }}`,
+			steps: [],
+		};
+		const before = structuredClone(job);
+		const upstream: GitHubWorkflowJob = { "runs-on": "ubuntu-latest", steps: [] };
+
+		expect(checkUnnecessaryNeeds("deploy", job, { test: upstream })).toHaveLength(warningCount);
+		expect(job).toEqual(before);
+	});
 
 	it("should not warn when outputs are explicitly referenced", () => {
 		const job = {
