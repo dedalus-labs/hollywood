@@ -91,6 +91,7 @@ export type GitHubReusableWorkflowSecrets =
 	  }>;
 
 type GitHubStepBase = Readonly<{
+	parallel?: never;
 	id?: string;
 	name?: GitHubExpressionString;
 	if?: GitHubExpressionString;
@@ -160,7 +161,23 @@ export type GitHubActionEntrypointFile = Readonly<{
 	content: string;
 }>;
 
-export type GitHubWorkflowStep = GitHubRunStep | GitHubUsesStep;
+/** Explicitly concurrent steps. GitHub waits for the group before continuing. */
+export type GitHubParallelStep = Readonly<{
+	parallel: readonly (GitHubRunStep | GitHubUsesStep)[];
+	id?: never;
+	name?: never;
+	if?: never;
+	env?: never;
+	"continue-on-error"?: never;
+	"timeout-minutes"?: never;
+	run?: never;
+	uses?: never;
+	with?: never;
+	shell?: never;
+	"working-directory"?: never;
+}>;
+
+export type GitHubWorkflowStep = GitHubRunStep | GitHubUsesStep | GitHubParallelStep;
 
 export type GitHubExpressionString = GitHubExpression | string;
 
@@ -544,6 +561,12 @@ const jobForYaml = (workflowJob: GitHubWorkflowJob): unknown => {
 };
 
 const stepForYaml = (step: GitHubWorkflowStep): unknown => {
+	if (step.parallel !== undefined) {
+		if (step.parallel.some((child) => child.parallel !== undefined)) {
+			throw new Error("parallel groups cannot be nested");
+		}
+		return { ...step, parallel: step.parallel.map(stepForYaml) };
+	}
 	if (!("run" in step)) {
 		return step;
 	}

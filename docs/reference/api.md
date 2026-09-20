@@ -3,6 +3,33 @@
 Hollywood's current application programming interface (API) surface is
 intentionally small.
 
+## Parallel workflow steps
+
+Use `GitHubParallelStep` to group independent work explicitly. Hollywood renders
+each command and preserves the group. GitHub runs those steps concurrently
+and waits at the end of the group before continuing.
+
+```ts
+import { command, type GitHubParallelStep } from "@dedalus-labs/hollywood";
+
+const checks: GitHubParallelStep = {
+	parallel: [
+		{ run: command({ file: "node", args: ["lint.mjs"] }) },
+		{ run: command({ file: "node", args: ["test.mjs"] }) },
+	],
+};
+```
+
+The author must establish independence, including shared files and environment
+changes. Hollywood does not infer it or remove declared `needs` edges. A group
+cannot also have `run`, `uses`, or `if`, and groups cannot be nested.
+This workflow syntax is not available inside composite actions.
+
+The [GitHub contract](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idstepsparallel)
+defines scheduling and the concurrency limit. Native parallel-step support must
+be enabled in GitHub. Older workflow linters may reject the syntax. The
+repository's pinned Actionlint 1.7.12 does, so its own validation
+workflow keeps its existing step order.
 ## Script authoring
 
 | API             | Purpose                                                   |
