@@ -1,230 +1,104 @@
 import type { ScriptExec } from "./script";
 
-// ── Types ──────────────────────────────────────────────────────────────────
-
-/** Metadata about a successful GitHub Actions workflow run. */
-export type WorkflowRunInfo = Readonly<{
-	id: number;
-	url: string;
-	conclusion: string;
-	createdAt: string;
-	headSha: string;
-	name: string;
-}>;
-
-/**
- * Result of comparing the current tree hash against recent successful
- * workflow runs. Uses a discriminated union so consumers must handle
- * both the match and no-match cases exhaustively.
- */
-export type GitTreeMatchResult =
-	| { found: true; run: WorkflowRunInfo }
-	| { found: false; reason: string };
-
-/**
- * Options for `gitTreeMatch`.
- *
- * @param path — The repository-relative path whose tree hash to compare
- *   (e.g. `"packages/typescript/databases/core/supabase/migrations"`).
- * @param workflow — The name of the GitHub Actions workflow to filter runs by.
- * @param branch — The branch to look for recent successful runs on.
- * @param repository — The `owner/repo` string (e.g. `"dedalus-labs/hollywood"`).
- * @param limit — Maximum number of recent successful runs to scan. Clamped
- *   to 100 (GitHub API `per_page` maximum). Defaults to 10.
- * @param exec — Hollywood `ScriptExec` for running `git rev-parse` locally.
- * @param token — Optional GitHub personal access token for authenticated API
- *   calls. Unauthenticated requests are rate-limited to 60/hour.
- */
 export type GitTreeMatchOptions = Readonly<{
-	path: string;
-	workflow: string;
-	branch: string;
-	repository: string;
-	limit?: number;
+	/** Full commit object IDs, already present in the local repository. */
+	candidateCommit: string;
+	referenceCommit: string;
+	/** Nonempty, literal repository-relative paths to committed files or directories. */
+	paths: readonly string[];
 	exec: ScriptExec;
-	token?: string;
 }>;
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-const parseRepository = (value: string): { owner: string; repo: string } => {
-	const match = /^([^/\s]+)\/([^/\s]+)$/.exec(value.trim());
-	if (match === null || match[1] === undefined || match[2] === undefined) {
-		throw new Error(`repository must be owner/name: ${value}`);
-	}
-	return { owner: match[1], repo: match[2] };
-};
-
-// ── GitHub API ─────────────────────────────────────────────────────────────
-
-type GitHubTreeEntry = Readonly<{
-	path: string;
-	sha: string;
-	type: string;
+/** Git entry identities include file mode, object type, and full object ID. */
+export type GitTreeMatchResult = Readonly<{
+	matches: boolean;
+	candidateCommit: string;
+	referenceCommit: string;
+	inputs: readonly Readonly<{ path: string; candidateEntry: string; referenceEntry: string }>[];
 }>;
 
-type GitHubTreeResponse = Readonly<{
-	sha: string;
-	tree: readonly GitHubTreeEntry[];
-}>;
-
-type GitHubWorkflowRunItem = Readonly<{
-	id: number;
-	html_url: string;
-	conclusion: string | null;
-	created_at: string;
-	head_sha: string;
-	name: string;
-	status: string;
-}>;
-
-type GitHubWorkflowRunsResponse = Readonly<{
-	workflow_runs: readonly GitHubWorkflowRunItem[];
-}>;
-
-const fetchJson = async <T>(url: string, token?: string): Promise<T> => {
-	const headers: Record<string, string> = {
-		Accept: "application/vnd.github+json",
-		"X-GitHub-Api-Version": "2022-11-28",
-	};
-	if (token) {
-		headers["Authorization"] = `Bearer ${token}`;
+export class GitTreeMatchError extends Error {
+	constructor(
+		readonly code: "invalid_commit" | "invalid_path" | "missing_input" | "git_failed",
+		message: string,
+		options?: ErrorOptions,
+	) {
+		super(message, options);
+		this.name = "GitTreeMatchError";
 	}
-	const response = await fetch(url, { headers });
-	if (!response.ok) {
-		const body = await response.text();
-		throw new Error(`GitHub API failed ${response.status}: ${body}`);
-	}
-	return response.json() as T;
-};
-
-const workflowRunsForBranch = async (
-	repository: { owner: string; repo: string },
-	branch: string,
-	limit: number,
-	token?: string,
-): Promise<readonly WorkflowRunInfo[]> => {
-	const url = new URL(
-		`https://api.github.com/repos/${repository.owner}/${repository.repo}/actions/runs`,
-	);
-	url.searchParams.set("branch", branch);
-	url.searchParams.set("per_page", String(limit));
-
-	const data = await fetchJson<GitHubWorkflowRunsResponse>(url.toString(), token);
-
-	return data.workflow_runs
-		.filter(
-			(run) =>
-				run.status === "completed" && run.conclusion === "success",
-		)
-		.map((run) => ({
-			id: run.id,
-			url: run.html_url,
-			conclusion: run.conclusion ?? "",
-			createdAt: run.created_at,
-			headSha: run.head_sha,
-			name: run.name,
-		}));
-};
-
-const treeHashForPath = async (
-	repository: { owner: string; repo: string },
-	commitSha: string,
-	path: string,
-	token?: string,
-): Promise<string | null> => {
-	const url = new URL(
-		`https://api.github.com/repos/${repository.owner}/${repository.repo}/git/trees/${commitSha}`,
-	);
-	url.searchParams.set("recursive", "1");
-
-	const data = await fetchJson<GitHubTreeResponse>(url.toString(), token);
-	const entry = data.tree.find((e) => e.path === path);
-	if (entry === undefined || (entry.type !== "blob" && entry.type !== "tree")) {
-		return null;
-	}
-	return entry.sha;
-};
-
-// ── Git ────────────────────────────────────────────────────────────────────
-
-const currentTreeHash = async (path: string, exec: ScriptExec): Promise<string> => {
-	const result = await exec("git", ["rev-parse", `HEAD:${path}`], {
-		exitPolicy: "any",
-	});
-	if (result.exitCode !== 0) {
-		throw new Error(
-			`git rev-parse HEAD:${path} failed (exit ${result.exitCode}): ${result.stderr.trim() || result.stdout.trim()}`,
-		);
-	}
-	return result.stdout.trim();
-};
-
-// ── Main ───────────────────────────────────────────────────────────────────
+}
 
 /**
- * Compares the current tree hash for a given path against recent successful
- * workflow runs on a branch. If a prior run has the same tree hash for that
- * path, the gate passes without waiting — reusing the prior run's result.
- *
- * This solves the cross-workflow gate problem: when a CD pipeline requires
- * a dependent workflow to pass (e.g. database migrations), but the dependent
- * workflow didn't trigger for the current commit because the relevant source
- * tree didn't change.
- *
- * @param options — Configuration as described in `GitTreeMatchOptions`.
- * @returns A `GitTreeMatchResult` — `{ found: true, run }` if a matching
- *   prior run exists, or `{ found: false, reason }` otherwise.
- *
- * @example
- * ```ts
- * const match = await gitTreeMatch({
- *   path: "packages/typescript/databases/core/supabase/migrations",
- *   workflow: "DB CD",
- *   branch: input.branch,
- *   repository: input.repository,
- *   limit: 10,
- *   exec,
- * });
- *
- * if (match.found) {
- *   log.info(`Tree unchanged since ${match.run.url}`);
- *   return match.run;
- * }
- * ```
+ * Compares declared Git inputs at two immutable commits, including executable modes.
+ * Callers own input completeness and any decision to reuse a successful test or artifact.
+ * Equality alone proves neither CI success nor deployment readiness.
+ * Missing inputs, invalid revisions, and Git failures throw GitTreeMatchError.
  */
-export const gitTreeMatch = async (
-	options: GitTreeMatchOptions,
-): Promise<GitTreeMatchResult> => {
-	const { path, workflow, branch, repository, limit, exec, token } = options;
-	const repo = parseRepository(repository);
-	const maxLimit = Math.max(Math.min(limit ?? 10, 100), 1);
-
-	// Current tree hash for the given path at HEAD
-	const currentHash = await currentTreeHash(path, exec);
-
-	// Recent successful workflow runs on the branch
-	const runs = await workflowRunsForBranch(repo, branch, maxLimit, token);
-
-	// Filter by workflow name and compare tree hashes
-	const candidates = runs.filter((run) => run.name === workflow);
-
-	// Deduplicate tree hash lookups by headSha — re-runs share the same commit
-	const treeCache = new Map<string, string | null>();
-
-	for (const run of candidates) {
-		let runHash = treeCache.get(run.headSha);
-		if (runHash === undefined) {
-			runHash = await treeHashForPath(repo, run.headSha, path, token);
-			treeCache.set(run.headSha, runHash);
-		}
-		if (runHash === currentHash) {
-			return { found: true, run };
+export const gitTreeMatch = async ({
+	candidateCommit,
+	referenceCommit,
+	paths: declaredPaths,
+	exec,
+}: GitTreeMatchOptions): Promise<GitTreeMatchResult> => {
+	const paths = [...declaredPaths];
+	for (const commit of [candidateCommit, referenceCommit]) {
+		if (!/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(commit)) {
+			throw new GitTreeMatchError("invalid_commit", `Expected a full commit object ID: ${commit}`);
 		}
 	}
-
+	if (paths.length === 0 || new Set(paths).size !== paths.length) {
+		throw new GitTreeMatchError("invalid_path", "Expected nonempty, distinct input paths");
+	}
+	for (const path of paths) {
+		if (
+			/[\0\\]/.test(path) ||
+			path.split("/").some((part) => part === "" || part === "." || part === "..")
+		) {
+			throw new GitTreeMatchError("invalid_path", `Expected a literal repository-relative path: ${path}`);
+		}
+	}
+	const git = async (args: readonly string[]): Promise<string> => {
+		const result = await exec("git", ["--no-replace-objects", "--literal-pathspecs", ...args], {
+			exitPolicy: "any",
+			output: "capture",
+		}).catch((cause: unknown) => {
+			throw new GitTreeMatchError("git_failed", "Could not execute git", { cause });
+		});
+		if (result.exitCode !== 0) {
+			throw new GitTreeMatchError("git_failed", `git ${args.join(" ")} failed: ${result.stderr.trim()}`);
+		}
+		return result.stdout;
+	};
+	for (const commit of [candidateCommit, referenceCommit]) {
+		if ((await git(["cat-file", "-t", commit])).trim() !== "commit") {
+			throw new GitTreeMatchError("invalid_commit", `Expected a commit object: ${commit}`);
+		}
+	}
+	const entry = async (commit: string, path: string): Promise<string> => {
+		const output = await git(["ls-tree", "-z", "--full-tree", commit, "--", path]);
+		const tab = output.indexOf("\t");
+		const identity = output.slice(0, tab);
+		if (
+			tab < 0 ||
+			output.slice(tab + 1) !== `${path}\0` ||
+			!/^[0-7]{6} (blob|tree|commit) (?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(identity)
+		) {
+			throw new GitTreeMatchError("missing_input", `Expected one Git entry at ${commit}:${path}`);
+		}
+		return identity;
+	};
+	const inputs: { path: string; candidateEntry: string; referenceEntry: string }[] = [];
+	for (const path of paths) {
+		const [candidateEntry, referenceEntry] = await Promise.all([
+			entry(candidateCommit, path),
+			entry(referenceCommit, path),
+		]);
+		inputs.push({ path, candidateEntry, referenceEntry });
+	}
 	return {
-		found: false,
-		reason: `Tree hash ${currentHash} not found in ${candidates.length} recent successful runs of "${workflow}" on ${branch}`,
+		matches: inputs.every((input) => input.candidateEntry === input.referenceEntry),
+		candidateCommit,
+		referenceCommit,
+		inputs,
 	};
 };
