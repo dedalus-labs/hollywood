@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.6](https://github.com/dedalus-labs/hollywood/compare/v0.0.5...v0.0.6) (2026-09-20)
+
+
+### Features
+
+* **git:** compare declared inputs at immutable revisions ([#24](https://github.com/dedalus-labs/hollywood/issues/24)) ([1046242](https://github.com/dedalus-labs/hollywood/commit/1046242dc7d55db6697b7a4cc96e6b310c749ee8))
+* **lint:** add advisory dependency checks ([#82](https://github.com/dedalus-labs/hollywood/issues/82)) ([dcfecbc](https://github.com/dedalus-labs/hollywood/commit/dcfecbc63b6e705ea99806b39f8d63bdf8793956))
+
 ## [0.0.5](https://github.com/dedalus-labs/hollywood/compare/v0.0.4...v0.0.5) (2026-08-24)
 
 
