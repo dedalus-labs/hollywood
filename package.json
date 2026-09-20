@@ -1,8 +1,8 @@
 {
 	"name": "@dedalus-labs/hollywood",
-	"version": "0.1.0-alpha.1",
+	"version": "0.0.5",
 	"private": false,
-	"description": "AI-native TypeScript scripts for GitHub Actions, without shell-in-YAML.",
+	"description": "Generate and test GitHub Actions with typed TypeScript.",
 	"keywords": [
 		"actions",
 		"agents",
@@ -66,8 +66,7 @@
 		"check": "npm run build && node dist/cli.js check",
 		"generate": "node dist/cli.js generate",
 		"lint": "oxlint --vitest-plugin --import-plugin --deny-warnings . --ignore-pattern dist --ignore-pattern node_modules --ignore-pattern .github",
-		"package": "npm pack --dry-run",
-		"prepack": "npm run build",
+		"package": "npm run build && npm pack --dry-run",
 		"test": "vitest run --config vitest.config.ts",
 		"typecheck": "tsgo --noEmit"
 	},
@@ -77,21 +76,23 @@
 	"dependencies": {
 		"@actions/core": "3.0.1",
 		"@actions/exec": "3.0.0",
-		"@actions/expressions": "0.3.57",
-		"@actions/workflow-parser": "0.3.55",
+		"@actions/expressions": "0.3.61",
+		"@actions/workflow-parser": "0.3.61",
+		"@octokit/openapi-types": "28.0.0",
 		"esbuild": "0.28.1",
-		"yaml": "2.8.4"
+		"yaml": "2.8.4",
+		"zod": "4.4.3"
 	},
 	"devDependencies": {
-		"@commander-js/extra-typings": "14.0.0",
-		"@types/node": "^24.12.0",
+		"@commander-js/extra-typings": "15.0.0",
+		"@types/node": "^26.2.0",
 		"@typescript/native-preview": "7.0.0-dev.20260514.1",
-		"commander": "14.0.3",
+		"commander": "15.0.0",
 		"oxlint": "^1.70.0",
-		"oxlint-tsgolint": "^0.22.1",
+		"oxlint-tsgolint": "^7.0.2001",
 		"tinyglobby": "0.2.17",
-		"tsdown": "0.22.0",
-		"typescript": "^6.0.3",
+		"tsdown": "0.22.14",
+		"typescript": "^7.0.2",
 		"vitest": "^4.1.0"
 	},
 	"engines": {

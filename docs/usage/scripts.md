@@ -86,6 +86,22 @@ if (copy.exitCode !== 0) {
 The default exit policy is `zero`, which throws on any nonzero exit. Hollywood
 does not silently degrade.
 
+## Captured output
+
+GitHub Actions streams child output by default. When a command returns a large
+machine-readable document that the action parses, capture it without writing it
+to the job log:
+
+```typescript
+const listing = await exec("aws", ["s3api", "list-object-versions", "--bucket", bucket], {
+	output: "capture",
+});
+const response = JSON.parse(listing.stdout);
+```
+
+Both `stdout` and `stderr` remain available in the command result. Command
+metadata, elapsed status, and failure annotations remain visible.
+
 ## Parallel commands
 
 `exec` is asynchronous because local execution uses `child_process.spawn` and

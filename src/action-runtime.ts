@@ -1,4 +1,5 @@
 export { runGitHubAction } from "./github";
+export type { GitHubLogColor, RunGitHubActionOptions } from "./github";
 export {
 	action,
 	booleanInput,
@@ -8,6 +9,8 @@ export {
 	runAction,
 	stringInput,
 	stringOutput,
+	summaryCode,
+	summaryText,
 } from "./script";
 export type {
 	ActionCallInputValues,
@@ -31,6 +34,11 @@ export type {
 	ScriptFs,
 	ScriptLog,
 	ScriptActionServices,
+	ScriptSummary,
+	SummaryCell,
+	SummaryCode,
+	SummaryTableRow,
+	SummaryText,
 	WorkflowInputValues,
 } from "./script";
 export { gitTreeMatch } from "./git-tree-match";

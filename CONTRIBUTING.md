@@ -74,10 +74,10 @@ update a single release PR with the next version, changelog, and package
 metadata.
 
 When maintainers are ready to release, they merge the Release Please PR into
-`main`. That merge creates the GitHub release, and the npm publishing workflow
-publishes the tagged package. Do not edit `package.json`, `CHANGELOG.md`, or
-`.release-please-manifest.json` by hand unless a maintainer asks for a manual
-release repair.
+`main`. The publishing workflow publishes to npm, then Release Please creates
+the matching GitHub tag and release. Do not edit `package.json`, `CHANGELOG.md`,
+or `.release-please-manifest.json` by hand unless a maintainer asks for a
+manual release repair.
 
 ## Security
 

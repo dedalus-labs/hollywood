@@ -1,5 +1,7 @@
 import {
 	action,
+	eq,
+	github,
 	job,
 	stringInput,
 	uses,
@@ -7,7 +9,13 @@ import {
 	type ScriptActionContext,
 	type ScriptFs,
 } from "../src/index";
-import { checkoutAction, setupNodeAction } from "./actions";
+import {
+	buildHollywoodCommand,
+	buildLocalActionsCommand,
+	checkoutAction,
+	installDependenciesCommand,
+	setupNodeAction,
+} from "./actions";
 
 const vouchedPath = "VOUCHED.td";
 
@@ -104,6 +112,7 @@ const findContributor = (
 	authorHandle: string,
 ): { readonly denouncedReason?: string } | null => {
 	const authorKey = `github:${authorHandle}`;
+	let isVouched = false;
 	for (const rawLine of vouched.split("\n")) {
 		const line = rawLine.replace(/\r$/, "").trim();
 		if (line.length === 0 || line.startsWith("#")) {
@@ -124,9 +133,9 @@ const findContributor = (
 		if (isDenounced) {
 			return { denouncedReason: reasonParts.join(" ") || "no reason recorded" };
 		}
-		return {};
+		isVouched = true;
 	}
-	return null;
+	return isVouched ? {} : null;
 };
 
 const contributorKey = (rawHandle: string): string => {
@@ -180,7 +189,7 @@ const trustedBaseCheckout = {
 	name: "Checkout contributor check implementation",
 	uses: checkoutAction,
 	with: {
-		ref: "${{ github.event.pull_request.head.repo.full_name == github.repository && github.sha || github.event.pull_request.base.sha }}",
+		ref: "${{ github.event.pull_request.base.sha }}",
 		"persist-credentials": false,
 	},
 } as const;
@@ -195,9 +204,9 @@ const setupNode = {
 const prepareHollywood = [
 	trustedBaseCheckout,
 	setupNode,
-	{ name: "Install dependencies", run: "npm ci" },
-	{ name: "Build Hollywood", run: "npm run build" },
-	{ name: "Build local actions", run: "npm run actions" },
+	{ name: "Install dependencies", run: installDependenciesCommand },
+	{ name: "Build Hollywood", run: buildHollywoodCommand },
+	{ name: "Build local actions", run: buildLocalActionsCommand },
 ] as const;
 
 const contributorWith = {
@@ -213,11 +222,13 @@ export const cla = workflow({
 			branches: ["main"],
 			types: ["opened", "reopened", "synchronize", "ready_for_review"],
 		},
+		merge_group: { types: ["checks_requested"] },
 	},
 	permissions: { contents: "read" },
 	jobs: {
 		cla: job({
 			name: "CLA",
+			if: eq(github.eventName, "pull_request"),
 			"runs-on": "ubuntu-latest",
 			steps: [
 				...prepareHollywood,
@@ -229,6 +240,7 @@ export const cla = workflow({
 		}),
 		vouch: job({
 			name: "Vouch",
+			if: eq(github.eventName, "pull_request"),
 			"runs-on": "ubuntu-latest",
 			needs: "cla",
 			steps: [

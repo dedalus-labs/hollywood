@@ -1,4 +1,4 @@
-# Quick Start
+# Quick start
 
 ## 1. Write a script
 
@@ -69,21 +69,31 @@ The CLI can run the same exported action:
 
 ```bash
 npx hollywood run gha/containers/publish-image.ts \
+  --export publishImage \
+  --provider container \
   --with image=ghcr.io/acme/api \
   --with tag=sha-abc123 \
   --with provenance=false
 ```
 
-For Linux VM execution on macOS, add `--lima <name>`:
+Select `docker`, `podman`, or Apple `container`. Hollywood runs the bundled
+action with Node 24 in one Linux container. Pin a custom runner image by
+digest:
 
 ```bash
 npx hollywood run gha/containers/publish-image.ts \
-  --lima default \
-  --start-vm \
+  --export publishImage \
+  --provider docker \
+  --image ghcr.io/acme/runner@sha256:<digest> \
   --with image=ghcr.io/acme/api \
   --with tag=sha-abc123 \
   --with provenance=false
 ```
+
+Use `hollywood runner jit-config` and `hollywood runner listen` when the test
+must execute GitHub's official listener and worker. The listener can run on a
+local workstation or a remote host. See
+[Run a GitHub job locally or remotely](../usage/github-runner.md).
 
 ## 3. Generate action files
 
@@ -132,7 +142,23 @@ This writes:
 .github/actions/publish-container-image/src/index.ts
 ```
 
-## 4. Call it from workflow YAML
+## 4. Bundle the action
+
+```bash
+npx hollywood build
+```
+
+This writes the JavaScript entrypoint that GitHub executes:
+
+```text
+.github/actions/publish-container-image/dist/index.js
+```
+
+Commit the generated metadata, entrypoint, and bundle together. A workflow may
+instead build an ignored bundle in an earlier step, but the bundle must exist
+before a local `uses:` step runs.
+
+## 5. Call it from workflow YAML
 
 ```yaml
 jobs:

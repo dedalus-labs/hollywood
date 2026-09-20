@@ -1,7 +1,15 @@
 import * as assert from "node:assert/strict";
 import { test } from "vitest";
 
-import { action, choiceInput, integerInput, runAction, stringOutput, type ScriptLog } from "./script";
+import {
+	action,
+	choiceInput,
+	integerInput,
+	runAction,
+	stringOutput,
+	summaryText,
+	type ScriptLog,
+} from "./script";
 import { nodeExec } from "./local";
 
 const silentLog: ScriptLog = {
@@ -186,6 +194,27 @@ test("action calls keep child inputs typed", () => {
 			},
 		});
 		void parentAction;
+	}
+	assert.ok(true);
+});
+
+test("summary tables require explicitly formatted cells", () => {
+	if (process.env["HOLLYWOOD_TYPE_TESTS"] === "1") {
+		const summaryAction = action({
+			name: "summary-action",
+			description: "Exercise summary cell types.",
+			inputs: {},
+			outputs: {},
+			run: async ({ summary }) => {
+				await summary.table("summary", [
+					{ label: "Result", value: summaryText("PASS") },
+					// @ts-expect-error Summary values must use summaryText or summaryCode.
+					{ label: "Raw", value: "PASS" },
+				]);
+				return {};
+			},
+		});
+		void summaryAction;
 	}
 	assert.ok(true);
 });

@@ -1,0 +1,448 @@
+import { action, stringInput, stringOutput } from "../src/index";
+
+const manifestPath = ".release-please-manifest.json";
+
+export const detectReleaseComponents = action({
+	name: "Detect release components",
+	description: "Identify the Release Please component versions changed by the current commit.",
+	localActionPath: "detect-release-components",
+	inputs: {
+		before: stringInput({ description: "Git revision before the release commit.", default: "" }),
+		current: stringInput({ description: "Current release commit revision." }),
+	},
+	outputs: {
+		hollywood: stringOutput({ description: "Whether the npm package version changed." }),
+		hollywoodTag: stringOutput({ description: "Expected npm package release tag." }),
+		runner: stringOutput({ description: "Whether the runner image version changed." }),
+		runnerTag: stringOutput({ description: "Expected runner image release tag." }),
+	},
+	run: async ({ exec, fs, input }) => {
+		assertRevision(input.current);
+		const before =
+			input.before === ""
+				? (await exec("git", ["rev-parse", `${input.current}^`])).stdout.trim()
+				: input.before;
+		assertRevision(before);
+		const previous = parseReleaseManifest(
+			(await exec("git", ["show", `${before}:${manifestPath}`])).stdout,
+			`${before}:${manifestPath}`,
+		);
+		const current = parseReleaseManifest(await fs.readText(manifestPath), manifestPath);
+		assertVersionSource(
+			"package.json",
+			releaseVersion(
+				parseJsonRecord(await fs.readText("package.json"), "package.json")["version"],
+				".",
+				"package.json",
+			),
+			current.hollywood,
+		);
+		if (current.runner !== undefined) {
+			assertVersionSource(
+				"runner/version.txt",
+				releaseVersion(
+					(await fs.readText("runner/version.txt")).trim(),
+					"runner",
+					"runner/version.txt",
+				),
+				current.runner,
+			);
+		}
+		const hollywood = previous.hollywood !== current.hollywood;
+		const runner = current.runner !== undefined && previous.runner !== current.runner;
+		if (!hollywood && !runner) {
+			throw new Error("Release manifest changed without changing a configured component version.");
+		}
+		return {
+			hollywood: String(hollywood),
+			hollywoodTag: hollywood ? `v${current.hollywood}` : "",
+			runner: String(runner),
+			runnerTag: runner ? `runner-v${current.runner}` : "",
+		};
+	},
+});
+
+export const publishDraftReleases = action({
+	name: "Publish draft releases",
+	description: "Publish validated component drafts as immutable GitHub releases.",
+	localActionPath: "publish-draft-releases",
+	inputs: {
+		hollywoodTag: stringInput({ description: "Hollywood release tag.", default: "" }),
+		repository: stringInput({ description: "GitHub owner/repository name." }),
+		runnerTag: stringInput({ description: "Runner release tag.", default: "" }),
+		token: stringInput({ description: "GitHub token with release write access." }),
+	},
+	outputs: {},
+	run: async ({ exec, input }) => {
+		assertRepository(input.repository);
+		const tags = [input.hollywoodTag, input.runnerTag].filter((tag) => tag !== "");
+		if (tags.length === 0) {
+			throw new Error("At least one release tag is required.");
+		}
+		for (const tag of tags) {
+			assertReleaseTag(tag);
+		}
+
+		const options = { env: { GH_TOKEN: input.token } };
+		const releases = parseGitHubReleasePages(
+			(
+				await exec(
+					"gh",
+					[
+						"api",
+						"--paginate",
+						"--slurp",
+						`repos/${input.repository}/releases?per_page=100`,
+					],
+					options,
+				)
+			).stdout,
+		);
+		for (const tag of tags) {
+			const release = releaseForTag(releases, tag);
+			if (!release.draft) {
+				assertImmutableRelease(release);
+				continue;
+			}
+
+			const published = parseGitHubRelease(
+				(
+					await exec(
+						"gh",
+						[
+							"api",
+							`repos/${input.repository}/releases/${release.id}`,
+							"--method",
+							"PATCH",
+							"-F",
+							"draft=false",
+						],
+						options,
+					)
+				).stdout,
+				tag,
+			);
+			assertImmutableRelease(published);
+		}
+
+		return {};
+	},
+});
+
+export const validateReleaseCandidate = action({
+	name: "Validate release candidate",
+	description: "Validate release manifest versions against immutable GitHub releases.",
+	localActionPath: "validate-release-candidate",
+	inputs: {
+		repository: stringInput({ description: "GitHub owner/repository name." }),
+	},
+	outputs: {},
+	run: async ({ exec, fs, input }) => {
+		assertRepository(input.repository);
+		const manifest = parseReleaseManifest(await fs.readText(manifestPath), manifestPath);
+		const releases = parseGitHubReleaseRecords(
+			(
+				await exec("gh", [
+					"api",
+					"--paginate",
+					`repos/${input.repository}/releases?per_page=100`,
+					"--jq",
+					".[] | {draft, id, immutable, tag_name}",
+				])
+			).stdout,
+		);
+
+		validateComponentRelease(releases, {
+			label: "Hollywood",
+			tagPrefix: "v",
+			version: manifest.hollywood,
+		});
+		if (manifest.runner !== undefined) {
+			validateComponentRelease(releases, {
+				label: "Runner",
+				tagPrefix: "runner-v",
+				version: manifest.runner,
+			});
+		}
+		return {};
+	},
+});
+
+type GitHubRelease = Readonly<{
+	draft: boolean;
+	id: number;
+	immutable: boolean;
+	tagName: string;
+}>;
+
+type ReleaseComponent = Readonly<{
+	label: string;
+	tagPrefix: "runner-v" | "v";
+	version: string;
+}>;
+
+type StableVersion = Readonly<{
+	major: number;
+	minor: number;
+	patch: number;
+	value: string;
+}>;
+
+const validateComponentRelease = (
+	releases: readonly Readonly<Record<string, unknown>>[],
+	component: ReleaseComponent,
+): void => {
+	const candidateTag = `${component.tagPrefix}${component.version}`;
+	const candidate = stableVersion(component.version, component.label);
+	if (candidate === undefined) {
+		validatePublishedCandidate(releases, candidateTag);
+		return;
+	}
+	const published = releases
+		.flatMap((record) => stableComponentRelease(record, component))
+		.sort((left, right) => compareVersions(left.version, right.version));
+	const latest = published.at(-1);
+
+	if (latest === undefined) {
+		if (candidate.value !== "0.0.1") {
+			throw new Error(
+				`First ${component.label.toLowerCase()} release must be ${component.tagPrefix}0.0.1; received ${candidateTag}.`,
+			);
+		}
+		return;
+	}
+
+	if (compareVersions(candidate, latest.version) === 0) {
+		assertImmutableRelease(latest.release);
+		return;
+	}
+	assertImmutableRelease(latest.release);
+	if (!isNextVersion(latest.version, candidate)) {
+		throw new Error(
+			`${component.label} release ${candidateTag} must increment ${latest.release.tagName} exactly once.`,
+		);
+	}
+};
+
+const validatePublishedCandidate = (
+	releases: readonly Readonly<Record<string, unknown>>[],
+	tag: string,
+): void => {
+	const matches = releases.filter((release) => release["tag_name"] === tag);
+	if (matches.length > 1) {
+		throw new Error(`Expected at most one GitHub release for ${tag}; found ${matches.length}.`);
+	}
+	const record = matches[0];
+	if (record === undefined) {
+		return;
+	}
+	const release = parseGitHubReleaseRecord(record, tag);
+	if (!release.draft) {
+		assertImmutableRelease(release);
+	}
+};
+
+const stableComponentRelease = (
+	record: Readonly<Record<string, unknown>>,
+	component: ReleaseComponent,
+): readonly Readonly<{ release: GitHubRelease; version: StableVersion }>[] => {
+	const tag = record["tag_name"];
+	if (typeof tag !== "string" || !tag.startsWith(component.tagPrefix)) {
+		return [];
+	}
+	const release = parseGitHubReleaseRecord(record, tag);
+	if (release.draft) {
+		return [];
+	}
+	const value = tag.slice(component.tagPrefix.length);
+	if (value.includes("-")) {
+		releaseVersion(value, component.label, tag);
+		return [];
+	}
+	const version = stableVersion(value, component.label);
+	if (version === undefined) {
+		throw new Error(`GitHub release ${tag} must contain a stable SemVer version.`);
+	}
+	return [
+		{
+			release,
+			version,
+		},
+	];
+};
+
+const stableVersion = (value: string, component: string): StableVersion | undefined => {
+	releaseVersion(value, component, "release manifest");
+	const match = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.exec(value);
+	if (match === null) {
+		return undefined;
+	}
+	return {
+		major: Number(match[1]),
+		minor: Number(match[2]),
+		patch: Number(match[3]),
+		value,
+	};
+};
+
+const compareVersions = (left: StableVersion, right: StableVersion): number =>
+	left.major - right.major || left.minor - right.minor || left.patch - right.patch;
+
+const isNextVersion = (previous: StableVersion, candidate: StableVersion): boolean =>
+	(candidate.major === previous.major &&
+		candidate.minor === previous.minor &&
+		candidate.patch === previous.patch + 1) ||
+	(candidate.major === previous.major &&
+		candidate.minor === previous.minor + 1 &&
+		candidate.patch === 0) ||
+	(candidate.major === previous.major + 1 && candidate.minor === 0 && candidate.patch === 0);
+
+const parseGitHubReleaseRecords = (
+	source: string,
+): readonly Readonly<Record<string, unknown>>[] =>
+	source
+		.split("\n")
+		.filter((line) => line !== "")
+		.map((line, index) => parseJsonRecord(line, `GitHub release record ${index}`));
+
+const parseGitHubRelease = (source: string, expectedTag: string): GitHubRelease => {
+	const record = parseJsonRecord(source, `GitHub release ${expectedTag}`);
+	return parseGitHubReleaseRecord(record, expectedTag);
+};
+
+const parseGitHubReleaseRecord = (
+	record: Readonly<Record<string, unknown>>,
+	expectedTag: string,
+): GitHubRelease => {
+	const id = record["id"];
+	const tagName = record["tag_name"];
+	const draft = record["draft"];
+	const immutable = record["immutable"];
+	if (!Number.isSafeInteger(id) || (id as number) <= 0) {
+		throw new Error(`GitHub release ${expectedTag} must contain a positive integer id.`);
+	}
+	if (tagName !== expectedTag) {
+		throw new Error(`GitHub release tag ${String(tagName)} does not match ${expectedTag}.`);
+	}
+	if (typeof draft !== "boolean" || typeof immutable !== "boolean") {
+		throw new Error(`GitHub release ${expectedTag} must contain draft and immutable booleans.`);
+	}
+	return { draft, id: id as number, immutable, tagName };
+};
+
+const parseGitHubReleasePages = (source: string): readonly Readonly<Record<string, unknown>>[] => {
+	const value = parseJsonValue(source, "GitHub release pages");
+	if (!Array.isArray(value)) {
+		throw new Error("GitHub release pages must contain a JSON array.");
+	}
+	return value.flatMap((page, pageIndex) => {
+		if (!Array.isArray(page)) {
+			throw new Error(`GitHub release page ${pageIndex} must contain a JSON array.`);
+		}
+		return page.map((release, releaseIndex) =>
+			jsonRecord(release, `GitHub release page ${pageIndex} item ${releaseIndex}`),
+		);
+	});
+};
+
+const releaseForTag = (
+	releases: readonly Readonly<Record<string, unknown>>[],
+	tag: string,
+): GitHubRelease => {
+	const matches = releases.filter((release) => release["tag_name"] === tag);
+	if (matches.length !== 1) {
+		throw new Error(`Expected one GitHub release for ${tag}; found ${matches.length}.`);
+	}
+	return parseGitHubReleaseRecord(matches[0] as Readonly<Record<string, unknown>>, tag);
+};
+
+const assertImmutableRelease = (release: GitHubRelease): void => {
+	if (release.draft) {
+		throw new Error(`Release ${release.tagName} is still a draft.`);
+	}
+	if (!release.immutable) {
+		throw new Error(`Release ${release.tagName} is published but is not immutable.`);
+	}
+};
+
+const assertRepository = (value: string): void => {
+	if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(value)) {
+		throw new Error(`GitHub repository must use owner/name form: ${value}.`);
+	}
+};
+
+const assertReleaseTag = (value: string): void => {
+	const version = value.startsWith("runner-v")
+		? value.slice("runner-v".length)
+		: value.startsWith("v")
+			? value.slice(1)
+			: "";
+	releaseVersion(version, "tag", value);
+};
+
+type ReleaseManifest = Readonly<{
+	hollywood: string;
+	runner?: string;
+}>;
+
+const parseReleaseManifest = (source: string, name: string): ReleaseManifest => {
+	const record = parseJsonRecord(source, name);
+	const keys = Object.keys(record).sort();
+	if (
+		!((keys.length === 1 && keys[0] === ".") ||
+			(keys.length === 2 && keys[0] === "." && keys[1] === "runner"))
+	) {
+		throw new Error("Release manifest must contain '.' and may contain 'runner'.");
+	}
+	return {
+		hollywood: releaseVersion(record["."], ".", name),
+		...(record["runner"] === undefined
+			? {}
+			: { runner: releaseVersion(record["runner"], "runner", name) }),
+	};
+};
+
+const parseJsonRecord = (source: string, name: string): Record<string, unknown> => {
+	return jsonRecord(parseJsonValue(source, name), name);
+};
+
+const parseJsonValue = (source: string, name: string): unknown => {
+	let value: unknown;
+	try {
+		value = JSON.parse(source) as unknown;
+	} catch (error: unknown) {
+		throw new Error(`${name} is not valid JSON.`, { cause: error });
+	}
+	return value;
+};
+
+const jsonRecord = (value: unknown, name: string): Record<string, unknown> => {
+	if (value === null || typeof value !== "object" || Array.isArray(value)) {
+		throw new Error(`${name} must contain a JSON object.`);
+	}
+	return value as Record<string, unknown>;
+};
+
+const assertVersionSource = (name: string, actual: string, expected: string): void => {
+	if (actual !== expected) {
+		throw new Error(`${name} version ${actual} does not match release manifest version ${expected}.`);
+	}
+};
+
+const releaseVersion = (value: unknown, component: string, name: string): string => {
+	if (
+		typeof value !== "string" ||
+		!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.test(
+			value,
+		)
+	) {
+		throw new Error(`${name} component '${component}' must contain a SemVer version.`);
+	}
+	return value;
+};
+
+const assertRevision = (value: string): void => {
+	if (!/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(value)) {
+		throw new Error(`Release base must be a full Git object ID: ${value}.`);
+	}
+};

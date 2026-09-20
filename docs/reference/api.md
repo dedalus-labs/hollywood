@@ -1,22 +1,33 @@
-# API Surface
+# API surface
 
 Hollywood's current application programming interface (API) surface is
 intentionally small.
 
 ## Script authoring
 
-| API            | Purpose                                               |
-| -------------- | ----------------------------------------------------- |
-| `action`       | Define a typed script action.                         |
-| `stringInput`  | Read a required or defaulted string input.            |
-| `integerInput` | Parse a string input into an integer.                 |
-| `booleanInput` | Parse a string input into a boolean.                  |
-| `choiceInput`  | Restrict a string input to a closed set of values.    |
-| `pathInput`    | Mark an input as a filesystem path.                   |
-| `stringOutput` | Declare a string output.                              |
-| `call`         | Invoke a child action with typed inputs inside `run`. |
-| `exec`         | Run an executable plus argument array inside `run`.   |
-| `expr`         | Validate and wrap a GitHub Actions expression.        |
+| API             | Purpose                                                   |
+| --------------- | --------------------------------------------------------- |
+| `action`        | Define a typed script action.                             |
+| `stringInput`   | Read a required or defaulted string input.                |
+| `integerInput`  | Parse a string input into an integer.                     |
+| `booleanInput`  | Parse a string input into a boolean.                      |
+| `choiceInput`   | Restrict a string input to a closed set of values.        |
+| `pathInput`     | Mark an input as a filesystem path.                       |
+| `stringOutput`  | Declare a string output.                                  |
+| `call`          | Invoke a child action with typed inputs inside `run`.     |
+| `exec`          | Run an executable plus argument array inside `run`.       |
+| `summary.table` | Write a sanitized GitHub step-summary table inside `run`. |
+| `summaryCode`   | Render a summary cell as escaped inline code.             |
+| `summaryText`   | Render a summary cell as escaped plain text.              |
+| `expr`          | Validate and wrap a GitHub Actions expression.            |
+
+## Step Summary Tables
+
+`summary.table(title, rows)` writes one table to the GitHub step summary. The
+title and each row label are escaped plain text. Row values must be
+`summaryText(value)` for plain text or `summaryCode(value)` for inline code.
+Hollywood does not accept raw HTML, Markdown, or bare string values in table
+cells.
 
 ## Expressions
 
@@ -47,15 +58,27 @@ authoring can keep orchestration imports separate from script/action imports.
 
 ## Runtime adapters
 
-| API               | Purpose                                                                      |
-| ----------------- | ---------------------------------------------------------------------------- |
-| `runAction`       | Run a script with explicit filesystem, executor, logger, and runner context. |
-| `runGitHubAction` | Run a script through `@actions/core` and `@actions/exec`.                    |
-| `nodeExec`        | Execute commands on the local machine.                                       |
-| `nodeFs`          | Read local files.                                                            |
-| `nodeLog`         | Write local logs to stdout and stderr.                                       |
-| `limaExec`        | Route command execution through `limactl shell`.                             |
-| `limaRunner`      | Read the guest runner uid/gid from a Lima VM.                                |
+| API                               | Purpose                                                                      |
+| --------------------------------- | ---------------------------------------------------------------------------- |
+| `runAction`                       | Run a script with explicit filesystem, executor, logger, and runner context. |
+| `runGitHubAction`                 | Run a script through `@actions/core` and `@actions/exec`.                    |
+| `RunGitHubActionOptions.logColor` | Control command-log color: `auto`, `always`, or `never`.                    |
+| `nodeExec`                        | Execute commands on the local machine.                                       |
+| `nodeFs`                          | Read local files.                                                            |
+| `nodeLog`                         | Write local logs to stdout and stderr.                                       |
+| `withContainer`                   | Own one Docker, Podman, or Apple container action session.                   |
+| `parseEncodedGitHubJitConfig`     | Validate and brand a GitHub JIT runner configuration.                        |
+| `readEncodedGitHubJitConfig`      | Read and validate a GitHub JIT runner configuration file.                    |
+| `parseGitHubRepository`           | Validate and brand an `OWNER/REPOSITORY` name.                               |
+| `parseGitHubApiToken`             | Validate and brand a GitHub API token.                                       |
+| `defineGitHubRunnerJitRegistration` | Validate and brand JIT runner registration options.                        |
+| `generateGitHubRepositoryRunnerJitConfig` | Request a repository JIT configuration with GitHub OpenAPI types.   |
+| `writeEncodedGitHubJitConfig`     | Create a mode-`0600` JIT file without replacing an existing file.            |
+| `runGitHubRunner`                 | Run one GitHub-scheduled job with the official runner.                       |
+| `probeRunner`                     | Capture a sanitized, typed runner inventory.                                 |
+| `defineRunnerContract`            | Define the required operating system, paths, and tools.                      |
+| `verifyRunner`                    | Compare a runner probe with its required contract.                           |
+| `compareRunnerProbes`             | Classify contract, inventory, and provider drift.                            |
 
 ## Action runtime import
 
@@ -81,8 +104,6 @@ pulling workflow generation or YAML validation code into every bundled action.
 | `generateWorkflowFile`         | Produce a flattened workflow file object.                  |
 | `workflow`                     | Type a GitHub workflow definition without extra runtime.   |
 | `job`                          | Type a GitHub workflow job without extra runtime.          |
-| `pathDependencies`             | Define typed path-gated jobs and their detector job.       |
-| `matchPathDependency`          | Test a path dependency pattern list locally.               |
 | `writeGeneratedFiles`          | Write generated files under an explicit output directory.  |
 
 `GitHubWorkflow` types cover the orchestration fields Hollywood emits today:
@@ -90,16 +111,17 @@ pulling workflow generation or YAML validation code into every bundled action.
 `env`, `if`, and mutually exclusive `run`/`uses` steps. `queue: max` is typed
 so it cannot be combined with `cancel-in-progress`.
 
-`pathDependencies` models the standard required-check-safe path gating shape:
-run the workflow, detect changed paths once, then guard downstream jobs with
-typed `needs.<job>.outputs.<name> == 'true'` expressions.
-
 ## CLI
 
-| Command              | Purpose                                                    |
-| -------------------- | ---------------------------------------------------------- |
-| `hollywood generate` | Discover exported actions and workflows from source files. |
-| `hollywood run`      | Run one exported Hollywood action locally.                 |
+| Command                   | Purpose                                                    |
+| ------------------------- | ---------------------------------------------------------- |
+| `hollywood generate`      | Discover exported actions and workflows from source files. |
+| `hollywood run`           | Run one exported Hollywood action locally.                 |
+| `hollywood runner jit-config` | Create one repository JIT runner configuration.         |
+| `hollywood runner listen` | Run one GitHub job with the official Actions runner.       |
+| `hollywood runner probe`  | Write a sanitized runner inventory.                        |
+| `hollywood runner verify` | Verify a probe against a runner contract.                   |
+| `hollywood runner compare` | Classify drift between two runner probes.                  |
 
 The command infers `gha/**/*.ts` or `ci/**/*.ts` from the repository:
 
@@ -121,22 +143,26 @@ The source root, root import alias, and generated output directories are CLI
 options, not hardcoded paths. Hollywood infers `@` from a `tsconfig.json`
 `@/*` path alias when present.
 
-Run an action on the host:
+Run an action with an explicit provider:
 
 ```bash
-npx hollywood run gha/s3-cache.ts --with mode=restore
+npx hollywood run gha/s3-cache.ts --export s3Cache --provider docker --with mode=restore
 ```
 
-Run the same action with command execution routed through Lima:
+The default image is GitHub's official minimal Actions runner image, pinned by
+digest. Override it only with another digest-pinned image:
 
 ```bash
-npx hollywood run gha/s3-cache.ts --lima kvm --start-vm --with mode=restore
+npx hollywood run gha/s3-cache.ts \
+  --export s3Cache \
+  --provider podman \
+  --image ghcr.io/acme/runner@sha256:<digest> \
+  --with mode=restore
 ```
 
-`--require-containerd` checks `containerd` and `nerdctl` before the action
-starts. `--require-kvm` checks readable and writable `/dev/kvm` before the
-action starts. The exact backend command shape is documented in
-[Lima](../backends/lima.md).
+The exact lifecycle and compatibility boundary are documented in [Execution
+Backends](../backends/index.md). The reproducible image and its publication
+contract are documented in [Runner Image](../backends/runner-image.md).
 
 ## Validation
 
@@ -146,9 +172,3 @@ action starts. The exact backend command shape is documented in
 | `validateWorkflowContent`          | Return parser diagnostics for a workflow file.         |
 | `assertValidActionMetadataContent` | Throw if action metadata is invalid.                   |
 | `assertValidWorkflowContent`       | Throw if workflow YAML is invalid.                     |
-
-## Environment probing
-
-| API                    | Purpose                                             |
-| ---------------------- | --------------------------------------------------- |
-| `probeLimaEnvironment` | Check whether the named Lima environment is usable. |

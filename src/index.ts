@@ -22,6 +22,11 @@ export type {
 	ScriptFs,
 	ScriptLog,
 	ScriptActionServices,
+	ScriptSummary,
+	SummaryCell,
+	SummaryCode,
+	SummaryTableRow,
+	SummaryText,
 	WorkflowInputValues,
 } from "./script";
 export {
@@ -33,14 +38,88 @@ export {
 	runAction,
 	stringInput,
 	stringOutput,
+	summaryCode,
+	summaryText,
 } from "./script";
 
 export { currentRunner, nodeExec, nodeFs, nodeLog } from "./local";
+export type {
+	RunnerContract,
+	RunnerDifference,
+	RunnerPackageProbe,
+	RunnerPathProbe,
+	RunnerProbe,
+	RunnerToolProbe,
+} from "./runner-contract";
+export {
+	compareRunnerProbes,
+	defineRunnerContract,
+	parseRunnerContract,
+	parseRunnerProbe,
+	verifyRunner,
+} from "./runner-contract";
+export type {
+	RunnerArchitecture,
+	RunnerEnvironmentName,
+	RunnerPathEnvironmentName,
+	RunnerToolName,
+} from "./runner-schema";
+export { runnerProbeSchemaVersion } from "./runner-schema";
+export type { RunnerProbeSource } from "./runner";
+export {
+	probeRunner,
+	readRunnerContract,
+	readRunnerProbe,
+	writeRunnerProbe,
+} from "./runner";
+export type {
+	ContainerOptions,
+	ContainerProvider,
+	ContainerServices,
+} from "./container";
+export {
+	ContainerProviderUnavailableError,
+	githubActionsRunnerImage,
+	githubActionsRunnerVersion,
+	withContainer,
+	withLocalContainer,
+} from "./container";
+export type {
+	EncodedGitHubJitConfig,
+	GitHubRunnerContainerEngine,
+	GitHubRunnerHooks,
+	GitHubRunnerOptions,
+	GitHubRunnerProcess,
+} from "./github-runner";
+export {
+	parseEncodedGitHubJitConfig,
+	readEncodedGitHubJitConfig,
+	runGitHubRunner,
+} from "./github-runner";
+export type {
+	GenerateGitHubRepositoryRunnerJitConfigOptions,
+	GitHubApiToken,
+	GitHubRepository,
+	GitHubRunnerApiRequest,
+	GitHubRunnerApiResponse,
+	GitHubRunnerApiServices,
+	GitHubRunnerJitRegistration,
+	GitHubRunnerJitRegistrationOptions,
+} from "./github-runner-api";
+export {
+	defineGitHubRunnerJitRegistration,
+	generateGitHubRepositoryRunnerJitConfig,
+	GitHubRunnerApiError,
+	parseGitHubApiToken,
+	parseGitHubRepository,
+	writeEncodedGitHubJitConfig,
+} from "./github-runner-api";
 export type {
 	GitHubCore,
 	GitHubExec,
 	GitHubExecOptions,
 	GitHubInputOptions,
+	GitHubLogColor,
 	RunGitHubActionOptions,
 } from "./github";
 export { runGitHubAction } from "./github";
@@ -52,6 +131,7 @@ export type {
 	GitHubActionMetadata,
 	GitHubActionOutputMetadata,
 	GitHubConcurrency,
+	GitHubCommandStep,
 	GitHubEnvironmentVariables,
 	GitHubExpressionString,
 	GitHubJobOutputs,
@@ -72,13 +152,21 @@ export type {
 	GitHubStrategy,
 	GitHubUsesStepOptions,
 	GitHubUsesStep,
+	GitHubUnsafeShellStep,
 	GitHubWithValues,
 	GitHubWorkflowCallWithValues,
 	GitHubWorkflow,
 	GitHubWorkflowFile,
 	GitHubWorkflowJob,
+	GitHubWorkflowOptions,
 	GitHubWorkflowStep,
 } from "./generate";
+export type {
+	GitHubMergeGroupTrigger,
+	GitHubWorkflowDispatchInput,
+	GitHubWorkflowDispatchTrigger,
+	GitHubWorkflowTriggers,
+} from "./workflow-triggers";
 export {
 	generateActionEntrypointFile,
 	generateActionFile,
@@ -86,6 +174,7 @@ export {
 	generateActionMetadata,
 	generateUsesStep,
 	generateWorkflowFile,
+	InvalidWorkflowFilenameError,
 	job,
 	localAction,
 	renderActionFile,
@@ -93,6 +182,14 @@ export {
 	uses,
 	workflow,
 } from "./generate";
+
+export type {
+	UnsafeShell,
+	WorkflowCommand,
+	WorkflowCommandOptions,
+	WorkflowRun,
+} from "./workflow-command";
+export { command, unsafeShell } from "./workflow-command";
 
 export type {
 	GitHubExpression,
@@ -129,19 +226,10 @@ export {
 	selectString,
 	secret,
 	stepOutput,
+	startsWith,
 	success,
 	valueOr,
 } from "./expressions";
-
-export type {
-	GitHubPathDependencies,
-	GitHubPathDependency,
-	GitHubPathDependencyDefinitions,
-	GitHubPathDependencyJobOptions,
-	GitHubPathPattern,
-	GitHubPathPatternList,
-} from "./paths";
-export { matchPathDependency, pathDependencies } from "./paths";
 
 export type {
 	AccountName,
@@ -167,7 +255,11 @@ export type {
 	RenderedGeneratedFile,
 	WriteGeneratedFilesOptions,
 } from "./files";
-export { renderGeneratedFile, writeGeneratedFiles } from "./files";
+export {
+	GeneratedFilePathCollisionError,
+	renderGeneratedFile,
+	writeGeneratedFiles,
+} from "./files";
 
 export type { GitHubYamlFile, GitHubYamlValidation, GitHubYamlValidationError } from "./validation";
 export {
@@ -176,11 +268,3 @@ export {
 	validateActionMetadataContent,
 	validateWorkflowContent,
 } from "./validation";
-
-export type {
-	LimaContainerRuntime,
-	LimaEnvironmentProbe,
-	LimaEnvironmentResult,
-	LimaExecOptions,
-} from "./lima";
-export { limaExec, limaRunner, probeLimaEnvironment } from "./lima";

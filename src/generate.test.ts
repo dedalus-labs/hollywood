@@ -8,6 +8,7 @@ import {
 	generateActionMetadata,
 	generateUsesStep,
 	generateWorkflowFile,
+	InvalidWorkflowFilenameError,
 	job,
 	localAction,
 	renderActionFile,
@@ -18,6 +19,7 @@ import {
 	type GitHubWorkflowStep,
 } from "./generate";
 import { defineMatrix, expr } from "./expressions";
+import { command } from "./workflow-command";
 import {
 	action,
 	integerInput,
@@ -531,6 +533,45 @@ test("generateWorkflowFile flattens nested workflow sources into .github workflo
 	);
 });
 
+test("generateWorkflowFile honors an explicit workflow filename", () => {
+	const namedWorkflow = workflow(
+		{
+			name: "Container Release",
+			on: { workflow_dispatch: {} },
+			jobs: {},
+		},
+		{ filename: "release.yml" },
+	);
+
+	const file = generateWorkflowFile({
+		sourcePath: "automation/cd/container.ts",
+		sourceRoot: "automation",
+		workflowsDir: ".github/workflows",
+		workflow: namedWorkflow,
+	});
+
+	assert.equal(file.path, ".github/workflows/release.yml");
+	assert.doesNotMatch(renderWorkflowFile(file), /filename/);
+});
+
+test.each([
+	"",
+	" release.yml",
+	"release.yml ",
+	"../release.yml",
+	"nested/release.yml",
+	"nested\\release.yml",
+	".yml",
+	"release.txt",
+	"release.YML",
+	"r\u00e9lease.yml",
+])("workflow rejects invalid explicit filename %j", (filename) => {
+	assert.throws(
+		() => workflow({ name: "Release", on: { workflow_dispatch: {} }, jobs: {} }, { filename }),
+		InvalidWorkflowFilenameError,
+	);
+});
+
 test("renderWorkflowFile validates workflow before returning YAML", () => {
 	const usesStep = generateUsesStep(publishImage, {
 		name: "Publish container image",
@@ -580,7 +621,7 @@ test("renderWorkflowFile supports common GitHub orchestration fields", () => {
 		generatedAt: new Date("2026-05-14T00:00:00.000Z"),
 		workflow: workflow({
 			name: "Go S3 Cache",
-			on: { workflow_dispatch: {} },
+			on: { merge_group: { types: ["checks_requested"] }, workflow_dispatch: {} },
 			permissions: { contents: "read", "id-token": "write" },
 			concurrency: {
 				group: expr("format('go-s3-cache-{0}', github.ref)"),
@@ -632,6 +673,7 @@ test("renderWorkflowFile supports common GitHub orchestration fields", () => {
 	const content = renderWorkflowFile(workflowFile);
 
 	assert.match(content, /queue: max/);
+	assert.match(content, /merge_group:\n    types:\n      - checks_requested/);
 	assert.match(content, /max-parallel: 2/);
 	assert.match(content, /cancel-in-progress: \$\{\{ !contains\(github.ref, 'release\/'\) \}\}/);
 	assert.match(content, /id-token: write/);
@@ -702,7 +744,7 @@ test("workflow steps cannot be both run and uses steps", () => {
 		// @ts-expect-error A GitHub step must choose either run or uses.
 		const step: GitHubWorkflowStep = {
 			name: "Invalid",
-			run: "echo hi",
+			run: command({ file: "echo", args: ["hi"] }),
 			uses: "actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10",
 		};
 		void step;
@@ -744,12 +786,12 @@ test("renderWorkflowFile emits duplicate objects without YAML aliases", () => {
 				first: job({
 					"runs-on": "ubuntu-latest",
 					permissions,
-					steps: [{ run: "true" }],
+					steps: [{ run: command({ file: "true", args: [] }) }],
 				}),
 				second: job({
 					"runs-on": "ubuntu-latest",
 					permissions,
-					steps: [{ run: "true" }],
+					steps: [{ run: command({ file: "true", args: [] }) }],
 				}),
 			},
 		}),

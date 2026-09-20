@@ -52,6 +52,10 @@ void runGitHubAction(publishImage);
 
 `runGitHubAction` uses GitHub's official TypeScript packages. Inputs and
 outputs go through `@actions/core`. Commands go through `@actions/exec`.
+Child output streams unchanged unless the command requests `{ output: "capture" }`.
+Captured output remains available to the action without flooding the job log.
+Hollywood adds a compact command group, elapsed status, and failure annotation
+without replaying the child output or printing a runtime stack trace.
 
 ## Action composition
 
@@ -77,7 +81,48 @@ export const release = action({
 ```
 
 `call` does not create nested workflow steps. It invokes the child action in the
-same runtime with the same `exec`, `fs`, `log`, and `runner` services.
+same runtime with the same `exec`, `fs`, `log`, `runner`, and `summary` services.
+
+## Command log color
+
+`runGitHubAction` colors command status lines in `auto` mode in GitHub Actions
+and interactive terminals. `NO_COLOR`, `NODE_DISABLE_COLORS`,
+`FORCE_COLOR=0`, and `FORCE_COLOR=false` disable automatic color. Other
+`FORCE_COLOR` values enable it. Set `logColor: "never"` when another log
+collector renders terminal color codes literally, or `logColor: "always"` when
+testing colored output.
+
+```typescript
+await runGitHubAction(integrationTest, { logColor: "never" });
+```
+
+GitHub step summaries do not use terminal color codes. They are rendered as
+escaped HTML.
+
+## Step summaries
+
+Use `summary.table` for GitHub step summaries. Titles and labels are escaped
+plain text. Values must be explicitly formatted with `summaryText` or
+`summaryCode`. There is no raw HTML or Markdown cell format.
+
+```typescript
+import { action, summaryCode, summaryText } from "@dedalus-labs/hollywood/action-runtime";
+
+export const integrationTest = action({
+	name: "integration-test",
+	description: "Run a live integration test.",
+	inputs,
+	outputs: {},
+	run: async ({ input, summary }) => {
+		await summary.table("Integration test", [
+			{ label: "Environment", value: summaryCode(input.environment) },
+			{ label: "API base", value: summaryCode(input.apiBase) },
+			{ label: "Result", value: summaryText("PASS") },
+		]);
+		return {};
+	},
+});
+```
 
 ## Workflow files
 
@@ -120,7 +165,7 @@ generateWorkflowFile({
 				],
 			}),
 		},
-	}),
+	}, { filename: "container-release.yml" }),
 });
 ```
 
@@ -136,69 +181,76 @@ becomes:
 .github/workflows/containers-release.yml
 ```
 
-GitHub gets the flat shape it requires. The source tree keeps the nested shape
-humans want.
+## Workflow commands
 
-## Path-dependent CI jobs
-
-Use `pathDependencies` when a workflow should stay scheduled but specific jobs
-should only run for relevant files. This is the safe shape for required checks:
-GitHub path filters can leave skipped workflows pending, while job guards keep
-the workflow result explicit.
+Use `command` for a workflow step that starts one process. Provide the executable
+and argument vector as separate values.
 
 ```typescript
-import {
-	generateWorkflowFile,
-	job,
-	pathDependencies,
-	workflow,
-} from "@dedalus-labs/hollywood";
+import { command, job } from "@dedalus-labs/hollywood";
 
-const changes = pathDependencies("changes", {
-	terraform: [
-		"infra/terraform/**",
-		".github/actions/terraform/**",
-	],
-	web: [
-		"apps/web/**",
-		"packages/ui/**",
-		"!apps/web/docs/**",
-	],
-});
-
-generateWorkflowFile({
-	sourcePath: "gha/platform/static-validation.ts",
-	sourceRoot: "gha",
-	workflowsDir: ".github/workflows",
-	workflow: workflow({
-		name: "Platform Static Validation",
-		on: {
-			pull_request: { paths: changes.workflowPaths },
-		},
-		jobs: {
-			[changes.jobId]: changes.job(),
-			infracost: job({
-				name: "Terraform cost",
-				needs: changes.jobId,
-				if: changes.terraform.changed,
-				"runs-on": "ubuntu-24.04",
-				steps: [{ uses: "./.github/actions/terraform/infracost" }],
-			}),
-			web_checks: job({
-				name: "Web checks",
-				needs: changes.jobId,
-				if: changes.web.changed,
-				"runs-on": "ubuntu-24.04",
-				steps: [{ run: "npm test" }],
+job({
+	"runs-on": "ubuntu-latest",
+	steps: [
+		{
+			name: "Test",
+			run: command({
+				file: "npm",
+				args: ["test", "--", "src/release.test.ts"],
 			}),
 		},
-	}),
+	],
 });
 ```
 
-`workflowPaths` contains positive patterns only. Negative patterns still apply
-inside the generated detector job, so a workflow can start conservatively
-without accidentally skipping another dependency.
+Hollywood quotes literal arguments and selects `bash`. The selected runner must
+provide `bash`. Hollywood does not select another shell when `bash` is missing.
+
+Pass a complete GitHub expression as one argument. Hollywood moves the expression
+into a generated environment variable and quotes the variable expansion. This
+prevents expression data from becoming shell syntax.
+
+```typescript
+import { command, github } from "@dedalus-labs/hollywood";
+
+command({
+	file: "printf",
+	args: ["actor=%s\\n", github.actor],
+});
+```
+
+Do not combine a literal and an expression in one argument. Use `format` to
+produce one complete expression when the child process needs a combined value.
+
+Use a typed local `action` for multiple commands, branching, loops, file access,
+or output parsing. Call `exec` once for each process. This path uses
+`@actions/exec` and does not generate shell control flow.
+
+### Unsafe shell escape hatch
+
+Use `unsafeShell` only when a workflow step requires shell syntax that Hollywood
+cannot represent with `command` or a typed local action. Document the missing
+first-class operation in a source comment when it is not apparent from the
+script.
+
+```typescript
+import { unsafeShell } from "@dedalus-labs/hollywood";
+
+// Hollywood does not provide a structured pipeline step.
+unsafeShell("printf '%s\\n' ok | tee result.txt");
+```
+
+`unsafeShell` does not quote, parse, or validate the script. The selected shell
+controls its behavior. Treat all interpolated values as untrusted and pass
+GitHub expressions through step environment variables instead of script text.
+
+Pass `{ filename: "container-release.yml" }` to `workflow` when the output name
+must be independent of the source layout. Hollywood rejects directory paths,
+non-portable names, unsupported extensions, and case-insensitive collisions
+before writing any generated file.
+
+GitHub gets the flat shape it requires. The source tree keeps the nested shape
+humans want.
 
 ## Validation
 
@@ -243,8 +295,15 @@ can generate:
     workflows-cache-example.yml
 ```
 
-The generated action still needs bundling to `dist/index.js` before GitHub can
-run it. The workflow YAML can be committed as-is.
+Bundle generated actions before GitHub runs them:
+
+```bash
+npx hollywood build
+```
+
+Commit `dist/index.js` with the generated action, or build an ignored bundle in
+an earlier workflow step before calling the local action. The workflow YAML can
+be committed as-is.
 
 The CLI prints one line per generated file:
 

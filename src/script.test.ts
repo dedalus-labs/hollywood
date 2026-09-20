@@ -66,6 +66,7 @@ test("action run emits execve-shaped commands", async () => {
 			return { exitCode: 0, stdout: "", stderr: "" };
 		},
 		runner: { uidGid: "1001:1001" },
+		summary: { table: async () => {} },
 	});
 
 	assert.deepEqual(commands, [

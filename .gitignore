@@ -1,7 +1,11 @@
 node_modules/
+.venv/
 .github/actions/**/dist/
 .DS_Store
 .cache/
 coverage/
 site/
 *.tgz
+.hollywood/
+.hollywood-jit-config
+dist/

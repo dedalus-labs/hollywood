@@ -1,10 +1,13 @@
 import * as assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "vitest";
 
-import { buildActions, check, createCli, generate, run } from "./commands";
+import { buildActions, check, createCli, generate } from "./commands";
+import { GeneratedFilePathCollisionError } from "./files";
+
+const runnerImage = `ghcr.io/example/runner@sha256:${"a".repeat(64)}`;
 
 test("generate discovers exported actions from source files", async () => {
 	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
@@ -84,6 +87,44 @@ test("generate discovers exported workflows from globbed source files", async ()
 	);
 });
 
+test("generate rejects case-insensitive workflow filename collisions before writing", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
+	const cdSource = join(root, "automation/cd/release.ts");
+	const ciSource = join(root, "automation/ci/release.ts");
+	await symlink(join(process.cwd(), "node_modules"), join(root, "node_modules"), "dir");
+
+	const source = (name: string, filename: string): readonly string[] => [
+		'import { workflow } from "@dedalus-labs/hollywood";',
+		`export const release = workflow({ name: "${name}", on: { push: {} }, jobs: {} },`,
+		`  { filename: "${filename}" });`,
+		"",
+	];
+	await writeSource(cdSource, source("Release", "release.yml"));
+	await writeSource(ciSource, source("Verify release", "RELEASE.yml"));
+
+	await assert.rejects(
+		() =>
+			generate(
+				{
+					actionsDir: ".github/actions",
+					output: root,
+					sourceRoot: "automation",
+					sources: [join(root, "automation/**/*.ts")],
+					workflowsDir: ".github/workflows",
+				},
+				{ writeOut: () => {} },
+			),
+		(error: unknown) =>
+			error instanceof GeneratedFilePathCollisionError &&
+			/generated file path collision: .*release\.yml.*automation\/cd\/release\.ts#release.*automation\/ci\/release\.ts#release/is.test(
+				error.message,
+			),
+	);
+	await assert.rejects(() => readFile(join(root, ".github/workflows/release.yml"), "utf8"), {
+		code: "ENOENT",
+	});
+});
+
 test("generate ignores test sources matched by workflow globs", async () => {
 	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
 	const sourcePath = join(root, "ci/containers/release.ts");
@@ -91,13 +132,15 @@ test("generate ignores test sources matched by workflow globs", async () => {
 	const output: string[] = [];
 
 	await writeSource(sourcePath, [
+		`import { command } from ${JSON.stringify(join(process.cwd(), "src/index.ts"))};`,
+		"",
 		"export const containerRelease = {",
 		'  name: "Container Release",',
 		"  on: { workflow_dispatch: {} },",
 		"  jobs: {",
 		"    test: {",
 		'      "runs-on": "ubuntu-latest",',
-		'      steps: [{ run: "echo ok" }],',
+		'      steps: [{ run: command({ file: "echo", args: ["ok"] }) }],',
 		"    },",
 		"  },",
 		"};",
@@ -262,139 +305,6 @@ test("createCli passes root import aliases to generated action entrypoints", asy
 	);
 });
 
-test("run executes an exported action on the host", async () => {
-	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
-	const sourcePath = join(root, "ci/hello.ts");
-	const output: string[] = [];
-
-	await writeSource(sourcePath, [
-		"export const hello = {",
-		'  name: "hello",',
-		'  description: "Say hello.",',
-		"  inputs: { name: { kind: 'string', description: 'Name.' } },",
-		"  outputs: { greeting: { description: 'Greeting.' } },",
-		"  run: async ({ input }) => ({ greeting: `hello ${input.name}` }),",
-		"};",
-		"",
-	]);
-
-	await run(
-		{
-			exportName: "hello",
-			inputs: ["name=Hollywood"],
-			requireContainerd: false,
-			requireKvm: false,
-			source: sourcePath,
-			startVm: false,
-		},
-		{ writeOut: (message) => output.push(message) },
-	);
-
-	assert.deepEqual(output, ["output\tgreeting=hello Hollywood\n"]);
-});
-
-test("run infers the only exported action", async () => {
-	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
-	const sourcePath = join(root, "ci/hello.ts");
-	const output: string[] = [];
-
-	await writeSource(sourcePath, [
-		"export const hello = {",
-		'  name: "hello",',
-		'  description: "Say hello.",',
-		"  inputs: { name: { kind: 'string', description: 'Name.' } },",
-		"  outputs: { greeting: { description: 'Greeting.' } },",
-		"  run: async ({ input }) => ({ greeting: `hello ${input.name}` }),",
-		"};",
-		"",
-	]);
-
-	await run(
-		{
-			inputs: ["name=Hollywood"],
-			requireContainerd: false,
-			requireKvm: false,
-			source: sourcePath,
-			startVm: false,
-		},
-		{ writeOut: (message) => output.push(message) },
-	);
-
-	assert.deepEqual(output, ["output\tgreeting=hello Hollywood\n"]);
-});
-
-test("run requires export name when a source has multiple actions", async () => {
-	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
-	const sourcePath = join(root, "ci/hello.ts");
-
-	await writeSource(sourcePath, [
-		"const action = {",
-		'  name: "hello",',
-		'  description: "Say hello.",',
-		"  inputs: {},",
-		"  outputs: {},",
-		"  run: async () => ({}),",
-		"};",
-		"export const first = action;",
-		"export const second = action;",
-		"",
-	]);
-
-	await assert.rejects(
-		() =>
-			run(
-				{
-					inputs: [],
-					requireContainerd: false,
-					requireKvm: false,
-					source: sourcePath,
-					startVm: false,
-				},
-				{ writeOut: () => {} },
-			),
-		/multiple Hollywood actions exported: first, second; pass --export/,
-	);
-});
-
-test("run bundles source package imports before loading", async () => {
-	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
-	const sourcePath = join(root, "ci/hello.ts");
-	const output: string[] = [];
-	await writeSource(join(root, "node_modules/hello-helper/package.json"), [
-		'{ "name": "hello-helper", "version": "0.0.0", "type": "module", "main": "index.js" }',
-		"",
-	]);
-	await writeSource(join(root, "node_modules/hello-helper/index.js"), [
-		"export const greeting = (name) => `hello ${name}`;",
-		"",
-	]);
-	await writeSource(sourcePath, [
-		'import { greeting } from "hello-helper";',
-		"export const hello = {",
-		'  name: "hello",',
-		'  description: "Say hello.",',
-		"  inputs: { name: { kind: 'string', description: 'Name.' } },",
-		"  outputs: { greeting: { description: 'Greeting.' } },",
-		"  run: async ({ input }) => ({ greeting: greeting(input.name) }),",
-		"};",
-		"",
-	]);
-
-	await run(
-		{
-			exportName: "hello",
-			inputs: ["name=Hollywood"],
-			requireContainerd: false,
-			requireKvm: false,
-			source: sourcePath,
-			startVm: false,
-		},
-		{ writeOut: (message) => output.push(message) },
-	);
-
-	assert.deepEqual(output, ["output\tgreeting=hello Hollywood\n"]);
-});
-
 test("createCli parses space-separated run command", async () => {
 	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
 	const sourcePath = join(root, "ci/hello.ts");
@@ -411,16 +321,33 @@ test("createCli parses space-separated run command", async () => {
 		"",
 	]);
 
-	await createCli({ writeOut: (message) => output.push(message) }).parseAsync([
+	await createCli(
+		{ writeOut: (message) => output.push(message) },
+		{
+			run: async (options, io) => {
+				assert.equal(options.exportName, "default");
+				assert.equal(options.provider, "docker");
+				assert.equal(options.image, runnerImage);
+				assert.deepEqual(options.inputs, ["name=Hollywood"]);
+				io.writeOut("parsed\n");
+			},
+		},
+	).parseAsync([
 		"node",
 		"hollywood",
 		"run",
 		sourcePath,
+		"--export",
+		"default",
+		"--provider",
+		"docker",
+		"--image",
+		runnerImage,
 		"--with",
 		"name=Hollywood",
 	]);
 
-	assert.deepEqual(output, ["output\tgreeting=hello Hollywood\n"]);
+	assert.deepEqual(output, ["parsed\n"]);
 });
 
 test("check accepts pinned workflows", async () => {
@@ -611,80 +538,6 @@ test("createCli parses space-separated build command", async () => {
 	);
 });
 
-test("run wraps action commands in Lima when requested", async () => {
-	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
-	const sourcePath = join(root, "ci/uname.ts");
-	const output: string[] = [];
-	const originalPath = process.env["PATH"];
-	const binDir = join(root, "bin");
-	const logPath = join(root, "limactl.log");
-	await mkdir(binDir, { recursive: true });
-	await writeFile(
-		join(binDir, "limactl"),
-		[
-			"#!/usr/bin/env node",
-			"const fs = require('node:fs');",
-			"const args = process.argv.slice(2);",
-			`fs.appendFileSync(${JSON.stringify(logPath)}, JSON.stringify(args) + "\\n");`,
-			"if (args[0] === 'list') { console.log(JSON.stringify({ name: 'kvm', status: 'Running' })); process.exit(0); }",
-			"const command = args.slice(args.indexOf('--') + 1);",
-			"if (command[0] === 'uname') { console.log('Linux'); process.exit(0); }",
-			"if (command[0] === 'id' && command[1] === '-u') { console.log('1000'); process.exit(0); }",
-			"if (command[0] === 'id' && command[1] === '-g') { console.log('1000'); process.exit(0); }",
-			"process.exit(1);",
-		].join("\n"),
-		{ mode: 0o755 },
-	);
-	await writeSource(sourcePath, [
-		"export const uname = {",
-		'  name: "uname",',
-		'  description: "Report guest OS.",',
-		"  inputs: {},",
-		"  outputs: { os: { description: 'OS.' }, uidGid: { description: 'Runner uid/gid.' } },",
-		"  run: async ({ exec, runner }) => {",
-		"    const result = await exec('uname', ['-s']);",
-		"    return { os: result.stdout.trim(), uidGid: runner.uidGid };",
-		"  },",
-		"};",
-		"",
-	]);
-
-	process.env["PATH"] = `${binDir}${process.platform === "win32" ? ";" : ":"}${originalPath ?? ""}`;
-	try {
-		await run(
-			{
-				exportName: "uname",
-				inputs: [],
-				lima: "kvm",
-				requireContainerd: false,
-				requireKvm: false,
-				source: sourcePath,
-				startVm: true,
-			},
-			{ writeOut: (message) => output.push(message) },
-		);
-	} finally {
-		restoreEnv("PATH", originalPath);
-	}
-
-	assert.deepEqual(output, ["output\tos=Linux\n", "output\tuidGid=1000:1000\n"]);
-	const commands = (await readFile(logPath, "utf8"))
-		.trim()
-		.split("\n")
-		.map((line) => JSON.parse(line) as readonly string[]);
-	assert.deepEqual(commands.at(0), ["list", "--json"]);
-	assert.deepEqual(commands.at(1), ["shell", "kvm", "--", "uname", "-s"]);
-	assert.deepEqual(commands.at(-1), [
-		"shell",
-		"--tty=false",
-		"--start",
-		"kvm",
-		"--",
-		"uname",
-		"-s",
-	]);
-});
-
 test("generate rejects patterns that match no files", async () => {
 	const root = await mkdtemp(join(tmpdir(), "hollywood-cli-"));
 
@@ -733,24 +586,18 @@ const writeSource = async (path: string, lines: readonly string[]): Promise<void
 
 const writeWorkflowSource = async (root: string): Promise<void> => {
 	await writeSource(join(root, "ci/ci.ts"), [
+		`import { command } from ${JSON.stringify(join(process.cwd(), "src/index.ts"))};`,
+		"",
 		"export const ci = {",
 		'  name: "CI",',
 		"  on: { push: {} },",
 		"  jobs: {",
 		"    test: {",
 		'      "runs-on": "ubuntu-latest",',
-		"      steps: [{ run: 'echo ok' }],",
+		"      steps: [{ run: command({ file: 'echo', args: ['ok'] }) }],",
 		"    },",
 		"  },",
 		"};",
 		"",
 	]);
-};
-
-const restoreEnv = (name: string, value: string | undefined): void => {
-	if (value === undefined) {
-		delete process.env[name];
-		return;
-	}
-	process.env[name] = value;
 };

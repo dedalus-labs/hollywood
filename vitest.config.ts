@@ -21,6 +21,6 @@ export default defineConfig({
 	},
 	test: {
 		environment: "node",
-		include: ["src/**/*.test.ts", "examples/**/*.test.ts"],
+		include: ["src/**/*.test.ts", "gha/**/*.test.ts", "examples/**/*.test.ts"],
 	},
 });

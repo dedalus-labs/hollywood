@@ -1,14 +1,26 @@
 {
 	"$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
 	"packages": {
-		".": {}
+		".": {
+			"exclude-paths": [
+				"runner"
+			]
+		},
+		"runner": {
+			"component": "runner",
+			"include-component-in-tag": true,
+			"initial-version": "0.0.1",
+			"pull-request-title-pattern": "release(runner): ${version}",
+			"release-type": "simple"
+		}
 	},
+	"separate-pull-requests": true,
+	"draft": true,
+	"force-tag-creation": true,
 	"include-v-in-tag": true,
 	"include-component-in-tag": false,
-	"versioning": "prerelease",
-	"prerelease": true,
 	"bump-minor-pre-major": true,
-	"bump-patch-for-minor-pre-major": false,
+	"bump-patch-for-minor-pre-major": true,
 	"pull-request-title-pattern": "release: ${version}",
 	"changelog-sections": [
 		{

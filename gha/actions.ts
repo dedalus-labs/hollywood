@@ -1,3 +1,5 @@
+import { command } from "../src/index";
+
 export const checkoutAction =
 	"actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10"; // v6.0.3
 
@@ -5,10 +7,7 @@ export const setupNodeAction =
 	"actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e"; // v6.4.0
 
 export const setupPythonAction =
-	"actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405"; // v6.2.0
-
-export const actionlintAction =
-	"rhysd/actionlint@a443f344ff32813837fa49f7aa6cbc478d770e62"; // v1.7.9
+	"actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97"; // v7.0.0
 
 export const createGitHubAppTokenAction =
 	"actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1"; // v3.2.0
@@ -22,4 +21,37 @@ export const uploadPagesArtifactAction =
 export const deployPagesAction =
 	"actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128"; // v5.0.0
 
-export const checkHollywoodStateCommand = "node dist/cli.js check";
+export const uploadArtifactAction =
+	"actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02"; // v4
+
+export const dockerLoginAction =
+	"docker/login-action@dbcb813823bdd20940b903addbd779551569679f"; // v4.6.0
+
+export const dockerSetupBuildxAction =
+	"docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f"; // v3
+
+export const dockerSetupQemuAction =
+	"docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8"; // v4.2.0
+
+export const dockerBuildPushAction =
+	"docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8"; // v6
+
+export const attestBuildProvenanceAction =
+	"actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661"; // v3
+
+export const installDependenciesCommand = command({ file: "npm", args: ["ci"] });
+export const auditDependenciesCommand = command({
+	file: "npm",
+	args: ["audit", "--audit-level=high"],
+});
+export const verifyRegistrySignaturesCommand = command({
+	file: "npm",
+	args: ["audit", "signatures"],
+});
+export const lintCommand = command({ file: "npm", args: ["run", "lint"] });
+export const typecheckCommand = command({ file: "npm", args: ["run", "typecheck"] });
+export const testCommand = command({ file: "npm", args: ["test"] });
+export const buildHollywoodCommand = command({ file: "npm", args: ["run", "build"] });
+export const buildLocalActionsCommand = command({ file: "npm", args: ["run", "actions"] });
+export const checkPackageContentsCommand = command({ file: "npm", args: ["run", "package"] });
+export const checkHollywoodStateCommand = command({ file: "node", args: ["dist/cli.js", "check"] });

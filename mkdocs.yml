@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 site_name: Hollywood
-site_description: TypeScript scripts for GitHub Actions, without shell-in-YAML.
+site_description: Typed TypeScript definitions and runtime adapters for GitHub Actions.
 site_url: https://oss.dedaluslabs.ai/hollywood
 repo_url: https://github.com/dedalus-labs/hollywood
 repo_name: dedalus-labs/hollywood
@@ -57,14 +57,13 @@ plugins:
   - llmstxt:
       full_output: llms-full.txt
       markdown_description: |
-        Hollywood is an AI-native TypeScript scripting library for GitHub Actions.
-        It moves imperative CI/CD logic out of YAML and into testable scripts
-        while generating ordinary action.yml files, workflow YAML, and
-        GitHub-compatible action entrypoints.
+        Hollywood generates GitHub Actions from typed TypeScript definitions.
+        It runs actions through explicit local adapters and can run one
+        GitHub-scheduled job with the official Actions runner.
         Key features: typed inputs, typed outputs, execve-shaped command
         arguments, local script tests, generated GitHub Actions files,
-        upstream GitHub Actions schema validation, MinIO/LocalStack-style
-        service dogfood, and Lima-backed local action runs.
+        upstream GitHub Actions schema validation, MinIO/LocalStack integration
+        tests, and Docker, Podman, or Apple container-backed local action runs.
       sections:
         Getting Started:
           - getting-started/installation.md
@@ -73,14 +72,11 @@ plugins:
           - usage/scripts.md
           - usage/github-actions.md
           - usage/local-testing.md
+          - usage/github-runner.md
           - usage/local-services.md
         Backends:
           - backends/index.md
-          - backends/lima.md
-          - backends/container.md
-          - backends/docker.md
-          - backends/smolmachines.md
-          - backends/pacman.md
+          - backends/runner-image.md
         Recipes:
           - recipes/s3-cache.md
           - recipes/publish-container-image.md
@@ -144,14 +140,11 @@ nav:
       - Scripts: usage/scripts.md
       - Generated GitHub Actions: usage/github-actions.md
       - Local Testing: usage/local-testing.md
+      - GitHub Runner Execution: usage/github-runner.md
       - Local Services: usage/local-services.md
   - Backends:
       - Overview: backends/index.md
-      - Lima: backends/lima.md
-      - Apple Container: backends/container.md
-      - Docker: backends/docker.md
-      - smolmachines: backends/smolmachines.md
-      - Arch / pacman: backends/pacman.md
+      - Runner Image: backends/runner-image.md
   - Recipes:
       - Overview: recipes/index.md
       - S3 Cache: recipes/s3-cache.md

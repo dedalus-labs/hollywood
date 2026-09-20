@@ -25,6 +25,20 @@ export type WriteGeneratedFilesOptions = Readonly<{
 	outputDir: string;
 }>;
 
+export class GeneratedFilePathCollisionError extends Error {
+	readonly paths: readonly string[];
+	readonly sources: readonly string[];
+
+	constructor(first: GeneratedFile, second: GeneratedFile) {
+		const paths = [first.path, second.path];
+		const sources = [generatedFileSource(first), generatedFileSource(second)];
+		super(`generated file path collision: ${paths.join(" and ")} from ${sources.join(" and ")}`);
+		this.name = "GeneratedFilePathCollisionError";
+		this.paths = paths;
+		this.sources = sources;
+	}
+}
+
 export const renderGeneratedFile = (file: GeneratedFile): RenderedGeneratedFile => ({
 	sourcePath: file.sourcePath,
 	path: file.path,
@@ -35,6 +49,7 @@ export const writeGeneratedFiles = async (
 	files: readonly GeneratedFile[],
 	options: WriteGeneratedFilesOptions,
 ): Promise<readonly GeneratedFileWriteResult[]> => {
+	assertUniqueGeneratedPaths(files);
 	const results: GeneratedFileWriteResult[] = [];
 	for (const file of files) {
 		const rendered = renderGeneratedFile(file);
@@ -48,6 +63,23 @@ export const writeGeneratedFiles = async (
 		});
 	}
 	return results;
+};
+
+const generatedFileSource = (file: GeneratedFile): string =>
+	"sourceExport" in file && file.sourceExport !== undefined
+		? `${file.sourcePath}#${file.sourceExport}`
+		: file.sourcePath;
+
+const assertUniqueGeneratedPaths = (files: readonly GeneratedFile[]): void => {
+	const paths = new Map<string, GeneratedFile>();
+	for (const file of files) {
+		const key = file.path.normalize("NFC").toLowerCase();
+		const existing = paths.get(key);
+		if (existing !== undefined) {
+			throw new GeneratedFilePathCollisionError(existing, file);
+		}
+		paths.set(key, file);
+	}
 };
 
 const generatedFileContent = (file: GeneratedFile): string => {

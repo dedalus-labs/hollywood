@@ -22,6 +22,7 @@ export default defineConfig([
 		format: "esm",
 		platform: "node",
 		target,
+		tsconfig: "./tsconfig.build.json",
 	},
 	{
 		banner: { js: banner },
@@ -43,5 +44,19 @@ export default defineConfig([
 		format: "esm",
 		platform: "node",
 		target,
+		tsconfig: "./tsconfig.build.json",
+	},
+	{
+		banner: { js: banner },
+		clean: false,
+		define: productionDefines,
+		deps: { neverBundle },
+		dts: false,
+		entry: { "runner-launch": "src/runner-launch.ts" },
+		fixedExtension: false,
+		format: "esm",
+		platform: "node",
+		target,
+		tsconfig: "./tsconfig.build.json",
 	},
 ]);
