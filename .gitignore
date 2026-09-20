@@ -8,3 +8,4 @@ site/
 *.tgz
 .hollywood/
 .hollywood-jit-config
+dist/

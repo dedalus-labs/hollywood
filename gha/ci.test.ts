@@ -4,6 +4,7 @@ import { test } from "vitest";
 
 import { currentRunner, nodeFs, runAction, type Command } from "../src/index";
 import { assertSha256, ci, testContainerProvider } from "./ci";
+import { validateReleaseCandidate } from "./release-actions";
 
 test("artifact checksum verification accepts only matching contents", () => {
 	const contents = Buffer.from("Hollywood");
@@ -21,6 +22,19 @@ test("container provider tests run through a typed local action", () => {
 		uses: "./.github/actions/test-container-provider",
 	});
 });
+
+test("required CI validates the release manifest against published releases", () => {
+	const actionlint = ci.jobs.actionlint;
+	assert.ok(actionlint !== undefined && "steps" in actionlint);
+	assert.deepEqual(actionlint.steps.at(-3), {
+		env: { GH_TOKEN: "${{ github.token }}" },
+		name: "Validate release candidate",
+		uses: "./.github/actions/validate-release-candidate",
+		with: { repository: "${{ github.repository }}" },
+	});
+	assert.equal(validateReleaseCandidate.localActionPath, "validate-release-candidate");
+});
+
 test("container provider integration files share one runtime at a time", async () => {
 	const commands: Command[] = [];
 	await runAction(testContainerProvider, {
