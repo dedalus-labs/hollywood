@@ -33,3 +33,9 @@ Two mutants remove the wait and failure guards. Each must violate its named
 safety invariant. Three witnesses require traces reaching successful
 continuation, a failed join, and a cancelled join. Syntax errors, timeouts,
 wrong violations, and missing traces fail the checker, including negative runs.
+
+The required `Actionlint` CI job runs this checker on pull requests and merge
+groups admitted by the repository's existing CI trust policy. It verifies the
+pinned TLC download and saves `parallel-model-receipts` even when a check fails.
+The generator tests separately verify grouped command rendering and reject
+conflicting fields and nested groups. Neither check establishes hosted runner behavior.
