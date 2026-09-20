@@ -601,3 +601,33 @@ const writeWorkflowSource = async (root: string): Promise<void> => {
 		"",
 	]);
 };
+
+test("dependency advice warns without failing or changing workflow YAML", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hollywood-lint-"));
+	const output: string[] = [];
+	await writeSource(join(root, "gha/ci.ts"), [
+		'export const ci = { name: "CI", on: { push: {} }, jobs: {',
+		'  test: { "runs-on": "ubuntu-latest", steps: [{ uses: "./.github/actions/test" }] },',
+		'  deploy: { "runs-on": "ubuntu-latest", needs: ["test"], if: "always()", steps: [{ uses: "./.github/actions/deploy" }] },',
+		"} };",
+	]);
+	const cli = createCli({ writeOut: (message) => output.push(message) });
+	await cli.parseAsync(["check", "--rule", "no-unnecessary-needs", "--output", root], {
+		from: "user",
+	});
+	assert.match(output.join(""), /warn\[no-unnecessary-needs\].*deploy.*ordering/);
+	assert.doesNotMatch(output.join(""), /error\[/);
+	await assert.rejects(readFile(join(root, ".github/workflows/ci.yml")), /ENOENT/);
+});
+
+test.each([
+	["--rule", "typo", /unknown lint rule/],
+	["--rule-level", "error", /unknown option/],
+	["--rule-level", "warn", /unknown option/],
+	["--rule-level", "typo", /unknown option/],
+])("check rejects %s %s", async (flag, value, message) => {
+	const cli = createCli({ writeOut: () => {} });
+	for (const subcommand of cli.commands)
+		subcommand.exitOverride().configureOutput({ writeErr: () => {} });
+	await assert.rejects(cli.parseAsync(["check", flag, value], { from: "user" }), message);
+});

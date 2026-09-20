@@ -275,10 +275,10 @@ export const failure = (): GitHubExpression<boolean> => expr("failure()");
 
 export const success = (): GitHubExpression<boolean> => expr("success()");
 
-function parseGitHubExpression(body: string): void {
+export function parseGitHubExpression(body: string) {
 	try {
 		const tokens = new Lexer(body).lex().tokens;
-		new Parser(tokens, githubExpressionContexts(), githubExpressionFunctions()).parse();
+		return new Parser(tokens, githubExpressionContexts(), githubExpressionFunctions()).parse();
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		throw new Error(`invalid GitHub expression: ${message}`);

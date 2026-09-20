@@ -14,6 +14,9 @@ import { NoOperationTraceWriter } from "@actions/workflow-parser/templates/trace
 import { WORKFLOW_ROOT } from "@actions/workflow-parser/workflows/workflow-constants";
 import { YamlObjectReader } from "@actions/workflow-parser/workflows/yaml-object-reader";
 
+import type { GitHubWorkflow } from "./generate";
+import { checkUnnecessaryNeeds } from "./lint/no-unnecessary-needs";
+
 export type GitHubYamlFile = Readonly<{
 	name: string;
 	content: string;
@@ -22,6 +25,38 @@ export type GitHubYamlFile = Readonly<{
 export type GitHubYamlValidationError = Readonly<{
 	message: string;
 }>;
+
+export type LintRule = "no-unnecessary-needs";
+
+export type ValidationOptions = Readonly<{
+	rules?: readonly LintRule[];
+}>;
+
+export type LintIssue = Readonly<{
+	ruleId: LintRule;
+	message: string;
+	jobId: string;
+}>;
+
+export const parseLintRule = (rule: string): LintRule => {
+	if (rule !== "no-unnecessary-needs") throw new Error(`unknown lint rule: ${rule}`);
+	return rule;
+};
+
+/** Returns advisory findings without changing declared job dependencies. */
+export const validateWorkflowModel = (
+	workflow: GitHubWorkflow,
+	options: ValidationOptions = {},
+): Readonly<{ warnings: readonly LintIssue[] }> => {
+	if ("level" in options) throw new Error("advisory lint does not accept a severity level");
+	const rules = options.rules?.map(parseLintRule) ?? [];
+	const warnings = rules.includes("no-unnecessary-needs")
+		? Object.entries(workflow.jobs).flatMap(([id, job]) =>
+				checkUnnecessaryNeeds(id, job, workflow.jobs),
+			)
+		: [];
+	return { warnings };
+};
 
 export type GitHubYamlValidation =
 	| Readonly<{ status: "valid"; errors: readonly [] }>

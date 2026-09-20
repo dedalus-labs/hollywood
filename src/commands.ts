@@ -9,6 +9,7 @@ import { build } from "esbuild";
 import { glob } from "tinyglobby";
 import { parse } from "yaml";
 
+import { parseLintRule, validateWorkflowModel, type LintRule } from "./validation";
 import {
 	generateActionEntrypointFile,
 	generateActionFile,
@@ -57,6 +58,7 @@ export type RunOptions = Readonly<{
 
 export type CheckOptions = Readonly<{
 	generated: boolean;
+	rule?: readonly LintRule[];
 	output: string;
 	rootImportAlias?: string;
 	sourceRoot?: string;
@@ -106,15 +108,17 @@ export const createCli = (
 		.description("Run Hollywood repository checks")
 		.option("--generated", "Check generated files are current", false)
 		.option("--workflow-security", "Check workflow security policy", false)
+		.option("--rule <rules...>", "Run advisory lint rules")
 		.option("-o, --output <dir>", "Repository root", ".")
 		.option("--root-import-alias <alias>", "Import alias for repository-root-relative action sources")
 		.option("--source-root <dir>", "Workflow source root")
 		.option("--workflows-dir <dir>", "Generated workflows directory", ".github/workflows")
 		.action(async (options) => {
-			const selected = options.generated || options.workflowSecurity;
+			const selected = options.generated || options.workflowSecurity || options.rule !== undefined;
 			await check(
 				{
 					generated: selected ? options.generated : true,
+					...(options.rule === undefined ? {} : { rule: options.rule.map(parseLintRule) }),
 					output: options.output,
 					...(options.rootImportAlias === undefined ? {} : { rootImportAlias: options.rootImportAlias }),
 					...(options.sourceRoot === undefined ? {} : { sourceRoot: options.sourceRoot }),
@@ -208,9 +212,27 @@ export const run = async (options: RunOptions, io: CliIo): Promise<void> => {
 };
 
 export const check = async (options: CheckOptions, io: CliIo): Promise<void> => {
+	options.rule?.forEach(parseLintRule);
 	const resolved = await resolveCheckOptions(options);
 	if (resolved.workflowSecurity) {
 		await checkWorkflowSecurity(resolved, io);
+	}
+	if (options.rule !== undefined) {
+		const sources = await resolveSourceFiles([
+			`${resolve(resolved.output, resolved.sourceRoot)}/**/*.ts`,
+		]);
+		for (const source of sources) {
+			const module = await loadHollywoodModule(source);
+			for (const value of Object.values(module)) {
+				if (!isGitHubWorkflow(value)) continue;
+				const { warnings } = validateWorkflowModel(value, { rules: options.rule });
+				for (const warning of warnings) {
+					io.writeOut(
+						`warn[${warning.ruleId}] ${relative(resolved.output, source)} (${value.name}): ${warning.message}\n`,
+					);
+				}
+			}
+		}
 	}
 	if (resolved.generated) {
 		await checkGeneratedFiles(resolved, io);

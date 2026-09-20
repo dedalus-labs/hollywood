@@ -261,10 +261,18 @@ export {
 	writeGeneratedFiles,
 } from "./files";
 
-export type { GitHubYamlFile, GitHubYamlValidation, GitHubYamlValidationError } from "./validation";
+export type {
+	GitHubYamlFile,
+	GitHubYamlValidation,
+	GitHubYamlValidationError,
+	LintIssue,
+	LintRule,
+	ValidationOptions,
+} from "./validation";
 export {
 	assertValidActionMetadataContent,
 	assertValidWorkflowContent,
 	validateActionMetadataContent,
 	validateWorkflowContent,
+	validateWorkflowModel,
 } from "./validation";
