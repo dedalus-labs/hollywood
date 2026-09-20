@@ -30,6 +30,8 @@ defines scheduling and the concurrency limit. Native parallel-step support must
 be enabled in GitHub. Older workflow linters may reject the syntax. The
 repository's pinned Actionlint 1.7.12 does, so its own validation
 workflow keeps its existing step order.
+The bounded join model in `models/README.md` checks the wait and failure
+contract. It does not verify the GitHub runner.
 ## Script authoring
 
 | API             | Purpose                                                   |
