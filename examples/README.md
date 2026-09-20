@@ -60,6 +60,12 @@ Generated workflow usage:
     provenance: "true"
 ```
 
+## Provider Selection
+
+[provider-selection.ts](provider-selection.ts) selects one provider before a
+payload starts. It demonstrates one canary dispatch, bounded read retries,
+cancellation before secondary selection, and a virtual clock for timeout tests.
+
 ## GitHub Promotion API
 
 [github-promotion-admin.ts](github-promotion-admin.ts) shows the outside
