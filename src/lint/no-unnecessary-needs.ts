@@ -1,58 +1,54 @@
-import { ContextAccess, type Expr, type ExprVisitor, IndexAccess, Literal, Star } from "@actions/expressions/ast";
+import {
+	ContextAccess,
+	type Expr,
+	type ExprVisitor,
+	Literal,
+	Star,
+} from "@actions/expressions/ast";
 import { StringData } from "@actions/expressions/data/string";
+
+import { parseGitHubExpression } from "../expressions";
 import type { GitHubWorkflowJob, GitHubWorkflowJobs } from "../generate";
-import { parseGitHubExpressionAST, isGitHubExpression, expressionBody } from "../expressions";
 import type { LintIssue } from "../validation";
 
-
- // Recursively extracts all expression bodies and raw string values from an object/array.
- 
-function extractExpressionsAndStrings(value: unknown): string[] {
-	const results: string[] = [];
+function* expressionBodies(value: unknown): Generator<string> {
 	if (typeof value === "string") {
-		results.push(value);
-		if (isGitHubExpression(value)) {
-			try {
-				results.push(expressionBody(value));
-			} catch {
-				// Ignore malformed wrapper
+		let start = value.indexOf("${{");
+		while (start !== -1) {
+			let quoted = false;
+			let end = start + 3;
+			for (; end < value.length; end++) {
+				if (value[end] === "'") quoted = !quoted;
+				if (!quoted && value.startsWith("}}", end)) break;
 			}
+			if (end === value.length) throw new Error("unterminated GitHub expression");
+			yield value.slice(start + 3, end);
+			start = value.indexOf("${{", end + 2);
 		}
 	} else if (Array.isArray(value)) {
-		for (const item of value) {
-			results.push(...extractExpressionsAndStrings(item));
-		}
+		for (const item of value) yield* expressionBodies(item);
 	} else if (value !== null && typeof value === "object") {
-		for (const val of Object.values(value)) {
-			results.push(...extractExpressionsAndStrings(val));
-		}
+		for (const item of Object.values(value)) yield* expressionBodies(item);
 	}
-	return results;
 }
 
 function astReferencesJob(node: Expr, upstreamJobName: string): boolean {
 	const references = (expr: Expr): boolean => !(expr instanceof Star) && expr.accept(visitor);
 	const visitor: ExprVisitor<boolean> = {
 		visitLiteral: () => false,
-		visitContextAccess: () => false,
+		visitContextAccess: ({ name }) => name.lexeme.toLowerCase() === "needs",
 		visitUnary: ({ expr }) => references(expr),
 		visitBinary: ({ left, right }) => references(left) || references(right),
 		visitLogical: ({ args }) => args.some(references),
 		visitGrouping: ({ group }) => references(group),
 		visitFunctionCall: ({ args }) => args.some(references),
 		visitIndexAccess: ({ expr, index }) => {
-			if (
-				index instanceof Literal &&
-				index.literal instanceof StringData &&
-				["outputs", "result"].includes(index.literal.value.toLowerCase()) &&
-				expr instanceof IndexAccess &&
-				expr.expr instanceof ContextAccess &&
-				expr.expr.name.lexeme.toLowerCase() === "needs" &&
-				expr.index instanceof Literal &&
-				expr.index.literal instanceof StringData &&
-				expr.index.literal.value.toLowerCase() === upstreamJobName.toLowerCase()
-			) {
-				return true;
+			if (expr instanceof ContextAccess && expr.name.lexeme.toLowerCase() === "needs") {
+				// Dynamic indexes and wildcards may read any declared dependency.
+				return (
+					!(index instanceof Literal && index.literal instanceof StringData) ||
+					index.literal.value.toLowerCase() === upstreamJobName.toLowerCase()
+				);
 			}
 			return references(expr) || references(index);
 		},
@@ -60,101 +56,66 @@ function astReferencesJob(node: Expr, upstreamJobName: string): boolean {
 	return references(node);
 }
 
-function hasExpressionReference(job: GitHubWorkflowJob, upstreamJobName: string): boolean {
-	const allStrings = extractExpressionsAndStrings(job);
-
-	for (const str of allStrings) {
-		// Try parsing as AST expression body
-		try {
-			const body = isGitHubExpression(str) ? expressionBody(str) : str;
-			const ast = parseGitHubExpressionAST(body);
-			if (astReferencesJob(ast, upstreamJobName)) {
-				return true;
-			}
-		} catch {
-			// If not a standalone valid expression, fallback to direct string inspection
-			if (
-				str.includes(`needs.${upstreamJobName}.outputs`) ||
-				str.includes(`needs.${upstreamJobName}.result`) ||
-				str.includes(`needs['${upstreamJobName}'].outputs`) ||
-				str.includes(`needs["${upstreamJobName}"].outputs`)
-			) {
-				return true;
-			}
-		}
-	}
-
-	return false;
-}
-
 function hasArtifactHandoff(
 	job: GitHubWorkflowJob,
-	upstreamJob: GitHubWorkflowJob | undefined
+	upstream: GitHubWorkflowJob | undefined,
 ): boolean {
-	if (
-		!upstreamJob ||
-		!("steps" in upstreamJob) ||
-		!upstreamJob.steps ||
-		!("steps" in job) ||
-		!job.steps
-	) {
-		return false;
-	}
-
-	// Standard upload-artifact & upload-pages-artifact
-	const uploadedArtifacts = upstreamJob.steps
-		.filter((s) => s.uses && (s.uses.includes("upload-artifact") || s.uses.includes("upload-pages-artifact")))
-		.map((s) => {
-			if (s.uses?.includes("upload-pages-artifact")) {
-				return (s.with?.["name"] as string) ?? "github-pages";
-			}
-			return s.with?.["name"];
-		})
-		.filter((name): name is string => typeof name === "string");
-
-	// Standard download-artifact & deploy-pages
-	const downloadedArtifacts = job.steps
-		.filter((s) => s.uses && (s.uses.includes("download-artifact") || s.uses.includes("deploy-pages")))
-		.map((s) => {
-			if (s.uses?.includes("deploy-pages")) {
-				return (s.with?.["artifact_name"] as string) ?? (s.with?.["name"] as string) ?? "github-pages";
-			}
-			return s.with?.["name"];
-		})
-		.filter((name): name is string => typeof name === "string");
-
-	return downloadedArtifacts.some((dl) => uploadedArtifacts.includes(dl));
+	return (upstream?.steps ?? []).some((upload) => {
+		const action = upload.uses?.split("@")[0];
+		if (action !== "actions/upload-artifact" && action !== "actions/upload-pages-artifact")
+			return false;
+		const uploaded =
+			upload.with?.["name"] ??
+			(action === "actions/upload-pages-artifact" ? "github-pages" : "artifact");
+		return (job.steps ?? []).some((download) => {
+			const action = download.uses?.split("@")[0];
+			if (action !== "actions/download-artifact" && action !== "actions/deploy-pages") return false;
+			const downloaded =
+				action === "actions/deploy-pages"
+					? (download.with?.["artifact_name"] ?? "github-pages")
+					: download.with?.["name"];
+			// Downloads without a name include all artifacts or an unresolved pattern.
+			return (
+				downloaded === undefined ||
+				typeof uploaded !== "string" ||
+				typeof downloaded !== "string" ||
+				(action === "actions/download-artifact" && downloaded.trim() === "") ||
+				uploaded.trim() === downloaded.trim() ||
+				uploaded.includes("${{") ||
+				downloaded.includes("${{")
+			);
+		});
+	});
 }
 
-// Warns when a job declares a dependency but does not demonstrably use its outputs or artifacts.
 export function checkUnnecessaryNeeds(
 	jobId: string,
 	job: GitHubWorkflowJob,
-	allJobs: GitHubWorkflowJobs
+	allJobs: GitHubWorkflowJobs,
 ): LintIssue[] {
-	const warnings: LintIssue[] = [];
-
-	if (job.needs === undefined) {
-		return warnings;
-	}
-
-	const needsArray = Array.isArray(job.needs) ? job.needs : [job.needs];
-
-	for (const need of needsArray) {
-		const upstreamJob = allJobs[need];
-
-		const isProvableDependency =
-			hasExpressionReference(job, need) ||
-			hasArtifactHandoff(job, upstreamJob);
-
-		if (!isProvableDependency) {
-			warnings.push({
-				ruleId: "no-unnecessary-needs",
-				jobId,
-				message: `job '${jobId}' declares needs '${need}' but does not reference any outputs from it. Remove the dependency or document why sequencing is required.`,
-			});
-		}
-	}
-
-	return warnings;
+	if (job.needs === undefined) return [];
+	const conditions = [job.if, ...(job.steps ?? []).map((step) => step.if)];
+	const bodies = [
+		...expressionBodies(job),
+		...conditions.filter(
+			(condition): condition is string =>
+				typeof condition === "string" && !condition.includes("${{"),
+		),
+	];
+	const expressions = bodies.map((body) => {
+		if (body.trim() === "") throw new Error(`job '${jobId}': empty GitHub expression`);
+		return parseGitHubExpression(body);
+	});
+	const needs = typeof job.needs === "string" ? [job.needs] : job.needs;
+	return needs
+		.filter(
+			(need) =>
+				!expressions.some((ast) => astReferencesJob(ast, need)) &&
+				!hasArtifactHandoff(job, allJobs[need]),
+		)
+		.map((need) => ({
+			ruleId: "no-unnecessary-needs",
+			jobId,
+			message: `job '${jobId}' has no detected output or artifact use from '${need}'. Keep needs when ordering is intentional.`,
+		}));
 }

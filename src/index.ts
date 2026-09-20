@@ -261,12 +261,13 @@ export {
 	writeGeneratedFiles,
 } from "./files";
 
-export type { 
-	GitHubYamlFile, 
-	GitHubYamlValidation, 
+export type {
+	GitHubYamlFile,
+	GitHubYamlValidation,
 	GitHubYamlValidationError,
+	LintIssue,
+	LintRule,
 	ValidationOptions,
-	LintIssue
 } from "./validation";
 export {
 	assertValidActionMetadataContent,
@@ -275,5 +276,3 @@ export {
 	validateWorkflowContent,
 	validateWorkflowModel,
 } from "./validation";
-
-export { checkUnnecessaryNeeds } from "./lint/no-unnecessary-needs";

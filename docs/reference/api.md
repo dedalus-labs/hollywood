@@ -172,3 +172,32 @@ contract are documented in [Runner Image](../backends/runner-image.md).
 | `validateWorkflowContent`          | Return parser diagnostics for a workflow file.         |
 | `assertValidActionMetadataContent` | Throw if action metadata is invalid.                   |
 | `assertValidWorkflowContent`       | Throw if workflow YAML is invalid.                     |
+
+### Dependency advice
+
+A deployment can need a test job to finish without reading its outputs. Keep that
+`needs` edge. Hollywood emits declared dependencies unchanged, including their
+start ordering and success/skip behavior.
+
+`validateWorkflowModel(workflow, { rules: ["no-unnecessary-needs"] })` returns
+`{ warnings }` for edges with no detected expression or artifact use. Each
+`LintIssue` contains `ruleId`, `jobId`, and `message`. `ValidationOptions.rules`
+accepts the `LintRule` type. Unknown rules and malformed expressions encountered
+during analysis throw.
+
+The rule reads expressions in conditions, commands, environment values, and
+inputs. It recognizes standard GitHub artifact uploads/downloads and Pages
+handoffs. Wildcard or dynamic references, artifact names, and download patterns
+suppress advice conservatively. These checks do not prove an edge is unnecessary.
+
+Run this advisory check explicitly:
+
+```bash
+npx hollywood check --rule no-unnecessary-needs
+```
+
+The CLI prints `warn[no-unnecessary-needs]` with the source file, workflow, and
+job. Warnings do not fail the command or write generated files. Add `--generated`
+or `--workflow-security` to run those checks too. Invalid options or expressions
+encountered during analysis fail the command. The rule has no severity option
+or error mode.

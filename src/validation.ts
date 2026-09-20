@@ -26,37 +26,36 @@ export type GitHubYamlValidationError = Readonly<{
 	message: string;
 }>;
 
+export type LintRule = "no-unnecessary-needs";
+
 export type ValidationOptions = Readonly<{
-	rules?: readonly string[];
-	level?: "warn" | "error";
+	rules?: readonly LintRule[];
 }>;
 
 export type LintIssue = Readonly<{
-	ruleId: string;
+	ruleId: LintRule;
 	message: string;
 	jobId: string;
 }>;
 
+export const parseLintRule = (rule: string): LintRule => {
+	if (rule !== "no-unnecessary-needs") throw new Error(`unknown lint rule: ${rule}`);
+	return rule;
+};
+
+/** Returns advisory findings without changing declared job dependencies. */
 export const validateWorkflowModel = (
 	workflow: GitHubWorkflow,
 	options: ValidationOptions = {},
-): Readonly<{ errors: LintIssue[]; warnings: LintIssue[] }> => {
-	const errors: LintIssue[] = [];
-	const warnings: LintIssue[] = [];
-
-    if (options.rules?.includes("no-unnecessary-needs")) {
-		for (const [jobId, job] of Object.entries(workflow.jobs)) {
-			const lintIssues = checkUnnecessaryNeeds(jobId, job, workflow.jobs);
-			
-			if (options.level === "error") {
-				errors.push(...lintIssues);
-			} else {
-				warnings.push(...lintIssues);
-			}
-		}
-	}
-
-	return { errors, warnings };
+): Readonly<{ warnings: readonly LintIssue[] }> => {
+	if ("level" in options) throw new Error("advisory lint does not accept a severity level");
+	const rules = options.rules?.map(parseLintRule) ?? [];
+	const warnings = rules.includes("no-unnecessary-needs")
+		? Object.entries(workflow.jobs).flatMap(([id, job]) =>
+				checkUnnecessaryNeeds(id, job, workflow.jobs),
+			)
+		: [];
+	return { warnings };
 };
 
 export type GitHubYamlValidation =

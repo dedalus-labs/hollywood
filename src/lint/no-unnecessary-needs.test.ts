@@ -1,86 +1,173 @@
-import { describe, it, expect } from "vitest";
-import type { GitHubWorkflowJob } from "../generate";
+import { describe, expect, it } from "vitest";
+
+import { command, unsafeShell } from "../workflow-command";
+import {
+	generateWorkflowFile,
+	renderWorkflowFile,
+	type GitHubWorkflow,
+	type GitHubWorkflowJob,
+	type GitHubWorkflowStep,
+} from "../generate";
+import { validateWorkflowModel } from "../validation";
 import { checkUnnecessaryNeeds } from "./no-unnecessary-needs";
 
-describe("no-unnecessary-needs lint rule", () => {
-	const mockUpstreamJob = {
-		"runs-on": "ubuntu-latest",
-		steps: [{ uses: "actions/upload-artifact@v4", with: { name: "build-output" } }],
-	};
+const upstream: GitHubWorkflowJob = {
+	"runs-on": "ubuntu-latest",
+	steps: [{ run: command({ file: "true", args: [] }) }],
+};
+const dependent: GitHubWorkflowJob = { ...upstream, needs: ["test"] };
 
+function warnings(job: GitHubWorkflowJob, producer = upstream) {
+	return checkUnnecessaryNeeds("deploy", job, { test: producer });
+}
+
+describe("dependency advice", () => {
 	it.each([
 		["needs.test.result == 'success'", 0],
 		["needs.test.outputs.ready", 0],
-		["needs['test'].result == 'success'", 0],
+		["needs['test']['result'] == 'success'", 0],
 		["needs['test']['outputs']['ready']", 0],
 		["NEEDS.TEST.RESULT == 'success'", 0],
 		["always() && !(needs.test.result != 'success')", 0],
 		["contains(needs.test.outputs.ready, 'yes')", 0],
 		["needs.other.outputs[needs.test.outputs.key]", 0],
 		["contains(github.event.labels.*.name, 'ready') && needs.test.result == 'success'", 0],
+		["contains(needs.*.result, 'failure')", 0],
+		["toJSON(needs)", 0],
+		["needs[inputs.job].result", 0],
 		["needs.other.result == 'success'", 1],
 		["steps.test.outputs.ready", 1],
 		["'needs.test.outputs.ready'", 1],
-	])("preserves dependencies while checking %s", (expression, warningCount) => {
-		const job: GitHubWorkflowJob = {
-			"runs-on": "ubuntu-latest",
-			needs: ["test"],
-			if: `\${{ ${expression} }}`,
-			steps: [],
-		};
-		const before = structuredClone(job);
-		const upstream: GitHubWorkflowJob = { "runs-on": "ubuntu-latest", steps: [] };
-
-		expect(checkUnnecessaryNeeds("deploy", job, { test: upstream })).toHaveLength(warningCount);
-		expect(job).toEqual(before);
+	])("checks the needs root in %s", (expression, count) => {
+		expect(warnings({ ...dependent, if: `\${{ ${expression} }}` })).toHaveLength(count);
 	});
 
-	it("should not warn when outputs are explicitly referenced", () => {
-		const job = {
-			"runs-on": "ubuntu-latest",
-			needs: ["build"],
-			steps: [{ run: { command: "echo ${{ needs.build.outputs.image }}" } }],
-		};
-
-		// Casting as any is used here to bypass strict typing for partial test mocks
-		const warnings = checkUnnecessaryNeeds("deploy", job as any, { build: mockUpstreamJob as any });
-		expect(warnings).toHaveLength(0);
+	it.each([
+		["plain needs.test.outputs.ready", 1],
+		["prefix ${{ needs['test']['outputs'].ready }} suffix", 0],
+		["${{ '}}' }} ${{ needs.test.outputs.ready }}", 0],
+		["${{ 'it''s }} needs.test.outputs.ready' }}", 1],
+	])("extracts expressions from run, env, and with: %s", (text, count) => {
+		const steps: GitHubWorkflowStep[] = [
+			{ run: unsafeShell(text) },
+			{ uses: "./.github/actions/noop", env: { VALUE: text } },
+			{ uses: "./.github/actions/noop", with: { value: text } },
+		];
+		for (const step of steps) expect(warnings({ ...dependent, steps: [step] })).toHaveLength(count);
 	});
 
-	it("should not warn when results are explicitly referenced", () => {
-		const job = {
-			"runs-on": "ubuntu-latest",
-			needs: ["test"],
-			if: "${{ needs.test.result == 'success' }}",
-			steps: [{ run: { command: "echo 'Tests passed!'" } }],
-		};
-
-		const warnings = checkUnnecessaryNeeds("deploy", job as any, { test: { "runs-on": "ubuntu-latest" } as any });
-		expect(warnings).toHaveLength(0);
+	it("parses implicit job and step conditions without treating env keys as conditions", () => {
+		expect(warnings({ ...dependent, if: "needs.test.result == 'success'" })).toHaveLength(0);
+		expect(
+			warnings({
+				...dependent,
+				steps: [{ uses: "./.github/actions/noop", if: "needs.test.result == 'success'" }],
+			}),
+		).toHaveLength(0);
+		expect(warnings({ ...dependent, env: { if: "plain text" } })).toHaveLength(1);
 	});
 
-	it("should warn when needs are declared but no outputs or artifacts are used", () => {
-		const job = {
-			"runs-on": "ubuntu-latest",
-			needs: ["lint"],
-			steps: [{ run: { command: "echo 'Deploying...'" } }],
-		};
+	it.each(["${{ needs.test.result == }}", "prefix ${{ needs.test.result", "${{ }}"])(
+		"rejects malformed expressions: %s",
+		(text) => {
+			expect(() => warnings({ ...dependent, env: { VALUE: text } })).toThrow(/expression/);
+		},
+	);
 
-		const warnings = checkUnnecessaryNeeds("deploy", job as any, { lint: { "runs-on": "ubuntu-latest" } as any });
-		expect(warnings).toHaveLength(1);
-		expect(warnings[0]?.message).toContain("declares needs 'lint' but does not reference any outputs from it");
-		expect(warnings[0]?.ruleId).toBe("no-unnecessary-needs");
-		expect(warnings[0]?.jobId).toBe("deploy");
+	it.each([
+		["actions/upload-artifact@v4", {}, "actions/download-artifact@v4", { name: "artifact" }, 0],
+		["actions/upload-artifact@v4", { name: "build" }, "actions/download-artifact@v4", {}, 0],
+		[
+			"actions/upload-artifact@v4",
+			{ name: "build" },
+			"actions/download-artifact@v4",
+			{ pattern: "build-*" },
+			0,
+		],
+		[
+			"actions/upload-artifact@v4",
+			{ name: "${{ matrix.name }}" },
+			"actions/download-artifact@v4",
+			{ name: "build" },
+			0,
+		],
+		["actions/upload-pages-artifact@v3", {}, "actions/deploy-pages@v4", {}, 0],
+		[
+			"actions/upload-pages-artifact@v3",
+			{ name: "site" },
+			"actions/deploy-pages@v4",
+			{ artifact_name: "site" },
+			0,
+		],
+		[
+			"actions/upload-artifact@v4",
+			{ name: "other" },
+			"actions/download-artifact@v4",
+			{ name: "build" },
+			1,
+		],
+		[
+			"acme/upload-artifact@v4",
+			{ name: "build" },
+			"actions/download-artifact@v4",
+			{ name: "build" },
+			1,
+		],
+	])(
+		"handles artifact candidates %s %j -> %s %j",
+		(upload, uploadWith, download, downloadWith, count) => {
+			const producer = { ...upstream, steps: [{ uses: upload, with: uploadWith }] };
+			const consumer = { ...dependent, steps: [{ uses: download, with: downloadWith }] };
+			expect(warnings(consumer, producer)).toHaveLength(count);
+		},
+	);
+
+	it.each([
+		["build", "", 0],
+		["build", " \t\n", 0],
+		[" build ", "build", 0],
+		["build", " build ", 0],
+		[" build ", " other ", 1],
+		["build", " ${{ matrix.artifact }} ", 0],
+	])("normalizes artifact names %j -> %j", (uploaded, downloaded, count) => {
+		const producer = {
+			...upstream,
+			steps: [{ uses: "actions/upload-artifact@v4", with: { name: uploaded } }],
+		};
+		const consumer = {
+			...dependent,
+			steps: [{ uses: "actions/download-artifact@v4", with: { name: downloaded } }],
+		};
+		expect(warnings(consumer, producer)).toHaveLength(count);
 	});
 
-	it("should not warn when an artifact is uploaded by upstream and downloaded by downstream", () => {
-		const job = {
-			"runs-on": "ubuntu-latest",
-			needs: ["build"],
-			steps: [{ uses: "actions/download-artifact@v4", with: { name: "build-output" } }],
+	it("keeps ordering-only dependencies authoritative", () => {
+		const job = { ...dependent, if: "${{ always() }}" };
+		const workflow: GitHubWorkflow = {
+			name: "Deploy",
+			on: { push: {} },
+			jobs: { test: upstream, deploy: job },
 		};
+		const file = generateWorkflowFile({
+			sourcePath: "gha/deploy.ts",
+			sourceRoot: "gha",
+			workflowsDir: ".github/workflows",
+			workflow,
+		});
+		const before = renderWorkflowFile(file);
+		const result = validateWorkflowModel(workflow, { rules: ["no-unnecessary-needs"] });
+		expect(result.warnings).toHaveLength(1);
+		expect(result.warnings[0]?.message).toContain("ordering");
+		expect(result).not.toHaveProperty("errors");
+		expect(renderWorkflowFile(file)).toBe(before);
+		expect(before).toContain("needs:\n      - test");
+	});
 
-		const warnings = checkUnnecessaryNeeds("deploy", job as any, { build: mockUpstreamJob as any });
-		expect(warnings).toHaveLength(0);
+	it("rejects unknown rules from direct callers", () => {
+		const workflow: GitHubWorkflow = { name: "Empty", on: { push: {} }, jobs: {} };
+		// @ts-expect-error JavaScript callers can supply unknown rules.
+		expect(() => validateWorkflowModel(workflow, { rules: ["typo"] })).toThrow(/unknown lint rule/);
+		// @ts-expect-error Advisory rules cannot become blocking checks.
+		expect(() => validateWorkflowModel(workflow, { level: "error" })).toThrow(/severity/);
 	});
 });
