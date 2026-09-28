@@ -429,6 +429,18 @@ Hollywood is useful when the CI/CD step is a real program:
 Hollywood is not a local GitHub Actions emulator. GitHub still decides event
 payloads, runner labels, secrets, permissions, and job scheduling.
 
+## Agent skill
+
+The package ships an agent skill in `skills/hollywood`: when to use each local
+testing layer, the generate and check loop, and a reference of every export and
+command. Link it into a project so a coding agent reads the version installed
+beside it:
+
+```bash
+mkdir -p .claude/skills
+ln -s ../../node_modules/@dedalus-labs/hollywood/skills/hollywood .claude/skills/hollywood
+```
+
 ## Roadmap
 
 Future work is tracked in [ROADMAP.md](ROADMAP.md). Concrete tasks should become
