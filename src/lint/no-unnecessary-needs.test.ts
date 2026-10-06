@@ -7,7 +7,7 @@ import {
 	type GitHubWorkflow,
 	type GitHubWorkflowJob,
 	type GitHubWorkflowStep,
-	type GitHubUsesStep,
+	type GitHubParallelChildStep,
 } from "../generate";
 import { validateWorkflowModel } from "../validation";
 import { checkUnnecessaryNeeds } from "./no-unnecessary-needs";
@@ -23,7 +23,7 @@ function warnings(job: GitHubWorkflowJob, producer = upstream) {
 }
 
 describe("dependency advice", () => {
-	it.each<GitHubUsesStep>([
+	it.each<GitHubParallelChildStep>([
 		{ if: "needs.test.result == 'success'", uses: "owner/check@v1" },
 		{ uses: "actions/download-artifact@v4", with: { name: "dist" } },
 	])("inspects dependencies inside parallel steps", (step) => {

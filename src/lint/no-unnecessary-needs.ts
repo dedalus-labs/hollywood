@@ -8,11 +8,11 @@ import {
 import { StringData } from "@actions/expressions/data/string";
 
 import { parseGitHubExpression } from "../expressions";
-import type { GitHubWorkflowJob, GitHubWorkflowJobs } from "../generate";
+import type { GitHubWorkflowJob, GitHubWorkflowJobs, GitHubWorkflowStep } from "../generate";
 import type { LintIssue } from "../validation";
 
 const jobSteps = (job: GitHubWorkflowJob | undefined) =>
-	(job?.steps ?? []).flatMap((step) => step.parallel !== undefined ? step.parallel : [step]);
+	(job?.steps ?? []).flatMap<GitHubWorkflowStep>((step) => step.parallel !== undefined ? step.parallel : [step]);
 
 function* expressionBodies(value: unknown): Generator<string> {
 	if (typeof value === "string") {

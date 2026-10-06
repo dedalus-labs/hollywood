@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { FeatureFlags } from "@actions/expressions/features";
+import { convertSteps } from "@actions/workflow-parser/model/converter/steps";
 import { ACTION_ROOT } from "@actions/workflow-parser/actions/action-constants";
 import { JSONObjectReader } from "@actions/workflow-parser/templates/json-object-reader";
 import {
@@ -90,13 +92,24 @@ const validateContent = (
 		schema,
 		new NoOperationTraceWriter(),
 	);
+	if (rootDefinition === WORKFLOW_ROOT) {
+		// Released step syntax remains feature-gated in workflow-parser 0.3.61.
+		context.state["featureFlags"] = new FeatureFlags({ allowBackgroundSteps: true });
+	}
 	const fileId = context.getFileId(file.name);
 	const reader = new YamlObjectReader(fileId, file.content);
 	for (const error of reader.errors) {
 		context.error(fileId, error.message, error.range);
 	}
 	if (reader.errors.length === 0) {
-		templateReader.readTemplate(context, rootDefinition, reader, fileId);
+		const template = templateReader.readTemplate(context, rootDefinition, reader, fileId);
+		if (template && context.errors.count === 0 && rootDefinition === WORKFLOW_ROOT) {
+			const jobs = template.assertMapping("workflow").find("jobs")?.assertMapping("jobs");
+			for (const { value } of jobs ?? []) {
+				const steps = value.assertMapping("job").find("steps");
+				if (steps) convertSteps(context, steps);
+			}
+		}
 	}
 	return validationFrom(
 		context.errors.getErrors().map((error) => ({
