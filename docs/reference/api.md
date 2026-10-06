@@ -9,15 +9,19 @@ Use `GitHubParallelStep` to group independent work explicitly. Hollywood renders
 each command and preserves the group. GitHub runs those steps concurrently
 and waits at the end of the group before continuing.
 
-```ts
-import { command, type GitHubParallelStep } from "@dedalus-labs/hollywood";
+Use Node.js 24 or later to run the `.ts` scripts with
+[built-in TypeScript support](https://nodejs.org/api/typescript.html#type-stripping).
 
-const checks: GitHubParallelStep = {
+```typescript
+import { command } from "@dedalus-labs/hollywood";
+import type { GitHubParallelStep } from "@dedalus-labs/hollywood";
+
+const checks = {
 	parallel: [
-		{ run: command({ file: "node", args: ["lint.mjs"] }) },
-		{ run: command({ file: "node", args: ["test.mjs"] }) },
+		{ run: command({ file: "node", args: ["lint.ts"] }) },
+		{ run: command({ file: "node", args: ["test.ts"] }) },
 	],
-};
+} satisfies GitHubParallelStep;
 ```
 
 The author must establish independence, including shared files and environment
@@ -30,6 +34,7 @@ defines scheduling and the concurrency limit. Native parallel-step support must
 be enabled in GitHub. Older workflow linters may reject the syntax. The
 repository's pinned Actionlint 1.7.12 does, so its own validation
 workflow keeps its existing step order.
+
 ## Script authoring
 
 | API             | Purpose                                                   |
