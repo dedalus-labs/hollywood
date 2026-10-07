@@ -5,7 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
-const jarHash = "9d36716ffb5e49d1ba8fae4651eba59f3189887e12eb90e204a42d2e6e993fef";
+const jarHash = "7beec0f04818732a62fa193731711a99aa4f11279499b2360a7d156c519ea78d";
 const hash = (file) => createHash("sha256").update(readFileSync(file)).digest("hex");
 const json = (file, value) => writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
 const { values } = parseArgs({ options: {

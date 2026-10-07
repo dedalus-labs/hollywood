@@ -18,7 +18,7 @@ tests and hosted execution must establish the implementation connection.
 Use Java 21 or newer and the official
 [TLC v1.8.0 release](https://github.com/tlaplus/tlaplus/releases/tag/v1.8.0).
 The checker requires SHA-256
-`9d36716ffb5e49d1ba8fae4651eba59f3189887e12eb90e204a42d2e6e993fef`.
+`7beec0f04818732a62fa193731711a99aa4f11279499b2360a7d156c519ea78d`.
 
 ```sh
 node models/check.mjs --jar /path/to/tla2tools.jar --output /path/to/new-run
