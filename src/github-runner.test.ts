@@ -253,7 +253,7 @@ test("GitHub runner reports a missing selected provider after deleting its JIT s
 });
 
 test("pinned runner version matches the official worker image", () => {
-	assert.equal(githubActionsRunnerVersion, "2.336.0");
+	assert.equal(githubActionsRunnerVersion, "2.337.0");
 });
 
 const valueAfter = (args: readonly string[], flag: string): string | undefined => {

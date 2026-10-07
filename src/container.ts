@@ -26,8 +26,8 @@ export class ContainerProviderUnavailableError extends Error {
 }
 
 export const githubActionsRunnerImage =
-	"ghcr.io/actions/actions-runner@sha256:0cfdcc701ce933c6d243c6b0b2da767366dc9f2e99961d4c3754b0b78084cdda";
-export const githubActionsRunnerVersion = "2.336.0";
+	"ghcr.io/actions/actions-runner@sha256:e5496277be5d09bc968b3d64911b74e219ac4a3f2edce956a3ecf9271bea1ef4";
+export const githubActionsRunnerVersion = "2.337.0";
 
 export type ContainerOptions = Readonly<{
 	actionBundle?: string;
