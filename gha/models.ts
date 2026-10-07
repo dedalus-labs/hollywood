@@ -22,7 +22,7 @@ export const checkParallelModel = action({
 			"30",
 			"--output",
 			jar,
-			"https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar",
+			"https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar",
 		]);
 		await exec("node", [
 			"models/check.mjs",
