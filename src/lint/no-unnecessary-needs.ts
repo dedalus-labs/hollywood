@@ -11,6 +11,9 @@ import { parseGitHubExpression } from "../expressions";
 import type { GitHubWorkflowJob, GitHubWorkflowJobs } from "../generate";
 import type { LintIssue } from "../validation";
 
+const jobSteps = (job: GitHubWorkflowJob | undefined) =>
+	(job?.steps ?? []).flatMap((step) => step.parallel !== undefined ? step.parallel : [step]);
+
 function* expressionBodies(value: unknown): Generator<string> {
 	if (typeof value === "string") {
 		let start = value.indexOf("${{");
@@ -60,14 +63,14 @@ function hasArtifactHandoff(
 	job: GitHubWorkflowJob,
 	upstream: GitHubWorkflowJob | undefined,
 ): boolean {
-	return (upstream?.steps ?? []).some((upload) => {
+	return jobSteps(upstream).some((upload) => {
 		const action = upload.uses?.split("@")[0];
 		if (action !== "actions/upload-artifact" && action !== "actions/upload-pages-artifact")
 			return false;
 		const uploaded =
 			upload.with?.["name"] ??
 			(action === "actions/upload-pages-artifact" ? "github-pages" : "artifact");
-		return (job.steps ?? []).some((download) => {
+		return jobSteps(job).some((download) => {
 			const action = download.uses?.split("@")[0];
 			if (action !== "actions/download-artifact" && action !== "actions/deploy-pages") return false;
 			const downloaded =
@@ -94,7 +97,7 @@ export function checkUnnecessaryNeeds(
 	allJobs: GitHubWorkflowJobs,
 ): LintIssue[] {
 	if (job.needs === undefined) return [];
-	const conditions = [job.if, ...(job.steps ?? []).map((step) => step.if)];
+	const conditions = [job.if, ...jobSteps(job).map((step) => step.if)];
 	const bodies = [
 		...expressionBodies(job),
 		...conditions.filter(
