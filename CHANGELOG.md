@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.0.6](https://github.com/dedalus-labs/hollywood/compare/v0.0.5...v0.0.6) (2026-10-07)
+
+
+### Features
+
+* **git:** compare declared inputs at immutable revisions ([#24](https://github.com/dedalus-labs/hollywood/issues/24)) ([1046242](https://github.com/dedalus-labs/hollywood/commit/1046242dc7d55db6697b7a4cc96e6b310c749ee8))
+* **lint:** add advisory dependency checks ([#82](https://github.com/dedalus-labs/hollywood/issues/82)) ([dcfecbc](https://github.com/dedalus-labs/hollywood/commit/dcfecbc63b6e705ea99806b39f8d63bdf8793956))
+* **workflow:** add native background step controls ([#120](https://github.com/dedalus-labs/hollywood/issues/120)) ([143429a](https://github.com/dedalus-labs/hollywood/commit/143429a5ea9bda3e6039996c54119e269ae5a520))
+* **workflow:** support explicit parallel step groups ([#110](https://github.com/dedalus-labs/hollywood/issues/110)) ([751af0c](https://github.com/dedalus-labs/hollywood/commit/751af0c995560facfe68976fb7dda53d6bb170a8))
+
+
+### Chores
+
+* **contributors:** register AgentWings ([#123](https://github.com/dedalus-labs/hollywood/issues/123)) ([72f661f](https://github.com/dedalus-labs/hollywood/commit/72f661f83b8aac26ebdc1e20a14007cc60e2f3a9))
+* **deps-dev:** bump @typescript/native-preview ([520ec2b](https://github.com/dedalus-labs/hollywood/commit/520ec2b5352493de44a4b5d2d22788d30e92cd54))
+* **deps-dev:** bump @typescript/native-preview from 7.0.0-dev.20260514.1 to 7.0.0-dev.20260707.2 ([#95](https://github.com/dedalus-labs/hollywood/issues/95)) ([520ec2b](https://github.com/dedalus-labs/hollywood/commit/520ec2b5352493de44a4b5d2d22788d30e92cd54))
+* **deps:** bump yaml from 2.8.4 to 2.9.0 ([#99](https://github.com/dedalus-labs/hollywood/issues/99)) ([3c199de](https://github.com/dedalus-labs/hollywood/commit/3c199de150669328ab7ed4b04d4cabaa3ad2339b))
+* **deps:** update vulnerable transitive dependencies ([#122](https://github.com/dedalus-labs/hollywood/issues/122)) ([bfac955](https://github.com/dedalus-labs/hollywood/commit/bfac955710c30811310e52233edee3d72dbf5245))
+
+
+### Refactors
+
+* **workflow:** clarify concurrency tests ([#125](https://github.com/dedalus-labs/hollywood/issues/125)) ([f802f82](https://github.com/dedalus-labs/hollywood/commit/f802f829c4c18ffc3ec874949baaa0b47d33800d))
+
 ## [0.0.5](https://github.com/dedalus-labs/hollywood/compare/v0.0.4...v0.0.5) (2026-08-24)
 
 
