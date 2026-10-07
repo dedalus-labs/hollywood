@@ -7,7 +7,7 @@ import { parseActionResult, runContainerAction } from "./container-action";
 import type { ContainerProvider } from "./container";
 
 const image =
-	"ghcr.io/actions/actions-runner@sha256:0cfdcc701ce933c6d243c6b0b2da767366dc9f2e99961d4c3754b0b78084cdda";
+	"ghcr.io/actions/actions-runner@sha256:e5496277be5d09bc968b3d64911b74e219ac4a3f2edce956a3ecf9271bea1ef4";
 
 const testProvider = (): ContainerProvider | undefined => {
 	const provider = process.env["HOLLYWOOD_CONTAINER_PROVIDER"];

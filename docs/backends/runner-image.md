@@ -9,7 +9,7 @@ The image derives from GitHub's official, digest-pinned
 image. Hollywood adds a stable Node 24 `PATH` and OCI source labels. It does
 not add language SDKs that are absent from the upstream image.
 
-The pinned upstream image contains GitHub Actions runner `v2.336.0` and
+The pinned upstream image contains GitHub Actions runner `v2.337.0` and
 publishes native Linux `amd64` and `arm64` manifests. Hollywood supports those
 two image architectures. Other GitHub runner archives do not use this image
 contract.
@@ -148,7 +148,7 @@ The generated `Runner image` workflow performs these jobs:
    retain each sanitized observation for 30 days.
 2. Build and verify the image with Docker and Podman on native x64 and arm64
    runners. Verification starts `Runner.Listener --version` and requires
-   `2.336.0`.
+   `2.337.0`.
 3. Publish the image for a `runner-vX.Y.Z` GitHub release.
 
 The publication job requires the Git release tag to match

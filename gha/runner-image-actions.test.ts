@@ -30,7 +30,7 @@ test("runner image source pins its base and requires a revision", async () => {
 	assert.equal("ImageOS" in contract.environment, false);
 	assert.equal(contract.os.versionId, "24.04");
 	assert.match(githubActionsRunnerImage, /^ghcr\.io\/actions\/actions-runner@sha256:[0-9a-f]{64}$/);
-	assert.equal(githubActionsRunnerVersion, "2.336.0");
+	assert.equal(githubActionsRunnerVersion, "2.337.0");
 	assert.equal(containerfile.split("\n")[0], `FROM ${githubActionsRunnerImage}`);
 	assert.match(containerfile, /^ARG SOURCE_REVISION\nRUN test -n "\$\{SOURCE_REVISION\}"$/m);
 });
@@ -226,7 +226,7 @@ test("runner version verification disables diagnostic stdout", async () => {
 	]);
 	await assert.rejects(
 		verifyRunnerVersion(async () => ({ exitCode: 0, stderr: "", stdout: "2.335.0\n" })),
-		/Runner\.Listener version must be 2\.336\.0\. Received 2\.335\.0\./,
+		/Runner\.Listener version must be 2\.337\.0\. Received 2\.335\.0\./,
 	);
 });
 
