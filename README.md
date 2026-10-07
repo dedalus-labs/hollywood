@@ -415,27 +415,8 @@ export default generateWorkflowFile({
 });
 ```
 
-### Concurrent workflow steps
-
-Use `parallel` for independent steps that must all finish before the job continues:
-
-```typescript
-import { command } from "@dedalus-labs/hollywood";
-import type { GitHubParallelStep } from "@dedalus-labs/hollywood";
-
-const checks = {
-	parallel: [
-		{ run: command({ file: "npm", args: ["run", "lint"] }) },
-		{ run: command({ file: "npm", args: ["test"] }) },
-	],
-} satisfies GitHubParallelStep;
-```
-
-Place `checks` in a job's `steps` array after checkout and dependency setup.
-For work that overlaps later steps, use `background: true` with an explicit
-`wait`, `wait-all`, or `cancel` step. GitHub owns scheduling and failure handling.
-See the [API usage examples](docs/reference/api.md#background-workflow-steps)
-for a complete workflow and the synchronization rules.
+Run independent checks concurrently with native `parallel` and `background` steps.
+See the [TypeScript examples](docs/reference/api.md#parallel-workflow-steps).
 
 ## Use cases
 
