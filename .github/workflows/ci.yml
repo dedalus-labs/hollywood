@@ -78,6 +78,16 @@ jobs:
       - name: Build local actions
         run: npm run actions
         shell: bash
+      - id: parallel_model
+        name: Check parallel join model
+        uses: ./.github/actions/check-parallel-model
+      - name: Keep parallel model receipts
+        if: always() && steps.parallel_model.outcome != 'skipped'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: parallel-model-receipts
+          path: ${{ runner.temp }}/parallel-models
+          if-no-files-found: error
       - env:
           GH_TOKEN: ${{ github.token }}
         name: Validate release candidate

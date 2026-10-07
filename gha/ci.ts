@@ -24,10 +24,12 @@ import {
 	setupNodeAction,
 	testCommand,
 	typecheckCommand,
+	uploadArtifactAction,
 	verifyRegistrySignaturesCommand,
 } from "./actions";
 import { trustedCiRun } from "./guards";
 import { validateReleaseCandidate } from "./release-actions";
+import { checkParallelModel } from "./models";
 
 const actionlintVersion = "1.7.12";
 const actionlintArchiveSha256 =
@@ -156,6 +158,17 @@ export const ci = workflow({
 				{ name: "Install dependencies", run: installDependenciesCommand },
 				{ name: "Build Hollywood", run: buildHollywoodCommand },
 				{ name: "Build local actions", run: buildLocalActionsCommand },
+				uses(checkParallelModel, { name: "Check parallel join model", id: "parallel_model" }),
+				{
+					name: "Keep parallel model receipts",
+					if: "always() && steps.parallel_model.outcome != 'skipped'",
+					uses: uploadArtifactAction,
+					with: {
+						name: "parallel-model-receipts",
+						path: "${{ runner.temp }}/parallel-models",
+						"if-no-files-found": "error",
+					},
+				},
 				uses(validateReleaseCandidate, {
 					env: { GH_TOKEN: gh.github.token },
 					name: "Validate release candidate",
