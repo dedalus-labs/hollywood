@@ -12,6 +12,7 @@ import {
 } from "@actions/workflow-parser/templates/template-context";
 import * as templateReader from "@actions/workflow-parser/templates/template-reader";
 import { TemplateSchema } from "@actions/workflow-parser/templates/schema/index";
+import type { TemplateToken } from "@actions/workflow-parser/templates/tokens/template-token";
 import { NoOperationTraceWriter } from "@actions/workflow-parser/templates/trace-writer";
 import { WORKFLOW_ROOT } from "@actions/workflow-parser/workflows/workflow-constants";
 import { YamlObjectReader } from "@actions/workflow-parser/workflows/yaml-object-reader";
@@ -107,7 +108,13 @@ const validateContent = (
 			const jobs = template.assertMapping("workflow").find("jobs")?.assertMapping("jobs");
 			for (const { value } of jobs ?? []) {
 				const steps = value.assertMapping("job").find("steps");
-				if (steps) convertSteps(context, steps);
+				if (steps) {
+					// Schema validation checks env expressions, but workflow-parser 0.3.61's
+					// step converter requires literal maps. Omit them only from its input.
+					const semanticSteps = steps.clone();
+					omitStepEnvironmentExpressions(semanticSteps);
+					convertSteps(context, semanticSteps);
+				}
 			}
 		}
 	}
@@ -116,6 +123,21 @@ const validateContent = (
 			message: error.message,
 		})),
 	);
+};
+
+const omitStepEnvironmentExpressions = (steps: TemplateToken): void => {
+	for (const step of steps.assertSequence("steps")) {
+		const mapping = step.assertMapping("step");
+		for (let index = mapping.count - 1; index >= 0; index--) {
+			const { key, value } = mapping.get(index);
+			const name = key.assertString("step key").value;
+			if (name === "env" && value.isExpression) {
+				mapping.remove(index);
+			} else if (name === "parallel") {
+				omitStepEnvironmentExpressions(value);
+			}
+		}
+	}
 };
 
 const assertValid = (label: string, validation: GitHubYamlValidation): void => {

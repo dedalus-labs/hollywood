@@ -24,6 +24,73 @@ jobs:
 	assert.deepEqual(result, { status: "valid", errors: [] });
 });
 
+for (const [name, steps] of [
+	["command", "- run: npm test\n  env: ${{ fromJSON(vars.ENV) }}"],
+	["action", "- uses: ./test\n  env: ${{ fromJSON(vars.ENV) }}"],
+	[
+		"background_command",
+		"- id: test\n  run: npm test\n  env: ${{ fromJSON(vars.ENV) }}\n  background: true\n- wait: test",
+	],
+	[
+		"background_action",
+		"- id: test\n  uses: ./test\n  env: ${{ fromJSON(vars.ENV) }}\n  background: true\n- wait: test",
+	],
+	[
+		"parallel_children",
+		"- parallel:\n    - run: npm test\n      env: ${{ fromJSON(vars.ENV) }}\n    - uses: ./test\n      env: ${{ fromJSON(vars.ENV) }}",
+	],
+] as const) {
+	test(`invariant_step_environment_expressions_remain_valid_${name}`, () => {
+		const result = validateWorkflowContent({
+			name: ".github/workflows/ci.yml",
+			content: `on: push\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n${steps
+				.split("\n")
+				.map((line) => `      ${line}`)
+				.join("\n")}\n`,
+		});
+
+		assert.deepEqual(result, { status: "valid", errors: [] });
+	});
+}
+
+test("invariant_environment_expressions_preserve_step_semantic_checks", () => {
+	const result = validateWorkflowContent({
+		name: ".github/workflows/ci.yml",
+		content: `
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - parallel:
+          - run: npm test
+            env: \${{ fromJSON(vars.ENV) }}
+            background: true
+`,
+	});
+
+	assert.equal(result.status, "invalid");
+	assert.match(result.errors[0].message, /'background' is not allowed inside a parallel block/);
+});
+
+test("invariant_invalid_environment_expressions_are_rejected", () => {
+	const result = validateWorkflowContent({
+		name: ".github/workflows/ci.yml",
+		content: `
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: npm test
+        env: \${{ fromJSON(unrelated.ENV) }}
+`,
+	});
+
+	assert.equal(result.status, "invalid");
+	assert.match(result.errors[0].message, /Unrecognized named-value: 'unrelated'/);
+});
+
 test("validateWorkflowContent rejects invalid GitHub workflow YAML", () => {
 	const result = validateWorkflowContent({
 		name: ".github/workflows/ci.yml",
