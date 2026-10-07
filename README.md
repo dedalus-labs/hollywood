@@ -420,28 +420,22 @@ export default generateWorkflowFile({
 Use `parallel` for independent steps that must all finish before the job continues:
 
 ```typescript
-import { command, type GitHubWorkflowStep } from "@dedalus-labs/hollywood";
+import { command } from "@dedalus-labs/hollywood";
+import type { GitHubParallelStep } from "@dedalus-labs/hollywood";
 
-const checks: GitHubWorkflowStep = {
+const checks = {
 	parallel: [
 		{ run: command({ file: "npm", args: ["run", "lint"] }) },
 		{ run: command({ file: "npm", args: ["test"] }) },
 	],
-};
+} satisfies GitHubParallelStep;
 ```
 
-For work that overlaps later steps, add `background: true` to a `run` or `uses`
-step. Give it an `id`, then synchronize with `{ wait: "build" }`,
-`{ wait: ["build", "test"] }`, or `{ "wait-all": null }`. Stop a long-running
-background step with `{ cancel: "server" }`. Wait and cancel steps always run
-and cannot have an `if` condition. Parallel groups contain only `run` and
-`uses` steps and cannot nest or declare `background` on their children.
-
-Hollywood preserves this native syntax and validates it with GitHub's workflow
-parser. Outputs and environment changes from a background step become available
-after a wait includes it. GitHub limits each job to ten concurrent background
-steps and queues additional work. See [GitHub's workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idstepsbackground)
-for runtime behavior and failure handling.
+Place `checks` in a job's `steps` array after checkout and dependency setup.
+For work that overlaps later steps, use `background: true` with an explicit
+`wait`, `wait-all`, or `cancel` step. GitHub owns scheduling and failure handling.
+See the [API usage examples](docs/reference/api.md#background-workflow-steps)
+for a complete workflow and the synchronization rules.
 
 ## Use cases
 

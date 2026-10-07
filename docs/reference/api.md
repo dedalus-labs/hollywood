@@ -24,6 +24,9 @@ const checks = {
 } satisfies GitHubParallelStep;
 ```
 
+Place `checks` in a job's `steps` array after checkout and dependency setup.
+Both commands run on the same runner, so they share its CPU, memory, and files.
+
 The author must establish independence, including shared files and environment
 changes. Hollywood does not infer it or remove declared `needs` edges. A group
 cannot also have `run`, `uses`, or `if`, and groups cannot be nested.
@@ -34,6 +37,71 @@ defines scheduling and the concurrency limit. Native parallel-step support must
 be enabled in GitHub. Older workflow linters may reject the syntax. The
 repository's pinned Actionlint 1.7.12 does, so its own validation
 workflow keeps its existing step order.
+
+## Background workflow steps
+
+Use `background: true` when a command should overlap later steps. Give it an
+`id`, then wait for that ID before using its result. In this example, the
+project provides `ci/build.ts`, `ci/lint.ts`, and `ci/check-build.ts`.
+Linting can run while the build writes its output. Checking that output must
+wait for the build to finish.
+
+Save the workflow in `gha/checks.ts`:
+
+```typescript
+import { command, workflow } from "@dedalus-labs/hollywood";
+
+export const checks = workflow({
+	name: "Checks",
+	on: { push: {} },
+	permissions: { contents: "read" },
+	jobs: {
+		check: {
+			"runs-on": "ubuntu-latest",
+			steps: [
+				{ uses: "actions/checkout@v7" },
+				{ uses: "actions/setup-node@v6", with: { "node-version": "24" } },
+				{ run: command({ file: "npm", args: ["ci"] }) },
+				{
+					id: "build",
+					background: true,
+					run: command({ file: "node", args: ["ci/build.ts"] }),
+				},
+				{ run: command({ file: "node", args: ["ci/lint.ts"] }) },
+				{ wait: "build" },
+				{ run: command({ file: "node", args: ["ci/check-build.ts"] }) },
+			],
+		},
+	},
+});
+```
+
+Run `npx hollywood generate` to write `.github/workflows/checks.yml`.
+Hollywood renders and validates the steps. GitHub starts, waits for, and stops
+the background processes.
+
+| Step                          | Use                                                            |
+| ----------------------------- | -------------------------------------------------------------- |
+| `{ wait: "build" }`           | Wait for one earlier background step.                          |
+| `{ wait: ["build", "test"] }` | Wait for several earlier background steps.                     |
+| `{ "wait-all": null }`        | Wait for all active background steps. `true` is also accepted. |
+| `{ cancel: "server" }`        | Stop one earlier background step.                              |
+
+Outputs and environment changes become available after the matching wait.
+A failed background step fails that wait unless `continue-on-error` permits
+the failure. Wait and cancel steps always run and cannot have an `if` condition.
+The workflow types reject mixed step kinds and explicit `background` fields
+inside a parallel group. GitHub's parser rejects unknown wait targets and
+nested groups during generation.
+
+A background server still needs a readiness check before clients connect.
+Use `cancel` when the server is no longer needed. Waiting for a server that
+runs indefinitely would keep the job waiting too.
+
+GitHub permits ten active background steps per job and queues additional work.
+Parallel groups share this limit. This syntax is unavailable inside composite
+actions. See [GitHub's workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idstepsbackground)
+for scheduling, cleanup, and failure behavior.
 
 ## Script authoring
 
