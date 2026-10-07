@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { closeSync, copyFileSync, mkdirSync, openSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
@@ -15,7 +15,9 @@ const { values } = parseArgs({ options: {
 if (!values.jar || !values.output) throw new Error("Required: --jar <tla2tools.jar> --output <new directory>");
 const jar = resolve(values.jar);
 if (hash(jar) !== jarHash) throw new Error("TLC v1.8.0 SHA-256 mismatch");
-const version = spawnSync(values.java, ["-version"], { encoding: "utf8", timeout: 5000 });
+// Bare executable names retain PATH lookup. Paths are anchored before case execution.
+const java = basename(values.java) === values.java ? values.java : resolve(values.java);
+const version = spawnSync(java, ["-version"], { encoding: "utf8", timeout: 5000 });
 if (version.error || version.status !== 0) throw new Error("Java is unavailable", { cause: version.error });
 const output = resolve(values.output);
 mkdirSync(output); // Never replace an earlier run's evidence.
@@ -42,7 +44,7 @@ for (const [config, expectedViolation] of cases) {
 		"-config", config, "-dumpTrace", "json", "counterexample.json", "ParallelJoin.tla"];
 	const fd = openSync(join(directory, "tlc.log"), "wx");
 	const started = Date.now();
-	const result = spawnSync(values.java, args, {
+	const result = spawnSync(java, args, {
 		cwd: directory, stdio: ["ignore", fd, fd], timeout: 30000, killSignal: "SIGKILL",
 	});
 	closeSync(fd);

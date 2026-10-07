@@ -24,7 +24,9 @@ The checker requires SHA-256
 node models/check.mjs --jar /path/to/tla2tools.jar --output /path/to/new-run
 ```
 
-`--java` selects the Java executable. Each configuration gets one worker,
+`--java` selects the Java executable. Paths resolve from the invocation
+directory before case execution changes directories. A bare name such as
+`java` uses `PATH`. Each configuration gets one worker,
 256 MiB heap, and a 30-second deadline. The checker uses Node 20 builtins only.
 It preserves input snapshots, hashes, exit status, complete logs, and JSON
 counterexamples under the new output directory. Do not commit run outputs.
