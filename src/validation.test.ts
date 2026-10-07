@@ -25,28 +25,55 @@ jobs:
 });
 
 for (const [name, steps] of [
-	["command", "- run: npm test\n  env: ${{ fromJSON(vars.ENV) }}"],
-	["action", "- uses: ./test\n  env: ${{ fromJSON(vars.ENV) }}"],
+	[
+		"command",
+		`- run: npm test
+  env: \${{ fromJSON(vars.ENV) }}`,
+	],
+	[
+		"action",
+		`- uses: ./test
+  env: \${{ fromJSON(vars.ENV) }}`,
+	],
 	[
 		"background_command",
-		"- id: test\n  run: npm test\n  env: ${{ fromJSON(vars.ENV) }}\n  background: true\n- wait: test",
+		`- id: test
+  run: npm test
+  env: \${{ fromJSON(vars.ENV) }}
+  background: true
+- wait: test`,
 	],
 	[
 		"background_action",
-		"- id: test\n  uses: ./test\n  env: ${{ fromJSON(vars.ENV) }}\n  background: true\n- wait: test",
+		`- id: test
+  uses: ./test
+  env: \${{ fromJSON(vars.ENV) }}
+  background: true
+- wait: test`,
 	],
 	[
 		"parallel_children",
-		"- parallel:\n    - run: npm test\n      env: ${{ fromJSON(vars.ENV) }}\n    - uses: ./test\n      env: ${{ fromJSON(vars.ENV) }}",
+		`- parallel:
+    - run: npm test
+      env: \${{ fromJSON(vars.ENV) }}
+    - uses: ./test
+      env: \${{ fromJSON(vars.ENV) }}`,
 	],
 ] as const) {
 	test(`invariant_step_environment_expressions_remain_valid_${name}`, () => {
 		const result = validateWorkflowContent({
 			name: ".github/workflows/ci.yml",
-			content: `on: push\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n${steps
+			content: `
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+${steps
 				.split("\n")
 				.map((line) => `      ${line}`)
-				.join("\n")}\n`,
+				.join("\n")}
+`,
 		});
 
 		assert.deepEqual(result, { status: "valid", errors: [] });
