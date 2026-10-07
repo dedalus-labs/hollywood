@@ -5,7 +5,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
-const jarHash = "7beec0f04818732a62fa193731711a99aa4f11279499b2360a7d156c519ea78d";
+const jarHash = "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88";
 const hash = (file) => createHash("sha256").update(readFileSync(file)).digest("hex");
 const json = (file, value) => writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
 const { values } = parseArgs({ options: {
@@ -14,7 +14,7 @@ const { values } = parseArgs({ options: {
 } });
 if (!values.jar || !values.output) throw new Error("Required: --jar <tla2tools.jar> --output <new directory>");
 const jar = resolve(values.jar);
-if (hash(jar) !== jarHash) throw new Error("TLC v1.8.0 SHA-256 mismatch");
+if (hash(jar) !== jarHash) throw new Error("TLC v1.7.4 SHA-256 mismatch");
 // Bare executable names retain PATH lookup. Paths are anchored before case execution.
 const java = basename(values.java) === values.java ? values.java : resolve(values.java);
 const version = spawnSync(java, ["-version"], { encoding: "utf8", timeout: 5000 });
@@ -39,9 +39,12 @@ for (const [config, expectedViolation] of cases) {
 		copyFileSync(join(source, "parallel-join", file), join(directory, file));
 		files[file] = hash(join(directory, file));
 	}
-	const args = ["-Xmx256m", "-XX:+UseParallelGC", "-cp", jar, "tlc2.TLC",
-		"-workers", "1", "-seed", "1", "-fp", "0", "-noGenerateSpecTE",
-		"-config", config, "-dumpTrace", "json", "counterexample.json", "ParallelJoin.tla"];
+	// TLC extracts standard modules into this directory. Each run owns its copies.
+	const temporary = join(directory, "tmp");
+	mkdirSync(temporary);
+	const args = ["-Xmx256m", `-Djava.io.tmpdir=${temporary}`, "-XX:+UseParallelGC",
+		"-cp", jar, "tlc2.TLC", "-tool", "-workers", "1", "-seed", "1", "-fp", "0",
+		"-config", config, "ParallelJoin.tla"];
 	const fd = openSync(join(directory, "tlc.log"), "wx");
 	const started = Date.now();
 	const result = spawnSync(java, args, {
@@ -49,23 +52,17 @@ for (const [config, expectedViolation] of cases) {
 	});
 	closeSync(fd);
 	const log = readFileSync(join(directory, "tlc.log"), "utf8");
-	const violations = [...log.matchAll(/Error: Invariant (\w+) is violated\./g)].map((match) => match[1]);
-	let trace = null;
-	let traceError = null;
-	if (expectedViolation) {
-		try {
-			trace = JSON.parse(readFileSync(join(directory, "counterexample.json"), "utf8"));
-			if (!Array.isArray(trace?.counterexample?.state) || trace.counterexample.state.length < 2
-				|| !Array.isArray(trace?.counterexample?.action) || trace.counterexample.action.length < 1) {
-				throw new Error("Expected a nonempty TLC state and action counterexample");
-			}
-		}
-		catch (error) { traceError = error.message; }
-	}
+	const violations = [...log.matchAll(/^Invariant (\w+) is violated\./gm)].map((match) => match[1]);
+	// TLC_STATE_PRINT1/2 frame complete states, including their action and variable values.
+	const states = [...log.matchAll(/^@!@!@STARTMSG (2216|2217):\d+ @!@!@\r?\n([\s\S]*?)^@!@!@ENDMSG \1 @!@!@$/gm)]
+		.map((match) => match[2]);
+	const traceError = expectedViolation && (states.length < 2 || !states[0].startsWith("1: <Initial predicate>") || !states[1].startsWith("2: <"))
+		? "Expected an initial state and a following state in the TLC trace" : null;
+	if (expectedViolation && !traceError) json(join(directory, "counterexample.json"), { states });
 	const passed = !result.error && !result.signal && (expectedViolation === null
 		? result.status === 0 && log.includes("Model checking completed. No error has been found.")
 		: result.status === 12 && violations.length === 1 && violations[0] === expectedViolation
-			&& trace !== null && !traceError);
+			&& !traceError);
 	const receipt = {
 		config, expectedViolation, passed, exitCode: result.status, signal: result.signal,
 		error: result.error?.code ?? null, elapsedMs: Date.now() - started,
