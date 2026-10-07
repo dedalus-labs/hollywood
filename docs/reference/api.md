@@ -51,6 +51,9 @@ Save the workflow in `gha/checks.ts`:
 ```typescript
 import { command, workflow } from "@dedalus-labs/hollywood";
 
+const checkoutAction = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"; // v7
+const setupNodeAction = "actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38"; // v6
+
 export const checks = workflow({
 	name: "Checks",
 	on: { push: {} },
@@ -59,8 +62,8 @@ export const checks = workflow({
 		check: {
 			"runs-on": "ubuntu-latest",
 			steps: [
-				{ uses: "actions/checkout@v7" },
-				{ uses: "actions/setup-node@v6", with: { "node-version": "24" } },
+				{ uses: checkoutAction },
+				{ uses: setupNodeAction, with: { "node-version": "24" } },
 				{ run: command({ file: "npm", args: ["ci"] }) },
 				{
 					id: "build",
@@ -84,7 +87,7 @@ the background processes.
 | ----------------------------- | -------------------------------------------------------------- |
 | `{ wait: "build" }`           | Wait for one earlier background step.                          |
 | `{ wait: ["build", "test"] }` | Wait for several earlier background steps.                     |
-| `{ "wait-all": null }`        | Wait for all active background steps. `true` is also accepted. |
+| `{ "wait-all": true }`        | Wait for all active background steps. `null` is also accepted. |
 | `{ cancel: "server" }`        | Stop one earlier background step.                              |
 
 Outputs and environment changes become available after the matching wait.
