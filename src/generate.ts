@@ -179,29 +179,33 @@ type GitHubSynchronizationStepBase = Pick<GitHubStepBase, "id" | "name" | "conti
 		parallel?: never;
 	}>;
 
-export type GitHubWaitStep = GitHubSynchronizationStepBase & Readonly<{
-	wait: string | readonly string[];
-	"wait-all"?: never;
-	cancel?: never;
-}>;
+/** Waits for earlier background steps and reports their failures. */
+export type GitHubWaitStep = GitHubSynchronizationStepBase &
+	Readonly<{
+		wait: string | readonly string[];
+		"wait-all"?: never;
+		cancel?: never;
+	}>;
 
-export type GitHubWaitAllStep = GitHubSynchronizationStepBase & Readonly<{
-	"wait-all": true | null;
-	wait?: never;
-	cancel?: never;
-}>;
+/** Waits for all active background steps and reports their failures. */
+export type GitHubWaitAllStep = GitHubSynchronizationStepBase &
+	Readonly<{
+		"wait-all": true | null;
+		wait?: never;
+		cancel?: never;
+	}>;
 
-export type GitHubCancelStep = GitHubSynchronizationStepBase & Readonly<{
-	cancel: string;
-	wait?: never;
-	"wait-all"?: never;
-}>;
+/** Stops one earlier background step, allowing it to clean up before termination. */
+export type GitHubCancelStep = GitHubSynchronizationStepBase &
+	Readonly<{
+		cancel: string;
+		wait?: never;
+		"wait-all"?: never;
+	}>;
 
-export type GitHubParallelChildStep = (
-	| Omit<GitHubCommandStep, "background">
-	| Omit<GitHubUnsafeShellStep, "background">
-	| Omit<GitHubUsesStep, "background">
-) & Readonly<{ background?: never }>;
+/** A command or action whose background execution is owned by its parallel group. */
+export type GitHubParallelChildStep = (GitHubRunStep | GitHubUsesStep) &
+	Readonly<{ background?: never }>;
 
 /** Explicitly concurrent steps. GitHub waits for the group before continuing. */
 export type GitHubParallelStep = Readonly<{

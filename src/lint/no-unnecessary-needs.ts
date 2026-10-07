@@ -12,7 +12,9 @@ import type { GitHubWorkflowJob, GitHubWorkflowJobs, GitHubWorkflowStep } from "
 import type { LintIssue } from "../validation";
 
 const jobSteps = (job: GitHubWorkflowJob | undefined) =>
-	(job?.steps ?? []).flatMap<GitHubWorkflowStep>((step) => step.parallel !== undefined ? step.parallel : [step]);
+	(job?.steps ?? []).flatMap<GitHubWorkflowStep>((step) =>
+		step.parallel !== undefined ? step.parallel : [step],
+	);
 
 function* expressionBodies(value: unknown): Generator<string> {
 	if (typeof value === "string") {

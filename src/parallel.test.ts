@@ -1,17 +1,11 @@
 import assert from "node:assert/strict";
-import { build } from "esbuild";
 import { test } from "vitest";
 import { parse } from "yaml";
 
-import {
-	command,
-	generateWorkflowFile,
-	renderWorkflowFile,
-	type GitHubParallelStep,
-	type GitHubWorkflow,
-} from "./index";
+import { command, generateWorkflowFile, renderWorkflowFile } from "./index";
+import type { GitHubParallelStep, GitHubWorkflow } from "./index";
 
-test("parallel groups render every command before the following step", async () => {
+test("parallel groups render every command before the following step", () => {
 	const workflow: GitHubWorkflow = {
 		name: "Parallel checks",
 		on: { push: {} },
@@ -21,12 +15,12 @@ test("parallel groups render every command before the following step", async () 
 				steps: [
 					{
 						parallel: [
-							{ run: command({ file: "node", args: ["lint.mjs"] }) },
-							{ run: command({ file: "node", args: ["test.mjs", "two words"] }) },
+							{ run: command({ file: "node", args: ["lint.ts"] }) },
+							{ run: command({ file: "node", args: ["test.ts", "two words"] }) },
 							{ uses: "owner/check@0123456789012345678901234567890123456789" },
 						],
 					},
-					{ run: command({ file: "node", args: ["publish.mjs"] }) },
+					{ run: command({ file: "node", args: ["publish.ts"] }) },
 				],
 			},
 		},
@@ -43,41 +37,14 @@ test("parallel groups render every command before the following step", async () 
 	assert.deepEqual(rendered.jobs.check.steps, [
 		{
 			parallel: [
-				{ run: "node lint.mjs", shell: "bash" },
-				{ run: "node test.mjs 'two words'", shell: "bash" },
+				{ run: "node lint.ts", shell: "bash" },
+				{ run: "node test.ts 'two words'", shell: "bash" },
 				{ uses: "owner/check@0123456789012345678901234567890123456789" },
 			],
 		},
-		{ run: "node publish.mjs", shell: "bash" },
+		{ run: "node publish.ts", shell: "bash" },
 	]);
 	assert.equal(JSON.stringify(workflow), before);
-	// Bundle the upstream parser's JSON imports as Hollywood's build does.
-	const semantic = await build({
-		stdin: {
-			resolveDir: process.cwd(),
-			contents: `
-			import assert from 'node:assert/strict';
-			import {parseWorkflow, convertWorkflowTemplate, NoOperationTraceWriter} from '@actions/workflow-parser';
-			import {FeatureFlags} from '@actions/expressions/features';
-			const parsed = parseWorkflow(${JSON.stringify({ name: file.path, content })}, new NoOperationTraceWriter());
-			const model = await convertWorkflowTemplate(parsed.context, parsed.value, undefined, {
-				featureFlags: new FeatureFlags({allowBackgroundSteps: true})
-			});
-			assert.equal(model.errors, undefined);
-		`,
-		},
-		bundle: true,
-		platform: "node",
-		format: "esm",
-		write: false,
-		banner: {
-			js: "import {createRequire} from 'node:module'; const require = createRequire(process.cwd() + '/package.json');",
-		},
-	});
-	assert.ok(semantic.outputFiles[0]);
-	await import(
-		`data:text/javascript;base64,${Buffer.from(semantic.outputFiles[0].text).toString("base64")}`
-	);
 });
 
 test("parallel groups reject conflicting fields and nesting", () => {

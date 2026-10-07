@@ -1,14 +1,9 @@
-import * as assert from "node:assert/strict";
+import assert from "node:assert/strict";
 import { test } from "vitest";
 import { parse } from "yaml";
 
-import {
-	command,
-	expr,
-	generateWorkflowFile,
-	renderWorkflowFile,
-	type GitHubWorkflowStep,
-} from "./index";
+import { command, expr, generateWorkflowFile, renderWorkflowFile } from "./index";
+import type { GitHubWorkflowStep } from "./index";
 import { validateWorkflowContent } from "./validation";
 
 const renderSteps = (steps: readonly GitHubWorkflowStep[]): string =>
@@ -77,14 +72,25 @@ for (const [name, steps, expected] of [
 	["unknown_cancel_target", "- cancel: absent", /unknown step ID/],
 	["self_wait_target", "- id: self\n  wait: self", /cannot reference itself/],
 	["false_wait_all", "- wait-all: false", /must be true or omitted/],
-	["background_inside_parallel", "- parallel:\n    - run: echo hi\n      background: true", /background.*not allowed/],
+	[
+		"background_inside_parallel",
+		"- parallel:\n    - run: echo hi\n      background: true",
+		/background.*not allowed/,
+	],
 	["nested_parallel", "- parallel:\n    - parallel:\n        - run: echo hi", /Nested 'parallel'/],
-	["wait_inside_parallel", "- parallel:\n    - id: build\n      run: echo hi\n    - wait: build", /wait.*not allowed/],
+	[
+		"wait_inside_parallel",
+		"- parallel:\n    - id: build\n      run: echo hi\n    - wait: build",
+		/wait.*not allowed/,
+	],
 	["conditional_wait", "- wait: build\n  if: always()", /Unexpected value 'if'/],
 	["mixed_step_kinds", "- run: echo hi\n  wait: build", /Unexpected value/],
 ] as const) {
 	test(`invariant_invalid_parallel_lifecycle_is_rejected_${name}`, () => {
-		const content = `on: push\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n${steps.split("\n").map((line) => `      ${line}`).join("\n")}\n`;
+		const content = `on: push\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n${steps
+			.split("\n")
+			.map((line) => `      ${line}`)
+			.join("\n")}\n`;
 		const result = validateWorkflowContent({ name: "ci.yml", content });
 		assert.equal(result.status, "invalid");
 		assert.match(result.errors.map((error) => error.message).join("\n"), expected);

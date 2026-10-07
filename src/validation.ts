@@ -3,8 +3,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { FeatureFlags } from "@actions/expressions/features";
-import { convertSteps } from "@actions/workflow-parser/model/converter/steps";
 import { ACTION_ROOT } from "@actions/workflow-parser/actions/action-constants";
+import { convertSteps } from "@actions/workflow-parser/model/converter/steps";
 import { JSONObjectReader } from "@actions/workflow-parser/templates/json-object-reader";
 import {
 	TemplateContext,
