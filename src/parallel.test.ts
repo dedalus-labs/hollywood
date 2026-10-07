@@ -3,13 +3,8 @@ import { build } from "esbuild";
 import { test } from "vitest";
 import { parse } from "yaml";
 
-import {
-	command,
-	generateWorkflowFile,
-	renderWorkflowFile,
-	type GitHubParallelStep,
-	type GitHubWorkflow,
-} from "./index";
+import { command, generateWorkflowFile, renderWorkflowFile } from "./index";
+import type { GitHubParallelStep, GitHubWorkflow } from "./index";
 
 test("parallel groups render every command before the following step", async () => {
 	const workflow: GitHubWorkflow = {
@@ -88,7 +83,7 @@ test("parallel groups reject conflicting fields and nesting", () => {
 	};
 	// @ts-expect-error GitHub does not allow nested parallel groups.
 	const nested: GitHubParallelStep = { parallel: [{ parallel: [] }] };
-	for (const invalid of [conflicting, nested])
+	for (const invalid of [conflicting, nested]) {
 		assert.throws(
 			() =>
 				renderWorkflowFile(
@@ -107,4 +102,5 @@ test("parallel groups reject conflicting fields and nesting", () => {
 				),
 			/GitHub workflow YAML is invalid|parallel groups cannot be nested/,
 		);
+	}
 });
