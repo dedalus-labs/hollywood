@@ -28,7 +28,7 @@ export const dockerLoginAction =
 	"docker/login-action@dbcb813823bdd20940b903addbd779551569679f"; // v4.6.0
 
 export const dockerSetupBuildxAction =
-	"docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f"; // v3
+	"docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e"; // v4
 
 export const dockerSetupQemuAction =
 	"docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8"; // v4.2.0
