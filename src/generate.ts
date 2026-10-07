@@ -91,13 +91,17 @@ export type GitHubReusableWorkflowSecrets =
 	  }>;
 
 type GitHubStepBase = Readonly<{
-	parallel?: never;
 	id?: string;
 	name?: GitHubExpressionString;
 	if?: GitHubExpressionString;
 	env?: GitHubEnvironmentVariables;
 	"continue-on-error"?: boolean | string;
 	"timeout-minutes"?: number;
+	background?: boolean;
+	wait?: never;
+	"wait-all"?: never;
+	cancel?: never;
+	parallel?: never;
 }>;
 
 export type GitHubUsesStepOptions<Inputs extends InputDefinitions> = GitHubStepBase &
@@ -161,23 +165,75 @@ export type GitHubActionEntrypointFile = Readonly<{
 	content: string;
 }>;
 
+type GitHubSynchronizationStepBase = Pick<GitHubStepBase, "id" | "name" | "continue-on-error"> &
+	Readonly<{
+		if?: never;
+		env?: never;
+		"timeout-minutes"?: never;
+		background?: never;
+		run?: never;
+		uses?: never;
+		with?: never;
+		shell?: never;
+		"working-directory"?: never;
+		parallel?: never;
+	}>;
+
+/** Waits for earlier background steps and reports their failures. */
+export type GitHubWaitStep = GitHubSynchronizationStepBase &
+	Readonly<{
+		wait: string | readonly string[];
+		"wait-all"?: never;
+		cancel?: never;
+	}>;
+
+/** Waits for all active background steps and reports their failures. */
+export type GitHubWaitAllStep = GitHubSynchronizationStepBase &
+	Readonly<{
+		"wait-all": true | null;
+		wait?: never;
+		cancel?: never;
+	}>;
+
+/** Stops one earlier background step, allowing it to clean up before termination. */
+export type GitHubCancelStep = GitHubSynchronizationStepBase &
+	Readonly<{
+		cancel: string;
+		wait?: never;
+		"wait-all"?: never;
+	}>;
+
+/** A command or action whose background execution is owned by its parallel group. */
+export type GitHubParallelChildStep = (GitHubRunStep | GitHubUsesStep) &
+	Readonly<{ background?: never }>;
+
 /** Explicitly concurrent steps. GitHub waits for the group before continuing. */
 export type GitHubParallelStep = Readonly<{
-	parallel: readonly (GitHubRunStep | GitHubUsesStep)[];
+	parallel: readonly GitHubParallelChildStep[];
+	env?: never;
+	shell?: never;
+	"timeout-minutes"?: never;
+	"working-directory"?: never;
 	id?: never;
 	name?: never;
 	if?: never;
-	env?: never;
 	"continue-on-error"?: never;
-	"timeout-minutes"?: never;
+	background?: never;
 	run?: never;
 	uses?: never;
 	with?: never;
-	shell?: never;
-	"working-directory"?: never;
+	wait?: never;
+	"wait-all"?: never;
+	cancel?: never;
 }>;
 
-export type GitHubWorkflowStep = GitHubRunStep | GitHubUsesStep | GitHubParallelStep;
+export type GitHubWorkflowStep =
+	| GitHubRunStep
+	| GitHubUsesStep
+	| GitHubWaitStep
+	| GitHubWaitAllStep
+	| GitHubCancelStep
+	| GitHubParallelStep;
 
 export type GitHubExpressionString = GitHubExpression | string;
 
@@ -467,10 +523,18 @@ export const generateActionFiles = (
 	});
 };
 
-export const generateUsesStep = <const Inputs extends InputDefinitions>(
+export function generateUsesStep<const Inputs extends InputDefinitions>(
+	action: Pick<WorkflowActionDescriptor<Inputs>, "inputs">,
+	options: GitHubUsesStepOptions<Inputs> & Readonly<{ background?: never }>,
+): GitHubUsesStep & Readonly<{ background?: never }>;
+export function generateUsesStep<const Inputs extends InputDefinitions>(
+	action: Pick<WorkflowActionDescriptor<Inputs>, "inputs">,
+	options: GitHubUsesStepOptions<Inputs>,
+): GitHubUsesStep;
+export function generateUsesStep<const Inputs extends InputDefinitions>(
 	_action: Pick<WorkflowActionDescriptor<Inputs>, "inputs">,
 	options: GitHubUsesStepOptions<Inputs>,
-): GitHubUsesStep => {
+): GitHubUsesStep {
 	const {
 		uses: actionPath,
 		with: withValues = {},
@@ -492,19 +556,27 @@ export const generateUsesStep = <const Inputs extends InputDefinitions>(
 		uses: actionPath,
 		...(withInputs.size === 0 ? {} : { with: mapToObject(withInputs) }),
 	};
-};
+}
 
-export const uses = <const Inputs extends InputDefinitions>(
+export function uses<const Inputs extends InputDefinitions>(
+	action: WorkflowActionDescriptor<Inputs>,
+	options: GitHubLocalActionStepOptions<Inputs> & Readonly<{ background?: never }>,
+): GitHubUsesStep & Readonly<{ background?: never }>;
+export function uses<const Inputs extends InputDefinitions>(
 	action: WorkflowActionDescriptor<Inputs>,
 	options: GitHubLocalActionStepOptions<Inputs>,
-): GitHubUsesStep => {
+): GitHubUsesStep;
+export function uses<const Inputs extends InputDefinitions>(
+	action: WorkflowActionDescriptor<Inputs>,
+	options: GitHubLocalActionStepOptions<Inputs>,
+): GitHubUsesStep {
 	const { actionsDir = ".github/actions", name = action.name, ...step } = options;
 	return generateUsesStep(action, {
 		...step,
 		name,
 		uses: localActionUsesPath(action, actionsDir),
 	} as GitHubUsesStepOptions<Inputs>);
-};
+}
 
 export const generateWorkflowFile = (
 	options: Readonly<{
@@ -562,12 +634,9 @@ const jobForYaml = (workflowJob: GitHubWorkflowJob): unknown => {
 
 const stepForYaml = (step: GitHubWorkflowStep): unknown => {
 	if (step.parallel !== undefined) {
-		if (step.parallel.some((child) => child.parallel !== undefined)) {
-			throw new Error("parallel groups cannot be nested");
-		}
 		return { ...step, parallel: step.parallel.map(stepForYaml) };
 	}
-	if (!("run" in step)) {
+	if (step.run === undefined) {
 		return step;
 	}
 	const rendered = renderWorkflowRun(step.run, step.env);

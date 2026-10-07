@@ -21,12 +21,12 @@ test("parallel groups render every command before the following step", async () 
 				steps: [
 					{
 						parallel: [
-							{ run: command({ file: "node", args: ["lint.mjs"] }) },
-							{ run: command({ file: "node", args: ["test.mjs", "two words"] }) },
+							{ run: command({ file: "node", args: ["lint.ts"] }) },
+							{ run: command({ file: "node", args: ["test.ts", "two words"] }) },
 							{ uses: "owner/check@0123456789012345678901234567890123456789" },
 						],
 					},
-					{ run: command({ file: "node", args: ["publish.mjs"] }) },
+					{ run: command({ file: "node", args: ["publish.ts"] }) },
 				],
 			},
 		},
@@ -43,12 +43,12 @@ test("parallel groups render every command before the following step", async () 
 	assert.deepEqual(rendered.jobs.check.steps, [
 		{
 			parallel: [
-				{ run: "node lint.mjs", shell: "bash" },
-				{ run: "node test.mjs 'two words'", shell: "bash" },
+				{ run: "node lint.ts", shell: "bash" },
+				{ run: "node test.ts 'two words'", shell: "bash" },
 				{ uses: "owner/check@0123456789012345678901234567890123456789" },
 			],
 		},
-		{ run: "node publish.mjs", shell: "bash" },
+		{ run: "node publish.ts", shell: "bash" },
 	]);
 	assert.equal(JSON.stringify(workflow), before);
 	// Bundle the upstream parser's JSON imports as Hollywood's build does.

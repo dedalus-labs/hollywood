@@ -415,6 +415,9 @@ export default generateWorkflowFile({
 });
 ```
 
+Run independent checks concurrently with native `parallel` and `background` steps.
+See the [TypeScript examples](docs/reference/api.md#parallel-workflow-steps).
+
 ## Use cases
 
 Hollywood is useful when the CI/CD step is a real program:

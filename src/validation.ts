@@ -2,7 +2,9 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { FeatureFlags } from "@actions/expressions/features";
 import { ACTION_ROOT } from "@actions/workflow-parser/actions/action-constants";
+import { convertSteps } from "@actions/workflow-parser/model/converter/steps";
 import { JSONObjectReader } from "@actions/workflow-parser/templates/json-object-reader";
 import {
 	TemplateContext,
@@ -10,6 +12,7 @@ import {
 } from "@actions/workflow-parser/templates/template-context";
 import * as templateReader from "@actions/workflow-parser/templates/template-reader";
 import { TemplateSchema } from "@actions/workflow-parser/templates/schema/index";
+import type { TemplateToken } from "@actions/workflow-parser/templates/tokens/template-token";
 import { NoOperationTraceWriter } from "@actions/workflow-parser/templates/trace-writer";
 import { WORKFLOW_ROOT } from "@actions/workflow-parser/workflows/workflow-constants";
 import { YamlObjectReader } from "@actions/workflow-parser/workflows/yaml-object-reader";
@@ -90,19 +93,51 @@ const validateContent = (
 		schema,
 		new NoOperationTraceWriter(),
 	);
+	if (rootDefinition === WORKFLOW_ROOT) {
+		// Released step syntax remains feature-gated in workflow-parser 0.3.61.
+		context.state["featureFlags"] = new FeatureFlags({ allowBackgroundSteps: true });
+	}
 	const fileId = context.getFileId(file.name);
 	const reader = new YamlObjectReader(fileId, file.content);
 	for (const error of reader.errors) {
 		context.error(fileId, error.message, error.range);
 	}
 	if (reader.errors.length === 0) {
-		templateReader.readTemplate(context, rootDefinition, reader, fileId);
+		const template = templateReader.readTemplate(context, rootDefinition, reader, fileId);
+		if (template && context.errors.count === 0 && rootDefinition === WORKFLOW_ROOT) {
+			const jobs = template.assertMapping("workflow").find("jobs")?.assertMapping("jobs");
+			for (const { value } of jobs ?? []) {
+				const steps = value.assertMapping("job").find("steps");
+				if (steps) {
+					// Schema validation checks env expressions, but workflow-parser 0.3.61's
+					// step converter requires literal maps. Omit them only from its input.
+					const semanticSteps = steps.clone();
+					omitStepEnvironmentExpressions(semanticSteps);
+					convertSteps(context, semanticSteps);
+				}
+			}
+		}
 	}
 	return validationFrom(
 		context.errors.getErrors().map((error) => ({
 			message: error.message,
 		})),
 	);
+};
+
+const omitStepEnvironmentExpressions = (steps: TemplateToken): void => {
+	for (const step of steps.assertSequence("steps")) {
+		const mapping = step.assertMapping("step");
+		for (let index = mapping.count - 1; index >= 0; index--) {
+			const { key, value } = mapping.get(index);
+			const name = key.assertString("step key").value;
+			if (name === "env" && value.isExpression) {
+				mapping.remove(index);
+			} else if (name === "parallel") {
+				omitStepEnvironmentExpressions(value);
+			}
+		}
+	}
 };
 
 const assertValid = (label: string, validation: GitHubYamlValidation): void => {

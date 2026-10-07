@@ -1,15 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { command, unsafeShell } from "../workflow-command";
-import {
-	generateWorkflowFile,
-	renderWorkflowFile,
-	type GitHubWorkflow,
-	type GitHubWorkflowJob,
-	type GitHubWorkflowStep,
-	type GitHubUsesStep,
+import { generateWorkflowFile, renderWorkflowFile } from "../generate";
+import type {
+	GitHubParallelChildStep,
+	GitHubWorkflow,
+	GitHubWorkflowJob,
+	GitHubWorkflowStep,
 } from "../generate";
 import { validateWorkflowModel } from "../validation";
+import { command, unsafeShell } from "../workflow-command";
 import { checkUnnecessaryNeeds } from "./no-unnecessary-needs";
 
 const upstream: GitHubWorkflowJob = {
@@ -23,7 +22,7 @@ function warnings(job: GitHubWorkflowJob, producer = upstream) {
 }
 
 describe("dependency advice", () => {
-	it.each<GitHubUsesStep>([
+	it.each<GitHubParallelChildStep>([
 		{ if: "needs.test.result == 'success'", uses: "owner/check@v1" },
 		{ uses: "actions/download-artifact@v4", with: { name: "dist" } },
 	])("inspects dependencies inside parallel steps", (step) => {
