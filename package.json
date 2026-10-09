@@ -81,7 +81,7 @@
 		"@octokit/openapi-types": "28.0.0",
 		"esbuild": "0.28.1",
 		"yaml": "2.9.0",
-		"zod": "4.4.3"
+		"zod": "4.6.5"
 	},
 	"devDependencies": {
 		"@commander-js/extra-typings": "15.0.0",
