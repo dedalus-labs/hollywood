@@ -188,6 +188,43 @@ test("invalid plan source invalidates the live queue", async () => {
 	assert.equal(f.states.get(group), "error");
 });
 
+test("ordinary PR recovery batches reads and writes only missing contexts", async () => {
+	const f = fixture();
+	f.queue.data.repository.mergeQueue.entries.nodes = [];
+	const node = (number: number, state: { state: string; creator: { login: string } } | null) => ({
+		number,
+		headRefOid: otherHead,
+		commits: { nodes: [{ commit: { oid: otherHead, status: { context: state } } }] },
+	});
+	const page = (nodes: unknown[], hasNextPage: boolean, endCursor: string | null) => ({
+		data: { repository: { pullRequests: { nodes, pageInfo: { hasNextPage, endCursor } } } },
+	});
+	f.ordinary.set(
+		null,
+		page(
+			Array.from({ length: 100 }, (_, index) =>
+				node(index + 10, { state: "SUCCESS", creator: { login: options.statusPublisher } }),
+			),
+			true,
+			"next",
+		),
+	);
+	f.ordinary.set("next", page([node(200, null)], false, null));
+	await reconcileGitHubMergePlan(async () => ({ ...plan, candidates: [] }), f.services, {
+		...options,
+		initialize: true,
+	});
+	assert.equal(f.reads.filter((url) => url.endsWith("graphql")).length, 3);
+	assert.equal(
+		f.reads.some((url) => url.includes("/commits/")),
+		false,
+	);
+	assert.deepEqual(
+		f.writes.map((write) => write.path),
+		[`statuses/${otherHead}`],
+	);
+});
+
 test("deployment reconciliation does not enumerate ordinary PRs", async () => {
 	const f = fixture();
 	await reconcileGitHubMergePlan(async () => plan, f.services, options);
@@ -212,6 +249,46 @@ test("another publisher cannot suppress our required failure status", async () =
 	const write = f.writes.slice(before).find((item) => item.path === `statuses/${head}`);
 	assert.equal(write?.body["state"], "failure");
 	assert.equal(write?.body["target_url"], options.runUrl);
+});
+
+test("removed plans recover owned failures and errors after dequeue", async () => {
+	const f = fixture();
+	f.queue.data.repository.mergeQueue.entries.nodes = [];
+	const cases = ["FAILURE", "ERROR", "SUCCESS"];
+	f.ordinary.set(null, {
+		data: {
+			repository: {
+				pullRequests: {
+					pageInfo: { hasNextPage: false, endCursor: null },
+					nodes: cases.map((state, index) => {
+						const oid = String(index + 1).repeat(40);
+						return {
+							number: index + 10,
+							headRefOid: oid,
+							commits: {
+								nodes: [
+									{
+										commit: {
+											oid,
+											status: { context: { state, creator: { login: options.statusPublisher } } },
+										},
+									},
+								],
+							},
+						};
+					}),
+				},
+			},
+		},
+	});
+	await reconcileGitHubMergePlan(async () => ({ ...plan, candidates: [] }), f.services, {
+		...options,
+		initialize: true,
+	});
+	assert.deepEqual(
+		f.writes.map((write) => write.path),
+		[`statuses/${"1".repeat(40)}`, `statuses/${"2".repeat(40)}`],
+	);
 });
 
 test("status publication and admission consume one decision snapshot", async () => {
