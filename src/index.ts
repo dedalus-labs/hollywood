@@ -296,3 +296,5 @@ export {
 	evaluateGitHubMergePlan,
 	admitGitHubMergePlan,
 } from "./merge-plan";
+
+export { readGitHubMergeQueue } from "./merge-queue";
