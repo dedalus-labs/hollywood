@@ -281,3 +281,5 @@ export {
 	validateWorkflowContent,
 	validateWorkflowModel,
 } from "./validation";
+
+export { verifyGitHubDeploymentReceipt } from "./deployment-receipt";
