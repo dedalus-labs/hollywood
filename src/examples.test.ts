@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { test } from "vitest";
 
 import { publishImage } from "../examples/publish-container-image";
+import { providerSelectionSimulation } from "../examples/provider-selection";
 import {
 	requestPreviewToMainPromotion,
 	type GitHubWorkflowDispatch,
@@ -96,6 +97,28 @@ test("publish-container-image example generates action files and runs locally", 
 	assert.equal(commands[0]?.args[0], "buildx");
 	assert.deepEqual(events, ["group:Publish container image"]);
 });
+
+test.each([
+	["primary-ready", "primary", "0", "0"],
+	["secondary-after-timeout", "secondary", "1", "300000"],
+	["retry-read", "primary", "0", "3000"],
+] as const)(
+	"provider selection example simulates %s",
+	async (scenario, provider, cancellations, virtualMilliseconds) => {
+		const output = await runAction(providerSelectionSimulation, {
+			with: { scenario },
+			exec: async () => assert.fail("provider simulation must not execute a command"),
+			fs: { readText: async () => assert.fail("provider simulation must not read a file") },
+			runner: { uidGid: "1001:1001" },
+		});
+
+		assert.equal(output.provider, provider);
+		assert.equal(output.dispatches, "1");
+		assert.equal(output.cancellations, cancellations);
+		assert.equal(output.virtualMilliseconds, virtualMilliseconds);
+		if (scenario === "retry-read") assert.equal(output.reads, "3");
+	},
+);
 
 test("s3-cache example treats restore miss as expected nonzero command", async () => {
 	const commands: Command[] = [];

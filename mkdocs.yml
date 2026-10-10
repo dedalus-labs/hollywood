@@ -80,6 +80,7 @@ plugins:
         Recipes:
           - recipes/s3-cache.md
           - recipes/publish-container-image.md
+          - recipes/provider-selection.md
         Reference:
           - reference/api.md
           - reference/generated-files.md
@@ -149,6 +150,7 @@ nav:
       - Overview: recipes/index.md
       - S3 Cache: recipes/s3-cache.md
       - Publish Container Image: recipes/publish-container-image.md
+      - Provider Selection: recipes/provider-selection.md
   - Reference:
       - Overview: reference/index.md
       - API Surface: reference/api.md
