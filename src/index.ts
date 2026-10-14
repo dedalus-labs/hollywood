@@ -125,6 +125,24 @@ export type {
 export { runGitHubAction } from "./github";
 
 export type {
+	Artifact,
+	FindWorkflowRunOptions,
+	GitHubArtifact,
+	GitHubClient,
+	GitHubClientOptions,
+	GitHubWorkflowRun,
+	ListRunArtifactsOptions,
+} from "./github-client";
+export {
+	GitHubApiError,
+	GitHubArtifactNotFoundError,
+	GitHubNotFoundError,
+	GitHubWorkflowRunNotFoundError,
+	createGitHubClient,
+	unavailableGitHubClient,
+} from "./github-client";
+
+export type {
 	GitHubActionEntrypointFile,
 	GitHubActionFile,
 	GitHubActionInputMetadata,

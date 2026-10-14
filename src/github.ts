@@ -20,6 +20,7 @@ import type {
 import { currentRunner, nodeFs } from "./local";
 import { toGitHubName } from "./names";
 import { runAction } from "./script";
+import { createGitHubClient, type GitHubClient } from "./github-client";
 
 export type GitHubInputOptions = Readonly<{
 	required?: boolean;
@@ -68,6 +69,7 @@ export type RunGitHubActionOptions = Readonly<{
 	core?: GitHubCore;
 	exec?: GitHubExec;
 	fs?: ScriptFs;
+	github?: GitHubClient;
 	logColor?: GitHubLogColor;
 	runner?: RunnerContext;
 }>;
@@ -93,6 +95,7 @@ export const runGitHubAction = async <
 			with: readGitHubInputs(scriptAction.inputs, runtime.core),
 			exec: githubScriptExec(runtime.exec, runtime.core, report, logStyle),
 			fs: runtime.fs,
+			github: options.github ?? createGitHubClient({ core: runtime.core }),
 			log: githubScriptLog(runtime.core),
 			runner: runtime.runner,
 			summary: githubScriptSummary(runtime.core),

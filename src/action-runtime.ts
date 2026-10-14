@@ -43,3 +43,22 @@ export type {
 } from "./script";
 export { gitTreeMatch, GitTreeMatchError } from "./git-tree-match";
 export type { GitTreeMatchOptions, GitTreeMatchResult } from "./git-tree-match";
+export {
+	GitHubApiError,
+	GitHubArtifactNotFoundError,
+	GitHubNotFoundError,
+	GitHubWorkflowRunNotFoundError,
+	createGitHubClient,
+	unavailableGitHubClient,
+} from "./github-client";
+export type {
+	Artifact,
+	FindWorkflowRunOptions,
+	GitHubArtifact,
+	GitHubClient,
+	GitHubClientOptions,
+	GitHubWorkflowRun,
+	ListRunArtifactsOptions,
+	WorkflowRun,
+} from "./github-client";
+
