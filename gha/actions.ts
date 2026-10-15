@@ -24,6 +24,9 @@ export const deployPagesAction =
 export const uploadArtifactAction =
 	"actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02"; // v4
 
+export const downloadArtifactAction =
+	"actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333"; // v8.0.2
+
 export const dockerLoginAction =
 	"docker/login-action@dbcb813823bdd20940b903addbd779551569679f"; // v4.6.0
 

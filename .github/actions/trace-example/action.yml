@@ -2,7 +2,11 @@
 
 name: Trace example
 description: Exercise grouped and parallel commands.
-inputs: {}
+inputs:
+  fail:
+    description: Exercise a failed command.
+    required: false
+    default: "false"
 outputs: {}
 runs:
   using: node24

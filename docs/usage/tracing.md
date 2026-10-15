@@ -218,3 +218,56 @@ importer for every OpenTelemetry payload.
 
 Source: the [OpenTelemetry GitHub receiver](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/githubreceiver#traces---getting-started)
 documents the same step-name limitation.
+
+## Enable native recordings in GitHub Actions
+
+Set `trace: true` on a Hollywood `uses` step. Hollywood binds the resolved step
+name, job ID, and recording directory for `runGitHubAction` automatically.
+It writes the recording before reporting success or failure to GitHub.
+
+```typescript
+import { always, operationTraceDirectory, uses } from "@dedalus-labs/hollywood";
+
+const buildStep = uses(build, { name: "Build package", trace: true });
+const upload = {
+	name: "Save operation recordings",
+	if: always(),
+	uses: "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+	with: {
+		name: "hollywood-operations-${{ github.run_attempt }}-${{ job.check_run_id }}",
+		path: operationTraceDirectory,
+		"if-no-files-found": "error",
+	},
+};
+```
+
+Put one upload step after all traced steps in each workload job. Artifact names
+include the attempt and job ID, so parallel jobs and reruns stay separate.
+The final reporting job must wait for all workload jobs. Before calling
+`reportWorkflowTrace`, download the current attempt's recordings:
+
+```typescript
+const download = {
+	name: "Download operation recordings",
+	uses: "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+	with: {
+		pattern: "hollywood-operations-${{ github.run_attempt }}-*",
+		path: ".hollywood/operations",
+		"merge-multiple": true,
+	},
+};
+```
+
+Pass `operations: ".hollywood/operations"` in the report action's `with` block.
+Upload its final `.hollywood/trace` directory as described above. Every view
+then includes the native operations. A missing recording directory or an
+invalid identity is an error.
+
+The generated `HOLLYWOOD_TRACE_*` variables belong to Hollywood. Do not
+override them. Missing metadata fails before the action runs. This option
+instruments native Hollywood action code. External actions and raw shell
+steps retain their GitHub step timings.
+
+The example workflow exercises parallel nested commands and an intentional
+command failure with `continue-on-error`. Both recordings must reach the
+final report. Its expected failure demonstrates export after action failure.
