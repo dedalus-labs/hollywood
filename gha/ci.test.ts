@@ -64,3 +64,17 @@ test("container provider integration files share one runtime at a time", async (
 test("repository installs cannot run dependency lifecycle scripts", async () => {
 	assert.equal(await readFile(".npmrc", "utf8"), "ignore-scripts=true\n");
 });
+
+test("timing report waits for every workload job, including failed jobs", () => {
+	const timings = ci.jobs["timings"];
+	assert.ok(timings !== undefined && "steps" in timings);
+	assert.deepEqual(
+		timings.needs,
+		Object.keys(ci.jobs).filter((name) => name !== "timings"),
+	);
+	assert.match(String(timings.if), /always\(\)/);
+	assert.deepEqual(timings.permissions, { actions: "read", contents: "read" });
+	const report = timings.steps.at(-2);
+	assert.ok(report !== undefined && "uses" in report);
+	assert.equal(report.uses, "./.github/actions/hollywood-trace");
+});

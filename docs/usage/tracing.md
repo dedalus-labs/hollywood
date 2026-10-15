@@ -82,3 +82,64 @@ The overview above the span tree compares job windows before expanding any
 steps. Purple bars represent jobs, blue bars represent steps, and red marks
 failed work. Skipped jobs stay visible as unmeasured. Compact action labels
 retain the full action reference in the inspector and hover text.
+
+## Add a report to a workflow
+
+Re-export the built-in action from a source file Hollywood scans. Generate and
+bundle it with the rest of your local actions.
+
+```typescript
+// ci/tracing.ts
+export { reportWorkflowTrace } from "@dedalus-labs/hollywood/tracing";
+```
+
+In the workflow, add a final job with `needs` covering every workload job. Use
+the same checkout, dependency installation, and local-action build steps as
+your other jobs. After those setup steps, run:
+
+```typescript
+import { gh, uses } from "@dedalus-labs/hollywood";
+import { reportWorkflowTrace } from "./tracing";
+
+const report = uses(reportWorkflowTrace, {
+	env: { GITHUB_TOKEN: gh.github.token },
+	with: {
+		repository: gh.github.repository,
+		runId: "${{ github.run_id }}",
+		attempt: "${{ github.run_attempt }}",
+		excludeJobId: "${{ job.check_run_id }}",
+	},
+});
+```
+
+Give the reporter `actions: read` and `contents: read` permissions and an
+`always()` condition. Upload `.hollywood/trace` with `actions/upload-artifact`,
+using `include-hidden-files: true` and `if-no-files-found: error`. The action
+writes `summary.md` to `GITHUB_STEP_SUMMARY` and prints `trace.txt` in its logs.
+The artifact also contains `trace.html` and standard OTLP `trace.json`.
+
+The reporter uses GitHub.com's `job.check_run_id` context as its job ID.
+Keep the reporter's `needs` list synchronized as jobs are added. A missing
+workload dependency produces an explicit incomplete-job error.
+
+## Inspect an existing run
+
+Set `GITHUB_TOKEN` to a token with Actions read access, then run:
+
+```bash
+hollywood trace OWNER/REPOSITORY RUN_ID --attempt 1 --output .hollywood/trace
+```
+
+Open `.hollywood/trace/trace.html` locally. Pass `--summary PATH` to append the
+same summary to another file. The collector pins the requested attempt, so a
+rerun cannot silently combine jobs from two attempts. The CLI writes generated
+report files into the output directory, replacing files with the same names.
+
+
+The trace example in `gha/tracing.ts` exercises a workload and
+uploads its report. It runs on pull requests with any base branch so stacked
+changes can verify the complete artifact flow before merging.
+
+The artifact contains `trace.html`, standard OTLP `trace.json`, `summary.md`,
+and `trace.txt`. HTML provides the presentation. OTLP's JSON encoding provides
+the structured data, so an additional XML trace schema is unnecessary.

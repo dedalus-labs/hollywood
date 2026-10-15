@@ -1,9 +1,14 @@
+import { reportWorkflowTrace } from "../src/tracing";
+export { reportWorkflowTrace };
+
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import {
 	action,
+	always,
+	and,
 	command,
 	gh,
 	job,
@@ -32,8 +37,7 @@ import { validateReleaseCandidate } from "./release-actions";
 import { checkParallelModel } from "./models";
 
 const actionlintVersion = "1.7.12";
-const actionlintArchiveSha256 =
-	"8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8";
+const actionlintArchiveSha256 = "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8";
 
 export const assertSha256 = (contents: Uint8Array, expected: string): void => {
 	const actual = createHash("sha256").update(contents).digest("hex");
@@ -92,7 +96,15 @@ export const lintWorkflows = action({
 			`https://github.com/rhysd/actionlint/releases/download/v${actionlintVersion}/actionlint_${actionlintVersion}_linux_amd64.tar.gz`,
 		]);
 		assertSha256(await readFile(archive), actionlintArchiveSha256);
-		await exec("tar", ["--extract", "--gzip", "--file", archive, "--directory", runnerTemp, "actionlint"]);
+		await exec("tar", [
+			"--extract",
+			"--gzip",
+			"--file",
+			archive,
+			"--directory",
+			runnerTemp,
+			"actionlint",
+		]);
 		await exec(executable, ["-color"], { cwd: workspace });
 		return {};
 	},
@@ -191,6 +203,40 @@ export const ci = workflow({
 				{ name: "Build Hollywood", run: buildHollywoodCommand },
 				{ name: "Build local actions", run: buildLocalActionsCommand },
 				uses(testContainerProvider, { name: "Test provider" }),
+			],
+		}),
+		timings: job({
+			name: "Workflow trace",
+			"timeout-minutes": 5,
+			if: and(always(), trustedCiRun),
+			needs: ["test", "actionlint", "container"],
+			permissions: { actions: "read", contents: "read" },
+			"runs-on": "ubuntu-latest",
+			steps: [
+				{ uses: checkoutAction, with: { "persist-credentials": false } },
+				setupNode,
+				{ name: "Install dependencies", run: installDependenciesCommand },
+				{ name: "Build Hollywood", run: buildHollywoodCommand },
+				{ name: "Build local actions", run: buildLocalActionsCommand },
+				uses(reportWorkflowTrace, {
+					env: { GITHUB_TOKEN: gh.github.token },
+					with: {
+						repository: gh.github.repository,
+						runId: "${{ github.run_id }}",
+						attempt: "${{ github.run_attempt }}",
+						excludeJobId: "${{ job.check_run_id }}",
+					},
+				}),
+				{
+					name: "Save trace explorer",
+					uses: uploadArtifactAction,
+					with: {
+						name: "hollywood-trace",
+						path: ".hollywood/trace",
+						"include-hidden-files": true,
+						"if-no-files-found": "error",
+					},
+				},
 			],
 		}),
 	},
