@@ -94,7 +94,7 @@ export const renderTraceSummary = (report: WorkflowTrace): string => {
 	};
 	const row = (node: TraceNode): string =>
 		`<tr><td>${failed(node.span) ? "🔴" : result(node.span) === "skipped" ? "⚪" : "🔵"} <a href="${url(attribute(node.span, "url.full"))}">${escapeTraceHtml(node.span.name)}</a></td><td align="right">${duration(node.span)}</td><td><code>${cascade(node.span)}</code></td></tr>`;
-	return `<h2>Hollywood trace: ${escapeTraceHtml(report.name)}</h2>\n<p>${root.children.length} jobs. ${duration(root.span)} elapsed job window. Attempt ${report.attempt}.</p>\n<p>Bars share one time axis. Parallel spans overlap. Download the HTML report artifact for the interactive explorer.</p>\n${root.children.map((job) => `<details><summary><b>${escapeTraceHtml(job.span.name)}</b> (${duration(job.span)})</summary><table><thead><tr><th>Span</th><th>Duration</th><th>Cascade</th></tr></thead><tbody>${row(job)}${job.children.map(row).join("")}</tbody></table></details>`).join("\n")}\n`;
+	return `<h2>Hollywood trace: ${escapeTraceHtml(report.name)}</h2>\n<p>${root.children.length} jobs. ${duration(root.span)} elapsed job window. Attempt ${report.attempt}.</p>\n<p>Bars share one time axis. Parallel spans overlap.</p>\n${root.children.map((job) => `<details><summary><b>${escapeTraceHtml(job.span.name)}</b> (${duration(job.span)})</summary><table><thead><tr><th>Span</th><th>Duration</th><th>Cascade</th></tr></thead><tbody>${row(job)}${job.children.map(row).join("")}</tbody></table></details>`).join("\n")}\n`;
 };
 
 export const renderTraceText = (report: WorkflowTrace): string => {
