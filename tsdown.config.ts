@@ -14,6 +14,7 @@ export default defineConfig([
 		dts: true,
 		entry: {
 			"action-runtime": "src/action-runtime.ts",
+			tracing: "src/tracing.ts",
 			environments: "src/environments.ts",
 			expr: "src/expr.ts",
 			index: "src/index.ts",

@@ -65,11 +65,11 @@ requirements:
 
 | Surface                    | Node requirement             |
 | -------------------------- | ---------------------------- |
-| Installed package and CLI  | Node 20 or newer             |
+| Installed package and CLI  | Node 20.6 or newer             |
 | Generated GitHub actions   | GitHub's Node 24 action runtime |
 | Building Hollywood locally | Node 22.18+ or Node 24.11+   |
 
-The published package declares `engines.node >=20` in
+The published package declares `engines.node >=20.6.0` in
 [`package.json`](package.json). The build output targets Node 20 in
 [`tsdown.config.ts`](tsdown.config.ts). `tsconfig.json` is only the typecheck
 configuration; it is not the runtime support contract.
