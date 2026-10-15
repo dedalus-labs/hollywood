@@ -74,7 +74,9 @@ const displayName = (span: ReadableSpan): string =>
 	span.name.replace(/^(Post )?Run ([\w.-]+\/[\w./-]+)@[a-f0-9]{40}$/, "$1$2");
 
 const duration = (span: ReadableSpan): string =>
-	available(span) ? formatTraceDuration(spanMilliseconds(span.duration)) : "Unmeasured";
+	available(span)
+		? `${formatTraceDuration(spanMilliseconds(span.duration))}${span.attributes["hollywood.timing.partial"] === true ? " (partial)" : ""}`
+		: "Unmeasured";
 const result = (span: ReadableSpan): string => attribute(span, "hollywood.result");
 const kind = (span: ReadableSpan): string => attribute(span, "hollywood.kind");
 const url = (value: string): string => {
@@ -101,8 +103,8 @@ export const renderTraceHtml = (report: WorkflowTrace): string => {
 <header class="masthead"><a class="brand" href="${url(report.url)}" target="_blank" rel="noreferrer"><span class="brand-mark">h</span> hollywood <span class="brand-detail">/ trace</span></a><span class="attempt">Attempt ${report.attempt}</span></header>
 <main><section class="heading"><div><p class="eyebrow">GitHub Actions</p><h1>${escapeTraceHtml(report.name)}</h1><p class="subtitle">${root.children.length} jobs <span>/</span> ${steps.length} steps <span>/</span> <b>${duration(root.span)}</b> elapsed job window</p></div><a class="source-link" href="${url(report.url)}" target="_blank" rel="noreferrer">View workflow ↗</a></section>
 <section class="overview" aria-label="Job overview">${root.children.map((node) => `<div class="overview-job" title="${escapeTraceHtml(node.span.name)}"><span>${escapeTraceHtml(node.span.name)}</span>${bar(node.span, root.span, 12)}<b>${duration(node.span)}</b></div>`).join("")}</section>
-<section class="explorer"><div class="toolbar"><label class="search"><span>⌕</span><input type="search" placeholder="Find a job or step…" aria-label="Find a job or step"></label><div class="toolbar-actions"><button id="errors" aria-pressed="false">Failures</button><button id="expand">Expand all</button><button id="collapse">Collapse all</button><label class="zoom">Zoom <input id="zoom" type="range" min="1" max="4" step="0.5" value="1"></label></div></div>
-<div class="workspace"><div class="trace-scroll"><div class="trace-body"><div class="ruler row"><div class="span-heading">Span <span id="visible-count">${report.spans.length}</span></div><div class="ticks">${[0, 1, 2, 3, 4].map((tick) => `<span>${formatTraceDuration((total * tick) / 4)}</span>`).join("")}</div><div class="duration-heading">Duration</div></div>${renderNode(root, root.span, 0)}<p id="empty" hidden>No spans match your search.</p></div></div><aside id="inspector" aria-label="Span details"><p class="inspector-kicker">Span details</p><h2>Inspect a span</h2><p>Select a bar to inspect its duration, start time, and trace attributes.</p><div class="legend"><span class="legend-job">Job</span><span class="legend-step">Step</span><span class="legend-failure">Failed</span></div></aside></div></section>
+<section class="explorer"><div class="toolbar"><label class="search"><span>⌕</span><input type="search" placeholder="Find a span…" aria-label="Find a span"></label><div class="toolbar-actions"><button id="reset-time" disabled>Full workflow</button><button id="errors" aria-pressed="false">Failures</button><button id="expand">Expand all</button><button id="collapse">Collapse all</button><label class="zoom">Zoom <input id="zoom" type="range" min="1" max="4" step="0.5" value="1"></label></div></div>
+<div class="workspace"><div class="trace-scroll"><div class="trace-body"><div class="ruler row"><div class="span-heading"><span id="time-window">Full workflow</span> <span id="visible-count">${report.spans.length}</span></div><div class="ticks">${[0, 1, 2, 3, 4].map((tick) => `<span>${formatTraceDuration((total * tick) / 4)}</span>`).join("")}</div><div class="duration-heading">Duration</div></div>${renderNode(root, root.span, 0)}<p id="empty" hidden>No spans match your search.</p></div></div><aside id="inspector" aria-label="Span details"><p class="inspector-kicker">Span details</p><h2>Inspect a span</h2><p>Select a bar to inspect its duration, start time, and trace attributes.</p><div class="legend"><span class="legend-job">Job</span><span class="legend-step">Step</span><span class="legend-failure">Failed</span></div></aside></div></section>
 <footer><span>Recorded timings. Parallel spans overlap.</span><span>OpenTelemetry / Hollywood</span></footer></main><script>${traceReportScript}</script></body></html>`;
 };
 
@@ -112,7 +114,7 @@ const renderNode = (node: TraceNode, root: ReadableSpan, depth: number): string 
 	const tag = children.length > 0 ? "details" : "div";
 	const rowTag = children.length > 0 ? "summary" : "div";
 	const open = depth === 0 ? " open" : "";
-	return `<${tag} class="node" data-id="${id}" data-name="${escapeTraceHtml(span.name.toLowerCase())}" data-failed="${failed(span)}"${open}>
+	return `<${tag} class="node" data-id="${id}" data-name="${escapeTraceHtml(span.name.toLowerCase())}" data-failed="${failed(span)}" data-start="${spanMilliseconds(span.startTime) - spanMilliseconds(root.startTime)}" data-duration="${spanMilliseconds(span.duration)}"${open}>
 <${rowTag} class="row ${tone(span)}"><div class="span-label" style="--depth:${depth}"><span class="chevron">${children.length > 0 ? "›" : ""}</span><span class="status-dot" title="${escapeTraceHtml(result(span))}"></span><span class="span-name" title="${escapeTraceHtml(span.name)}">${escapeTraceHtml(displayName(span))}</span>${kind(span) === "job" ? `<span class="step-count">${children.length}</span>` : ""}</div><button class="plot inspect" aria-label="Inspect ${escapeTraceHtml(span.name)}">${bar(span, root, 36)}</button><div class="duration">${duration(span)}</div></${rowTag}>
 <template>${spanDetails(span, root)}</template>${children.map((child) => renderNode(child, root, depth + 1)).join("")}</${tag}>`;
 };
@@ -124,11 +126,11 @@ const bar = (span: ReadableSpan, root: ReadableSpan, height: number): string => 
 	const width = (spanMilliseconds(span.duration) / total) * 1_000;
 	if (x < -0.01 || x + width > 1_000.01)
 		throw new WorkflowTraceError(`Span ${span.name} extends beyond the report window.`);
-	return `<svg class="bar ${tone(span)}" viewBox="0 0 1000 ${height}" preserveAspectRatio="none" aria-hidden="true"><title>${escapeTraceHtml(span.name)} (${duration(span)})</title><rect x="${x.toFixed(3)}" y="${height / 4}" width="${Math.max(width, 1).toFixed(3)}" height="${height / 2}" rx="2"/></svg>`;
+	return `<svg class="bar ${tone(span)}" viewBox="0 0 1000 ${height}" preserveAspectRatio="none" aria-hidden="true"><title>${escapeTraceHtml(span.name)} (${duration(span)})</title><rect x="${x.toFixed(6)}" y="${height / 4}" width="${Math.max(width, 1).toFixed(3)}" data-width="${width}" height="${height / 2}" rx="2"/></svg>`;
 };
 
 const spanDetails = (span: ReadableSpan, root: ReadableSpan): string =>
-	`<p class="inspector-kicker">${escapeTraceHtml(kind(span))}</p><h2>${escapeTraceHtml(span.name)}</h2><span class="result ${tone(span)}">${escapeTraceHtml(result(span))}</span><dl><dt>Duration</dt><dd>${duration(span)}</dd><dt>Started after</dt><dd>${available(span) ? formatTraceDuration(spanMilliseconds(span.startTime) - spanMilliseconds(root.startTime)) : "Unmeasured"}</dd><dt>Span ID</dt><dd class="mono">${span.spanContext().spanId}</dd></dl><a class="source-link" href="${url(attribute(span, "url.full"))}" target="_blank" rel="noreferrer">Open logs ↗</a><h3>Attributes</h3><dl class="attributes">${Object.entries(
+	`<p class="inspector-kicker">${escapeTraceHtml(kind(span))}</p><h2>${escapeTraceHtml(span.name)}</h2><span class="result ${tone(span)}">${escapeTraceHtml(result(span))}</span><dl><dt>Duration</dt><dd>${duration(span)}</dd><dt>Started after</dt><dd>${available(span) ? formatTraceDuration(spanMilliseconds(span.startTime) - spanMilliseconds(root.startTime)) : "Unmeasured"}</dd><dt>Span ID</dt><dd class="mono">${span.spanContext().spanId}</dd></dl><a class="source-link" href="${url(attribute(span, "url.full"))}" target="_blank" rel="noreferrer">Open logs ↗</a>${available(span) && spanMilliseconds(span.duration) > 0 ? '<button class="focus-interval" type="button">Focus interval</button>' : ""}<h3>Attributes</h3><dl class="attributes">${Object.entries(
 		span.attributes,
 	)
 		.map(
@@ -148,9 +150,9 @@ export const renderTraceSummary = (report: WorkflowTrace): string => {
 		const length = Math.max(1, Math.round((spanMilliseconds(span.duration) / total) * 32));
 		return `${"·".repeat(offset)}${"━".repeat(length)}`;
 	};
-	const row = (node: TraceNode): string =>
-		`<tr><td>${failed(node.span) ? "🔴" : result(node.span) === "skipped" ? "⚪" : "🔵"} <a href="${url(attribute(node.span, "url.full"))}">${escapeTraceHtml(node.span.name)}</a></td><td align="right">${duration(node.span)}</td><td><code>${cascade(node.span)}</code></td></tr>`;
-	return `<h2>Hollywood trace: ${escapeTraceHtml(report.name)}</h2>\n<p>${root.children.length} jobs. ${duration(root.span)} elapsed job window. Attempt ${report.attempt}.</p>\n<p>Bars share one time axis. Parallel spans overlap.</p>\n${root.children.map((job) => `<details><summary><b>${escapeTraceHtml(job.span.name)}</b> (${duration(job.span)})</summary><table><thead><tr><th>Span</th><th>Duration</th><th>Cascade</th></tr></thead><tbody>${row(job)}${job.children.map(row).join("")}</tbody></table></details>`).join("\n")}\n`;
+	const row = (node: TraceNode, depth = 0): string =>
+		`<tr><td>${"↳ ".repeat(depth)}${failed(node.span) ? "🔴" : result(node.span) === "skipped" ? "⚪" : "🔵"} <a href="${url(attribute(node.span, "url.full"))}">${escapeTraceHtml(node.span.name)}</a></td><td align="right">${duration(node.span)}</td><td><code>${cascade(node.span)}</code></td></tr>${node.children.map((child) => row(child, depth + 1)).join("")}`;
+	return `<h2>Hollywood trace: ${escapeTraceHtml(report.name)}</h2>\n<p>${root.children.length} jobs. ${duration(root.span)} elapsed job window. Attempt ${report.attempt}.</p>\n<p>Bars share one time axis. Parallel spans overlap.</p>\n${root.children.map((job) => `<details><summary><b>${escapeTraceHtml(job.span.name)}</b> (${duration(job.span)})</summary><table><thead><tr><th>Span</th><th>Duration</th><th>Cascade</th></tr></thead><tbody>${row(job)}</tbody></table></details>`).join("\n")}\n`;
 };
 
 export const renderTraceText = (report: WorkflowTrace): string => {
