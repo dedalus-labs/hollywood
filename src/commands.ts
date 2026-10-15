@@ -25,6 +25,7 @@ import {
 	type ContainerProvider,
 } from "./container";
 import { createRunnerCommand } from "./runner-cli";
+import { createTraceCommand } from "./trace-cli";
 import {
 	type InputDefinitions,
 	type OutputDefinitions,
@@ -164,6 +165,7 @@ export const createCli = (
 		});
 
 	program.addCommand(createRunnerCommand(io));
+	program.addCommand(createTraceCommand(io));
 
 	return program;
 };
