@@ -10,6 +10,8 @@ import { renderTraceHtml, renderTraceSummary, renderTraceText } from "./trace-re
 export { collectWorkflowTrace, WorkflowTraceError } from "./workflow-trace";
 export type { WorkflowTrace, WorkflowTraceOptions } from "./workflow-trace";
 export { renderTraceHtml, renderTraceSummary, renderTraceText } from "./trace-report";
+export type { ActionTraceOptions } from "./action-trace";
+export { ActionTraceError } from "./action-trace";
 
 /** Write an offline explorer, GitHub summary, text cascade, and standard OTLP JSON. */
 export const writeWorkflowTrace = async (
