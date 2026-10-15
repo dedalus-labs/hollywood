@@ -5,6 +5,7 @@ import {
 	type Attributes, type Context, type Span,
 } from "@opentelemetry/api";
 import { resourceFromAttributes } from "@opentelemetry/resources";
+import { hrTime } from "@opentelemetry/core";
 import {
 	AlwaysOnSampler, InMemorySpanExporter, SimpleSpanProcessor, TracerProvider,
 	type ReadableSpan,
@@ -47,7 +48,8 @@ export class ActionTracer {
 	): Promise<Value> {
 		if (this.#closed) throw new ActionTraceError("Action trace is closed.");
 		const parent = this.#context.getStore();
-		const span = this.#tracer.startSpan(name, { attributes: {
+		// One monotonic clock avoids per-span wall-clock rounding at parent boundaries.
+		const span = this.#tracer.startSpan(name, { startTime: hrTime(), attributes: {
 			...attributes,
 			"hollywood.kind": kind,
 			"hollywood.timing.available": true,
@@ -67,16 +69,17 @@ export class ActionTracer {
 			}
 			throw error;
 		} finally {
+			const end = hrTime();
 			if (parent === undefined) {
 				this.#closed = true;
 				for (const pending of this.#pending) {
 					if (pending === span) continue;
 					pending.setAttributes({ "hollywood.result": "unfinished", "hollywood.timing.partial": true });
-					pending.end();
+					pending.end(end);
 				}
 				this.#pending.clear();
 			}
-			if (span.isRecording()) span.end();
+			if (span.isRecording()) span.end(end);
 			this.#pending.delete(span);
 		}
 	}

@@ -1,5 +1,5 @@
 import * as assert from "node:assert/strict";
-import { test } from "vitest";
+import { test, vi } from "vitest";
 import { SpanStatusCode } from "@opentelemetry/api";
 import type { ReadableSpan } from "@opentelemetry/sdk-trace";
 
@@ -156,4 +156,24 @@ test("an export failure rejects an otherwise successful action", async () => {
 	await assert.rejects(runAction(define(async () => ({})), {
 		...services, trace: { onEnd: async () => { throw failure; } },
 	}), (error) => error === failure);
+});
+
+test("nested intervals share one monotonic clock despite wall-clock offsets", async () => {
+	let spans: readonly ReadableSpan[] = [];
+	let wallTime = Date.now();
+	const clock = vi.spyOn(Date, "now").mockImplementation(() => wallTime += 10);
+	try {
+		await runAction(define(async ({ log }) => {
+			await log.group("Child", async () => {});
+			return {};
+		}), { ...services, trace: { onEnd: async (recorded) => { spans = recorded; } } });
+	} finally {
+		clock.mockRestore();
+	}
+	const child = spans[0];
+	const root = spans[1];
+	assert.ok(child && root);
+	const nanos = (time: readonly [number, number]) => BigInt(time[0]) * 1_000_000_000n + BigInt(time[1]);
+	assert.ok(nanos(child.startTime) >= nanos(root.startTime));
+	assert.ok(nanos(child.endTime) <= nanos(root.endTime));
 });
