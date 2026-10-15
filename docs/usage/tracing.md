@@ -136,7 +136,7 @@ rerun cannot silently combine jobs from two attempts. The CLI writes generated
 report files into the output directory, replacing files with the same names.
 
 
-The [trace example workflow](https://github.com/dedalus-labs/hollywood/blob/8727688499dbfc5b1d34bffcfbb3b08b83ff67bf/gha/tracing.ts) exercises a workload and
+The [trace example workflow](https://github.com/dedalus-labs/hollywood/blob/2518f057bdf25e816ae9ae94687512ce8e77de50/gha/tracing.ts) exercises a workload and
 uploads its report. It runs on pull requests with any base branch so stacked
 changes can verify the complete artifact flow before merging.
 
