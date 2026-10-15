@@ -15,6 +15,22 @@ const identitySchema = z.object({
 });
 export type OperationIdentity = z.infer<typeof identitySchema>;
 
+export const githubActionTrace = (environment: NodeJS.ProcessEnv): ActionTraceOptions => {
+	const required = (name: string): string => {
+		const value = environment[name];
+		if (value === undefined || value.length === 0)
+			throw new ActionTraceError(`Native tracing requires ${name}.`);
+		return value;
+	};
+	return fileActionTrace(required("HOLLYWOOD_TRACE_DIR"), {
+		repository: required("GITHUB_REPOSITORY"),
+		runId: decimalId.parse(required("GITHUB_RUN_ID")),
+		attempt: decimalId.parse(required("GITHUB_RUN_ATTEMPT")),
+		jobId: decimalId.parse(required("HOLLYWOOD_TRACE_JOB_ID")),
+		stepName: required("HOLLYWOOD_TRACE_STEP_NAME"),
+	});
+};
+
 /** Persist one native action as standard OTLP JSON with its exact GitHub identity. */
 export const fileActionTrace = (directory: string, identity: OperationIdentity): ActionTraceOptions => {
 	identitySchema.parse(identity);

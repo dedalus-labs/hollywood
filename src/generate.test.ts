@@ -231,6 +231,18 @@ test("uses omits empty with blocks", () => {
 	);
 });
 
+test("traced native steps bind their resolved name and job identity without leaking a YAML key", () => {
+	const step = uses(installKubectl, { name: "Install ${{ matrix.version }}", trace: true, env: { KEEP: "value" } });
+	assert.equal(step.name, step.env?.["HOLLYWOOD_TRACE_STEP_NAME"]);
+	assert.equal(step.env?.["HOLLYWOOD_TRACE_JOB_ID"], "${{ job.check_run_id }}");
+	assert.equal(step.env?.["KEEP"], "value");
+	assert.equal(step.env?.["HOLLYWOOD_TRACE_DIR"], "${{ runner.temp }}/hollywood-operations/${{ github.run_attempt }}-${{ job.check_run_id }}");
+	assert.equal(Object.hasOwn(step, "trace"), false);
+	assert.equal(uses(installKubectl, { trace: false }).env, undefined);
+	assert.throws(() => uses(installKubectl, { trace: true, env: { HOLLYWOOD_TRACE_JOB_ID: "42" } }),
+		/trace environment is generated/);
+});
+
 test("uses keeps existing local action descriptors typed at workflow call sites", () => {
 	if (process.env["HOLLYWOOD_TYPE_TESTS"] === "1") {
 		uses(terraformPlan, {
