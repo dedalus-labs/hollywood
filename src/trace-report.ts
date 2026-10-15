@@ -2,6 +2,7 @@ import { SpanStatusCode } from "@opentelemetry/api";
 import type { ReadableSpan } from "@opentelemetry/sdk-trace";
 
 import { WorkflowTraceError, type WorkflowTrace } from "./workflow-trace";
+import { traceReportStyle, traceReportScript } from "./trace-report-page";
 
 export const escapeTraceHtml = (value: string): string =>
 	value
@@ -75,12 +76,65 @@ const displayName = (span: ReadableSpan): string =>
 const duration = (span: ReadableSpan): string =>
 	available(span) ? formatTraceDuration(spanMilliseconds(span.duration)) : "Unmeasured";
 const result = (span: ReadableSpan): string => attribute(span, "hollywood.result");
+const kind = (span: ReadableSpan): string => attribute(span, "hollywood.kind");
 const url = (value: string): string => {
 	if (new URL(value).protocol !== "https:")
 		throw new WorkflowTraceError("Trace links must use HTTPS.");
 	return escapeTraceHtml(value);
 };
 const failed = (span: ReadableSpan): boolean => span.status.code === SpanStatusCode.ERROR;
+const tone = (span: ReadableSpan): string =>
+	failed(span)
+		? "failure"
+		: result(span) === "cancelled"
+			? "cancelled"
+			: !available(span) || result(span) === "skipped"
+				? "muted"
+				: kind(span);
+
+export const renderTraceHtml = (report: WorkflowTrace): string => {
+	const root = traceTree(report);
+	const total = spanMilliseconds(root.span.duration);
+	const steps = report.spans.filter((span) => kind(span) === "step");
+	return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${escapeTraceHtml(report.name)} / Hollywood trace</title><style>${traceReportStyle}</style></head><body>
+<main><section class="heading"><div><h1>${escapeTraceHtml(report.name)}</h1><p class="subtitle">${root.children.length} jobs <span>/</span> ${steps.length} steps <span>/</span> <b>${duration(root.span)}</b> elapsed job window</p></div><a class="source-link" href="${url(report.url)}" target="_blank" rel="noreferrer">View workflow ↗</a></section>
+<section class="explorer"><div class="toolbar"><label class="search"><span>⌕</span><input type="search" placeholder="Find a job or step…" aria-label="Find a job or step"></label><div class="toolbar-actions"><button id="errors" aria-pressed="false">Failures</button><button id="expand">Expand all</button><button id="collapse">Collapse all</button><label class="zoom">Zoom <input id="zoom" type="range" min="1" max="4" step="0.5" value="1"></label></div></div>
+<div class="workspace"><div class="trace-scroll"><div class="trace-body"><div class="ruler row"><div class="span-heading">Span <span id="visible-count">${report.spans.length}</span></div><div class="ticks">${[0, 1, 2, 3, 4].map((tick) => `<span>${formatTraceDuration((total * tick) / 4)}</span>`).join("")}</div><div class="duration-heading">Duration</div></div>${renderNode(root, root.span, 0)}<p id="empty" hidden>No spans match your search.</p></div></div><aside id="inspector" aria-label="Span details"><p class="inspector-kicker">Span details</p><h2>Inspect a span</h2><p>Select a bar to inspect its duration, start time, and trace attributes.</p></aside></div></section>
+</main><script>${traceReportScript}</script></body></html>`;
+};
+
+const renderNode = (node: TraceNode, root: ReadableSpan, depth: number): string => {
+	const { span, children } = node;
+	const id = span.spanContext().spanId;
+	const tag = children.length > 0 ? "details" : "div";
+	const rowTag = children.length > 0 ? "summary" : "div";
+	const open = depth === 0 ? " open" : "";
+	return `<${tag} class="node" data-id="${id}" data-name="${escapeTraceHtml(span.name.toLowerCase())}" data-failed="${failed(span)}"${open}>
+<${rowTag} class="row ${tone(span)}"><div class="span-label" style="--depth:${depth}"><span class="chevron">${children.length > 0 ? "›" : ""}</span><span class="status-dot" title="${escapeTraceHtml(result(span))}"></span><span class="span-name" title="${escapeTraceHtml(span.name)}">${escapeTraceHtml(displayName(span))}</span>${kind(span) === "job" ? `<span class="step-count">${children.length}</span>` : ""}</div><button class="plot inspect" aria-label="Inspect ${escapeTraceHtml(span.name)}">${bar(span, root, 36)}</button><div class="duration">${duration(span)}</div></${rowTag}>
+<template>${spanDetails(span, root)}</template>${children.map((child) => renderNode(child, root, depth + 1)).join("")}</${tag}>`;
+};
+
+const bar = (span: ReadableSpan, root: ReadableSpan, height: number): string => {
+	if (!available(span)) return `<span class="unmeasured">No timing recorded</span>`;
+	const total = Math.max(spanMilliseconds(root.duration), 1);
+	const x = ((spanMilliseconds(span.startTime) - spanMilliseconds(root.startTime)) / total) * 1_000;
+	const width = (spanMilliseconds(span.duration) / total) * 1_000;
+	if (x < -0.01 || x + width > 1_000.01)
+		throw new WorkflowTraceError(`Span ${span.name} extends beyond the report window.`);
+	return `<svg class="bar ${tone(span)}" viewBox="0 0 1000 ${height}" preserveAspectRatio="none" aria-hidden="true"><title>${escapeTraceHtml(span.name)} (${duration(span)})</title><rect x="${x.toFixed(3)}" y="${height / 4}" width="${Math.max(width, 1).toFixed(3)}" height="${height / 2}" rx="2"/></svg>`;
+};
+
+const spanDetails = (span: ReadableSpan, root: ReadableSpan): string =>
+	`<p class="inspector-kicker">${escapeTraceHtml(kind(span))}</p><h2>${escapeTraceHtml(span.name)}</h2><span class="result ${tone(span)}">${escapeTraceHtml(result(span))}</span><dl><dt>Duration</dt><dd>${duration(span)}</dd><dt>Started after</dt><dd>${available(span) ? formatTraceDuration(spanMilliseconds(span.startTime) - spanMilliseconds(root.startTime)) : "Unmeasured"}</dd><dt>Span ID</dt><dd class="mono">${span.spanContext().spanId}</dd></dl><a class="source-link" href="${url(attribute(span, "url.full"))}" target="_blank" rel="noreferrer">Open logs ↗</a><h3>Attributes</h3><dl class="attributes">${Object.entries(
+		span.attributes,
+	)
+		.map(
+			([key, value]) =>
+				`<dt>${escapeTraceHtml(key)}</dt><dd>${escapeTraceHtml(String(value))}</dd>`,
+		)
+		.join("")}</dl>`;
+
 export const renderTraceSummary = (report: WorkflowTrace): string => {
 	const root = traceTree(report);
 	const total = Math.max(spanMilliseconds(root.span.duration), 1);
