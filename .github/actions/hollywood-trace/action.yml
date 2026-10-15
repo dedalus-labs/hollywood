@@ -20,6 +20,10 @@ inputs:
     description: Directory for trace artifacts.
     required: false
     default: .hollywood/trace
+  operations:
+    description: Downloaded native operation trace directory.
+    required: false
+    default: ""
 outputs: {}
 runs:
   using: node24
