@@ -32,11 +32,33 @@ button:focus-visible,a:focus-visible {
 [hidden] {
 	display:none!important
 }
+.masthead {
+	height:72px; padding:0 44px; display:flex; align-items:center; justify-content:space-between;
+	border-bottom:1px solid var(--line); background:white
+}
+.brand {
+	display:flex; align-items:center; gap:10px; font-size:17px; font-weight:650;
+	letter-spacing:-.6px
+}
+.brand-mark {
+	display:grid; place-items:center; width:29px; height:29px; border-radius:8px;
+	background:#263248; color:white; font-family:Georgia,serif; font-size:25px;
+	font-style:italic; line-height:1
+}
+.brand-detail {
+	color:#708096; font-weight:400; margin-left:8px
+}
+.attempt {
+	color:#718096; font-size:12px; font-variant-numeric:tabular-nums
+}
 main {
 	max-width:1800px; margin:auto; padding:38px 44px 20px
 }
 .heading {
 	display:flex; align-items:center; justify-content:space-between; gap:24px
+}
+.eyebrow {
+	font-size:12px; color:#66758c; margin:0 0 9px
 }
 h1 {
 	font-size:32px; font-weight:620; letter-spacing:-1px; line-height:1.2;
@@ -56,6 +78,20 @@ h1 {
 }
 .source-link:hover {
 	text-decoration:underline
+}
+.overview {
+	margin:28px 0 30px; padding:12px 18px; background:#edf1f8; border-radius:10px;
+	max-height:175px; overflow:auto
+}
+.overview-job {
+	display:grid; grid-template-columns:230px 1fr 85px; align-items:center;
+	gap:20px; min-height:23px; font-size:11px; color:#68768d
+}
+.overview-job>span {
+	white-space:nowrap; overflow:hidden; text-overflow:ellipsis
+}
+.overview-job b {
+	text-align:right; font-weight:500; font-variant-numeric:tabular-nums
 }
 .bar {
 	display:block; width:100%; overflow:visible
@@ -79,7 +115,6 @@ h1 {
 	fill:#a8b2c4
 }
 .explorer {
-	margin-top:24px;
 	border:1px solid #dbe2ee; border-radius:12px; background:white; box-shadow:0 5px 25px #243b6410;
 	overflow:hidden
 }
@@ -205,6 +240,18 @@ h1 {
 .row.workflow .span-name {
 	font-weight:650
 }
+.row.job {
+	background:#faf9fe
+}
+.row.job .span-label {
+	background:#faf9fe
+}
+.row.workflow {
+	background:#f3f6fa
+}
+.row.workflow .span-label {
+	background:#f3f6fa
+}
 .row.failure {
 	background:#fff8f9
 }
@@ -290,6 +337,26 @@ dd {
 .result.cancelled {
 	color:#9f7428; background:#fcf3df
 }
+.legend {
+	display:flex; gap:14px; margin-top:30px; font-size:10px; color:#7a879b
+}
+.legend span:before {
+	content:""; display:inline-block; width:5px; height:5px; border-radius:2px;
+	margin-right:5px
+}
+.legend-job:before {
+	background:var(--job)
+}
+.legend-step:before {
+	background:var(--step)
+}
+.legend-failure:before {
+	background:var(--failure)
+}
+footer {
+	display:flex; justify-content:space-between; gap:20px; margin-top:19px;
+	font-size:10px; color:#74839a
+}
 @media(max-width:1100px) {
 	.workspace {
 		grid-template-columns:minmax(0,1fr)
@@ -300,10 +367,16 @@ dd {
 	.trace-scroll {
 		max-height:600px
 	}
+	.legend {
+		margin-top:12px
+	}
 }
 @media(max-width:700px) {
 	:root { --label-width:190px; }
 	.span-label,.span-heading { position:static; }
+	.masthead {
+		padding:0 18px; height:60px
+	}
 	main {
 		padding:27px 15px 16px
 	}
@@ -322,6 +395,9 @@ dd {
 	.subtitle span {
 		padding:0 4px
 	}
+	.overview-job {
+		grid-template-columns:150px 1fr 63px; gap:10px
+	}
 	.toolbar {
 		align-items:stretch; flex-direction:column; gap:8px
 	}
@@ -331,8 +407,17 @@ dd {
 	.zoom {
 		padding-left:8px
 	}
+	.overview {
+		padding:12px; margin:23px 0
+	}
 	.trace-scroll {
 		min-height:300px
+	}
+	footer {
+		font-size:9px
+	}
+	.brand {
+		font-size:16px
 	}
 }
 @media(prefers-reduced-motion:reduce) {
