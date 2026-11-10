@@ -1,4 +1,4 @@
-import { renderTraceSummary, renderTraceText } from "./trace-report";
+import { renderTraceHtml, renderTraceSummary, renderTraceText } from "./trace-report";
 import assert from "node:assert/strict";
 import { Octokit } from "@octokit/rest";
 import { SpanStatusCode } from "@opentelemetry/api";
@@ -213,4 +213,21 @@ test("summary names cannot inject active HTML", async () => {
 	);
 	assert.doesNotMatch(renderTraceSummary(report), /<img src=x/);
 	assert.match(renderTraceSummary(report), /&lt;img/);
+});
+
+test("offline HTML keeps span names inert and recorded intervals proportional", async () => {
+	const report = await collectWorkflowTrace(
+		options,
+		client([
+			{
+				...job,
+				name: '</script><img src=x onerror="alert(1)">',
+				steps: [{ ...step, started_at: "2026-10-14T10:00:05Z" }],
+			},
+		]),
+	);
+	const html = renderTraceHtml(report);
+	assert.doesNotMatch(html, /<img src=x/);
+	assert.match(html, /&lt;\/script&gt;&lt;img/);
+	assert.match(html, /x="500.000"[^>]*width="500.000"/);
 });

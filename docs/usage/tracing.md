@@ -59,3 +59,20 @@ The summary uses GitHub's supported markup. HTML is appropriate for the browser
 presentation because it provides native links, tables, and disclosure controls.
 An XML document alone would still require a presentation layer. Trace data
 remains represented as OpenTelemetry spans independently of the markup.
+
+
+## Explore spans offline
+
+`renderTraceHtml(report)` returns a self-contained HTML document with expandable
+workflow, job, and step rows. Each bar uses the span's recorded start and end
+on a shared time axis. Search retains matching jobs and their child steps.
+Select a bar to inspect its duration, attributes, and GitHub log link.
+
+The viewer includes its own styling and script, makes no network requests on
+load, and supports filtering failures, expanding groups, and zooming. Save the
+returned string as `trace.html` and open it in a browser.
+
+HTML owns the interactive controls. Inline SVG, an XML-based graphics format,
+owns the bars. A standalone XML document would require a separate viewer and
+would not make GitHub execute interactive content in a job summary. The GitHub
+summary and the offline explorer are separate views of the same span data.
