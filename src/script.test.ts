@@ -10,6 +10,7 @@ import {
 	stringOutput,
 	runAction,
 } from "./script";
+import { unavailableGitHubClient } from "./github-client";
 
 const publishImage = action({
 	name: "publish-container-image",
@@ -53,6 +54,7 @@ test("action run emits execve-shaped commands", async () => {
 			buildAttempt: 3,
 		},
 		fs: { readText: async () => "" },
+		github: unavailableGitHubClient(),
 		log: {
 			info: () => {},
 			warning: () => {},

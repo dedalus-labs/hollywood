@@ -2,6 +2,7 @@ import * as assert from "node:assert/strict";
 import { test } from "vitest";
 
 import { checkVouch } from "./cla";
+import { unavailableGitHubClient } from "../src/index";
 
 test("denouncement overrides an earlier vouch", async () => {
 	await assert.rejects(
@@ -15,6 +16,7 @@ test("denouncement overrides an earlier vouch", async () => {
 				fs: {
 					readText: async () => "github:octocat\n-github:octocat compromised account\n",
 				},
+				github: unavailableGitHubClient(),
 				log: {
 					group: async (_name, run) => run(),
 					info: () => {},

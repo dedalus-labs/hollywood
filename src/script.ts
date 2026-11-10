@@ -1,3 +1,5 @@
+import { type GitHubClient, unavailableGitHubClient } from "./github-client";
+
 export type InputKind = "boolean" | "choice" | "integer" | "path" | "string";
 
 type ScalarInputDefault<Kind extends Exclude<InputKind, "choice">> = Kind extends "boolean"
@@ -158,6 +160,7 @@ export type ScriptActionCall = <
 export type ScriptActionServices = Readonly<{
 	exec: ScriptExec;
 	fs: ScriptFs;
+	github: GitHubClient;
 	log: ScriptLog;
 	runner: RunnerContext;
 	summary: ScriptSummary;
@@ -185,6 +188,7 @@ export type RunActionOptions<Inputs extends InputDefinitions> = Readonly<{
 	with: WorkflowInputValues<Inputs>;
 	exec: ScriptExec;
 	fs: ScriptFs;
+	github?: GitHubClient;
 	log?: ScriptLog;
 	runner: RunnerContext;
 	summary?: ScriptSummary;
@@ -207,6 +211,7 @@ export const runAction = async <
 	const services = {
 		exec: options.exec,
 		fs: options.fs,
+		github: options.github ?? unavailableGitHubClient(),
 		log: options.log ?? silentLog,
 		runner: options.runner,
 		summary: options.summary ?? silentSummary,
