@@ -1,3 +1,4 @@
+import { renderTraceSummary, renderTraceText } from "./trace-report";
 import assert from "node:assert/strict";
 import { Octokit } from "@octokit/rest";
 import { SpanStatusCode } from "@opentelemetry/api";
@@ -184,4 +185,32 @@ test("an entirely skipped workload has no measured window", async () => {
 		client([{ ...job, conclusion: "skipped", started_at: end, completed_at: start, steps: [] }]),
 	);
 	assert.ok(report.spans.every((span) => span.attributes["hollywood.timing.available"] === false));
+});
+
+test("summary and terminal views retain unmeasured and failed operations", async () => {
+	const report = await collectWorkflowTrace(
+		options,
+		client([
+			{
+				...job,
+				steps: [
+					{ ...step, name: "Failed", conclusion: "failure" },
+					{ ...step, name: "Skipped", conclusion: "skipped", started_at: null, completed_at: null },
+				],
+			},
+		]),
+	);
+	assert.match(renderTraceSummary(report), /Unmeasured/);
+	assert.match(renderTraceSummary(report), /🔴/);
+	assert.match(renderTraceText(report), /Failed\s+10.00 s\s+failure/);
+	assert.match(renderTraceText(report), /Skipped\s+Unmeasured\s+skipped/);
+});
+
+test("summary names cannot inject active HTML", async () => {
+	const report = await collectWorkflowTrace(
+		options,
+		client([{ ...job, name: '<img src=x onerror="alert(1)">' }]),
+	);
+	assert.doesNotMatch(renderTraceSummary(report), /<img src=x/);
+	assert.match(renderTraceSummary(report), /&lt;img/);
 });

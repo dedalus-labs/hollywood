@@ -42,3 +42,20 @@ parallel timing, skipped work, and incomplete-job rejection.
 
 Sources: [GitHub workflow jobs](https://docs.github.com/en/rest/actions/workflow-jobs)
 and [OpenTelemetry JavaScript](https://opentelemetry.io/docs/languages/js/).
+
+
+## Render summaries
+
+`renderTraceSummary(report)` returns GitHub-compatible Markdown and HTML.
+It groups each job in a collapsible section and displays each step's name,
+duration, and a cascade on one shared time axis. Names are escaped before
+rendering. Missing measurements remain labeled `Unmeasured`.
+
+`renderTraceText(report)` returns a text tree for terminal logs. Both renderers
+consume the same spans from `collectWorkflowTrace` and preserve their parentage.
+They reject duplicate span IDs, missing parents, and disconnected cycles.
+
+The summary uses GitHub's supported markup. HTML is appropriate for the browser
+presentation because it provides native links, tables, and disclosure controls.
+An XML document alone would still require a presentation layer. Trace data
+remains represented as OpenTelemetry spans independently of the markup.
