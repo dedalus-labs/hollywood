@@ -1,4 +1,5 @@
 import * as assert from "node:assert/strict";
+import { Evaluator, Lexer, Parser, data } from "@actions/expressions";
 import { test } from "vitest";
 
 import { gh as subpathGh } from "@dedalus-labs/hollywood/expr";
@@ -135,6 +136,60 @@ test("typed context helpers generate expressions without stringly property acces
 	// @ts-expect-error Unknown context properties should fail at compile time.
 	const badProperty = github.workfloooooow;
 	void badProperty;
+});
+
+const evaluateExpression = (
+	rendered: string,
+	context: { refName: string; eventName: string; environment: string },
+): unknown => {
+	const source = rendered.replace(/^\$\{\{\s*/, "").replace(/\s*\}\}$/, "");
+	const githubData = new data.Dictionary();
+	githubData.add("ref_name", new data.StringData(context.refName));
+	githubData.add("event_name", new data.StringData(context.eventName));
+	const inputsData = new data.Dictionary();
+	inputsData.add("environment", new data.StringData(context.environment));
+	const contextData = new data.Dictionary();
+	contextData.add("github", githubData);
+	contextData.add("inputs", inputsData);
+	const parsed = new Parser(new Lexer(source).lex().tokens, ["github", "inputs"], []).parse();
+	const result = new Evaluator(parsed, contextData).evaluate();
+	return result instanceof data.StringData || result instanceof data.BooleanData
+		? result.value
+		: result;
+};
+
+test("not groups a negated comparison", () => {
+	assert.equal(not(eq(github.refName, "main")), "${{ !(github.ref_name == 'main') }}");
+	assert.equal(not(ne(github.eventName, "push")), "${{ !(github.event_name != 'push') }}");
+	assert.equal(not(contains(github.ref, "release/")), "${{ !contains(github.ref, 'release/') }}");
+
+	for (const refName of ["main", "feature"]) {
+		const context = { refName, eventName: "push", environment: "" };
+		assert.equal(
+			evaluateExpression(not(eq(github.refName, "main")), context),
+			refName !== "main",
+		);
+	}
+});
+
+test("selectString groups a valueOr true branch", () => {
+	const rendered = selectString(
+		eq(github.eventName, "push"),
+		valueOr(input<string>("environment"), github.refName),
+		"preview",
+	);
+	assert.equal(
+		rendered,
+		"${{ github.event_name == 'push' && (inputs.environment || github.ref_name) || 'preview' }}",
+	);
+	assert.equal(
+		evaluateExpression(rendered, { refName: "feature-x", eventName: "pull_request", environment: "" }),
+		"preview",
+	);
+	assert.equal(
+		evaluateExpression(rendered, { refName: "feature-x", eventName: "push", environment: "" }),
+		"feature-x",
+	);
 });
 
 test("expression subpath exports the typed namespace", () => {
