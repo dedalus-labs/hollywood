@@ -89,7 +89,11 @@ export const runGitHubAction = async <
 			fs: options.fs ?? nodeFs,
 			runner: options.runner ?? currentRunner(),
 		};
+		const tracing = Object.keys(process.env).some((name) => name.startsWith("HOLLYWOOD_TRACE_"))
+			? (await import("./operation-trace")).githubActionTrace(process.env)
+			: undefined;
 		const outputs = await runAction(scriptAction, {
+			...(tracing === undefined ? {} : { trace: tracing }),
 			with: readGitHubInputs(scriptAction.inputs, runtime.core),
 			exec: githubScriptExec(runtime.exec, runtime.core, report, logStyle),
 			fs: runtime.fs,
@@ -492,6 +496,8 @@ const formatSummaryCell = (cell: SummaryCell): string => {
 };
 
 const errorMessage = (error: unknown): string => {
+	if (error instanceof AggregateError)
+		return [error.message, ...error.errors.map(errorMessage)].join("\n");
 	if (error instanceof Error) {
 		return error.message;
 	}

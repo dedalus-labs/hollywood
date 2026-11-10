@@ -32,8 +32,28 @@ jobs:
       - name: Build local actions
         run: npm run actions
         shell: bash
-      - name: Trace example
+      - name: Successful operations
         uses: ./.github/actions/trace-example
+        env:
+          HOLLYWOOD_TRACE_DIR: ${{ runner.temp }}/hollywood-operations/${{ github.run_attempt }}-${{ job.check_run_id }}
+          HOLLYWOOD_TRACE_JOB_ID: ${{ job.check_run_id }}
+          HOLLYWOOD_TRACE_STEP_NAME: Successful operations
+      - continue-on-error: true
+        name: Expected command failure
+        uses: ./.github/actions/trace-example
+        with:
+          fail: "true"
+        env:
+          HOLLYWOOD_TRACE_DIR: ${{ runner.temp }}/hollywood-operations/${{ github.run_attempt }}-${{ job.check_run_id }}
+          HOLLYWOOD_TRACE_JOB_ID: ${{ job.check_run_id }}
+          HOLLYWOOD_TRACE_STEP_NAME: Expected command failure
+      - name: Save operation recordings
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: hollywood-operations-${{ github.run_attempt }}-${{ job.check_run_id }}
+          path: ${{ runner.temp }}/hollywood-operations/${{ github.run_attempt }}-${{ job.check_run_id }}
+          if-no-files-found: error
   report:
     name: Workflow trace
     if: ${{ always() && github.repository == 'dedalus-labs/hollywood' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
@@ -55,6 +75,12 @@ jobs:
       - name: Build local actions
         run: npm run actions
         shell: bash
+      - name: Download operation recordings
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          pattern: hollywood-operations-${{ github.run_attempt }}-*
+          path: .hollywood/operations
+          merge-multiple: true
       - env:
           GITHUB_TOKEN: ${{ github.token }}
         name: Report workflow trace
@@ -64,6 +90,7 @@ jobs:
           run-id: ${{ github.run_id }}
           attempt: ${{ github.run_attempt }}
           exclude-job-id: ${{ job.check_run_id }}
+          operations: .hollywood/operations
       - name: Save trace explorer
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:

@@ -1,4 +1,4 @@
-import { action, always, and, gh, job, uses, workflow } from "../src/index";
+import { action, always, and, booleanInput, gh, job, operationTraceDirectory, uses, workflow } from "../src/index";
 import { reportWorkflowTrace } from "../src/tracing";
 import {
 	checkoutAction,
@@ -7,6 +7,7 @@ import {
 	buildHollywoodCommand,
 	buildLocalActionsCommand,
 	uploadArtifactAction,
+	downloadArtifactAction,
 } from "./actions";
 import { trustedCiRun } from "./guards";
 
@@ -25,9 +26,13 @@ export const traceExample = action({
 	name: "Trace example",
 	description: "Exercise grouped and parallel commands.",
 	localActionPath: "trace-example",
-	inputs: {},
+	inputs: { fail: booleanInput({ description: "Exercise a failed command.", default: "false" }) },
 	outputs: {},
-	run: async ({ call, exec, log }) => {
+	run: async ({ call, exec, input, log }) => {
+		if (input.fail) {
+			await log.group("Expected failure", () => exec("node", ["-e", "process.exit(7)"]));
+			return {};
+		}
 		await log.group("Parallel commands", async () => {
 			await Promise.all([exec("node", ["--version"]), call(nested, {})]);
 		});
@@ -55,7 +60,21 @@ export const tracing = workflow({
 			name: "Example workload",
 			if: trustedCiRun,
 			"runs-on": "ubuntu-latest",
-			steps: [...setup, uses(traceExample, {})],
+			steps: [
+				...setup,
+				uses(traceExample, { name: "Successful operations", trace: true }),
+				uses(traceExample, { name: "Expected command failure", trace: true, with: { fail: "true" }, "continue-on-error": true }),
+				{
+					name: "Save operation recordings",
+					if: always(),
+					uses: uploadArtifactAction,
+					with: {
+						name: "hollywood-operations-${{ github.run_attempt }}-${{ job.check_run_id }}",
+						path: operationTraceDirectory,
+						"if-no-files-found": "error",
+					},
+				},
+			],
 		}),
 		report: job({
 			name: "Workflow trace",
@@ -64,6 +83,15 @@ export const tracing = workflow({
 			"runs-on": "ubuntu-latest",
 			steps: [
 				...setup,
+				{
+					name: "Download operation recordings",
+					uses: downloadArtifactAction,
+					with: {
+						pattern: "hollywood-operations-${{ github.run_attempt }}-*",
+						path: ".hollywood/operations",
+						"merge-multiple": true,
+					},
+				},
 				uses(reportWorkflowTrace, {
 					env: { GITHUB_TOKEN: gh.github.token },
 					with: {
@@ -71,6 +99,7 @@ export const tracing = workflow({
 						runId: "${{ github.run_id }}",
 						attempt: "${{ github.run_attempt }}",
 						excludeJobId: "${{ job.check_run_id }}",
+						operations: ".hollywood/operations",
 					},
 				}),
 				{

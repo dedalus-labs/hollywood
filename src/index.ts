@@ -123,6 +123,7 @@ export type {
 	RunGitHubActionOptions,
 } from "./github";
 export { runGitHubAction } from "./github";
+export { operationTraceDirectory } from "./generate";
 
 export type {
 	GitHubActionEntrypointFile,

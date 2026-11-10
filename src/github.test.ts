@@ -1,5 +1,9 @@
 import * as assert from "node:assert/strict";
-import { test, vi } from "vitest";
+import { onTestFinished, test, vi } from "vitest";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { githubActionTrace, readOperationTraces } from "./operation-trace";
 
 import {
 	runGitHubAction,
@@ -79,6 +83,53 @@ const captureSummary = () => {
 };
 
 const ansiPattern = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`);
+
+for (const [exitCode, brokenExport] of [[0, false], [7, false], [7, true]] as const) {
+	test(`GitHub native recording: exit ${exitCode}, export failure ${brokenExport}`, async () => {
+		const directory = await mkdtemp(join(tmpdir(), "hollywood-github-trace-"));
+		onTestFinished(async () => { vi.unstubAllEnvs(); await rm(directory, { recursive: true, force: true }); });
+		const output = brokenExport ? join(directory, "blocked") : directory;
+		if (brokenExport) await writeFile(output, "occupied");
+		for (const [name, value] of Object.entries({
+			GITHUB_REPOSITORY: "acme/project", GITHUB_RUN_ID: "7", GITHUB_RUN_ATTEMPT: "2",
+			HOLLYWOOD_TRACE_DIR: output, HOLLYWOOD_TRACE_JOB_ID: "42", HOLLYWOOD_TRACE_STEP_NAME: "Run tests",
+		})) vi.stubEnv(name, value);
+		const failures: string[] = [];
+		const result = await runGitHubAction(action({
+			name: "Test action", description: "Native trace fixture", inputs: {}, outputs: {},
+			run: async ({ exec }) => { await exec("node", ["--version"]); return {}; },
+		}), {
+			core: {
+				getInput: () => "", group: async (_name, run) => run(), info: () => {}, warning: () => {},
+				setOutput: () => {}, setFailed: (message) => { failures.push(message); },
+			},
+			exec: { getExecOutput: async () => ({ exitCode, stdout: "", stderr: "" }) },
+			runner: { uidGid: "1001:1001" },
+		});
+		if (exitCode === 0) {
+			assert.deepEqual(result, {});
+			assert.deepEqual(failures, []);
+		} else {
+			assert.equal(result, undefined);
+			assert.match(failures.join("\n"), /node --version exited 7/);
+		}
+		if (brokenExport) {
+			assert.match(failures.join("\n"), /trace could not be exported/);
+			assert.match(failures.join("\n"), /EEXIST/);
+			return;
+		}
+		const [recording] = await readOperationTraces(directory);
+		assert.ok(recording);
+		assert.deepEqual(recording.identity, { repository: "acme/project", runId: 7, attempt: 2, jobId: 42, stepName: "Run tests" });
+		assert.equal(recording.spans.length, 2);
+		assert.equal(recording.root.attributes["hollywood.result"], exitCode === 0 ? "success" : "failure");
+	});
+}
+
+test("partial tracing metadata fails before action execution", () => {
+	assert.throws(() => githubActionTrace({ HOLLYWOOD_TRACE_JOB_ID: "42" }), /HOLLYWOOD_TRACE_DIR/);
+	assert.throws(() => githubActionTrace({ HOLLYWOOD_TRACE_DIR: "/tmp/trace" }), /GITHUB_REPOSITORY/);
+});
 
 test("runGitHubAction binds core inputs, execs commands, and sets outputs", async () => {
 	const inputs = new Map([
