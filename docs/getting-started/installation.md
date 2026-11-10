@@ -47,7 +47,7 @@ npx hollywood run gha/s3-cache.ts --export s3Cache --provider docker --with mode
 
 | Surface                    | Node requirement             |
 | -------------------------- | ---------------------------- |
-| Installed package and CLI  | Node 20 or newer             |
+| Installed package and CLI  | Node 20.6 or newer             |
 | Generated GitHub actions   | GitHub's Node 24 action runtime |
 | Building Hollywood locally | Node 22.18+ or Node 24.11+   |
 

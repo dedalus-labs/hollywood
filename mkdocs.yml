@@ -71,6 +71,7 @@ plugins:
         Usage:
           - usage/scripts.md
           - usage/github-actions.md
+          - usage/tracing.md
           - usage/local-testing.md
           - usage/github-runner.md
           - usage/local-services.md
@@ -139,6 +140,7 @@ nav:
       - Overview: usage/index.md
       - Scripts: usage/scripts.md
       - Generated GitHub Actions: usage/github-actions.md
+      - Workflow tracing: usage/tracing.md
       - Local Testing: usage/local-testing.md
       - GitHub Runner Execution: usage/github-runner.md
       - Local Services: usage/local-services.md

@@ -47,6 +47,10 @@
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js"
 		},
+		"./tracing": {
+			"types": "./dist/tracing.d.ts",
+			"import": "./dist/tracing.js"
+		},
 		"./action-runtime": {
 			"types": "./dist/action-runtime.d.ts",
 			"import": "./dist/action-runtime.js"
@@ -79,6 +83,10 @@
 		"@actions/expressions": "0.3.61",
 		"@actions/workflow-parser": "0.3.61",
 		"@octokit/openapi-types": "28.0.0",
+		"@octokit/rest": "22.0.1",
+		"@opentelemetry/api": "1.9.1",
+		"@opentelemetry/resources": "2.12.0",
+		"@opentelemetry/sdk-trace": "2.12.0",
 		"esbuild": "0.28.1",
 		"yaml": "2.9.0",
 		"zod": "4.4.3"
@@ -96,7 +104,7 @@
 		"vitest": "^4.1.0"
 	},
 	"engines": {
-		"node": ">=20"
+		"node": ">=20.6.0"
 	},
 	"packageManager": "npm@11.13.0"
 }
