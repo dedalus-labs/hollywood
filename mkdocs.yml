@@ -152,6 +152,7 @@ nav:
   - Reference:
       - Overview: reference/index.md
       - API Surface: reference/api.md
+      - Merge Plan Gate: reference/merge-plan-gate.md
       - Merge Queue: reference/merge-queue.md
       - Merge Plans: reference/merge-plans.md
       - Deployment Receipts: reference/deployment-receipts.md
