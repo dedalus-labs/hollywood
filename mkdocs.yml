@@ -152,6 +152,7 @@ nav:
   - Reference:
       - Overview: reference/index.md
       - API Surface: reference/api.md
+      - Merge Plans: reference/merge-plans.md
       - Deployment Receipts: reference/deployment-receipts.md
       - Generated Files: reference/generated-files.md
       - Publishing Boundary: reference/publishing.md
