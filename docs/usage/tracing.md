@@ -76,3 +76,9 @@ HTML owns the interactive controls. Inline SVG, an XML-based graphics format,
 owns the bars. A standalone XML document would require a separate viewer and
 would not make GitHub execute interactive content in a job summary. The GitHub
 summary and the offline explorer are separate views of the same span data.
+
+
+The overview above the span tree compares job windows before expanding any
+steps. Purple bars represent jobs, blue bars represent steps, and red marks
+failed work. Skipped jobs stay visible as unmeasured. Compact action labels
+retain the full action reference in the inspector and hover text.
