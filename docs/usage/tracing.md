@@ -143,3 +143,41 @@ changes can verify the complete artifact flow before merging.
 The artifact contains `trace.html`, standard OTLP `trace.json`, `summary.md`,
 and `trace.txt`. HTML provides the presentation. OTLP's JSON encoding provides
 the structured data, so an additional XML trace schema is unnecessary.
+
+## Measure operations within an action
+
+Pass `trace: { onEnd }` to `runAction` to receive OpenTelemetry spans for the
+action, each `exec` command, `fs.readText`, `log.group`, and nested `call`.
+The callback runs once after execution, including when the action fails.
+It receives a complete parent tree with high-resolution start and end times.
+
+```typescript
+await runAction(build, {
+	with: {}, exec: nodeExec, fs: nodeFs, runner: currentRunner(),
+	trace: { onEnd: async (spans) => { await saveSpans(spans); } },
+});
+```
+
+Use `log.group("Compile", async () => { ... })` to label a block of work.
+Parallel groups retain independent async context, so each command belongs to
+the group that started it. Tracing owns its provider and does not change the
+process's global OpenTelemetry configuration.
+
+Commands record the executable's basename and a returned exit code. File
+reads use the label `Read file`. Arguments, paths, environment values,
+outputs, and error messages are excluded. Group names, action names, and
+explicit root attributes must be safe to include in an artifact.
+
+Await every operation. If an action returns with outstanding operations,
+Hollywood rejects it. On early failure, outstanding spans end at collection
+with `hollywood.result=unfinished` and `hollywood.timing.partial=true`. Their
+duration is the observed portion, not total execution time. Later completion
+does not change the exported trace. Starting work after closure fails.
+
+An export failure rejects the run. If both execution and export fail, an
+`AggregateError` preserves both errors, with the action error first. A hard
+process kill cannot flush in-memory spans. Arbitrary JavaScript statements
+and work inside external binaries require their own instrumentation.
+
+Run `npm test -- src/action-trace.test.ts` for real command timing, parallel
+parentage, partial intervals, redaction, and export failure coverage.

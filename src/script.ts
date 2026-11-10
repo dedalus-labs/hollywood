@@ -1,3 +1,5 @@
+import type { ActionTraceOptions, ActionTracer } from "./action-trace";
+
 export type InputKind = "boolean" | "choice" | "integer" | "path" | "string";
 
 type ScalarInputDefault<Kind extends Exclude<InputKind, "choice">> = Kind extends "boolean"
@@ -188,6 +190,7 @@ export type RunActionOptions<Inputs extends InputDefinitions> = Readonly<{
 	log?: ScriptLog;
 	runner: RunnerContext;
 	summary?: ScriptSummary;
+	trace?: ActionTraceOptions;
 }>;
 
 export const action = <
@@ -211,11 +214,16 @@ export const runAction = async <
 		runner: options.runner,
 		summary: options.summary ?? silentSummary,
 	};
-	return scriptAction.run({
-		...services,
-		call: createActionCall(services),
-		input: parseActionInputs(scriptAction.inputs, options.with),
-	});
+	const execute = (runtime: ScriptActionServices, tracer?: ActionTracer) =>
+		scriptAction.run({
+			...runtime,
+			call: createActionCall(runtime, tracer),
+			input: parseActionInputs(scriptAction.inputs, options.with),
+		});
+	if (options.trace === undefined) return execute(services);
+	const { traceAction } = await import("./action-trace");
+	return traceAction(scriptAction.name, options.trace, (tracer) =>
+		execute(tracer.services(services), tracer));
 };
 
 export const stringInput = <const Definition extends Omit<InputDefinition<"string">, "kind">>(
@@ -285,13 +293,15 @@ const parseActionInputs = <const Inputs extends InputDefinitions>(
 	return mapToObject(parsed) as ActionInputValues<Inputs>;
 };
 
-const createActionCall = (services: ScriptActionServices): ScriptActionCall => {
-	const call: ScriptActionCall = async (scriptAction, input) =>
-		scriptAction.run({
+const createActionCall = (services: ScriptActionServices, tracer?: ActionTracer): ScriptActionCall => {
+	const call: ScriptActionCall = async (scriptAction, input) => {
+		const run = () => scriptAction.run({
 			...services,
 			call,
 			input: parseActionCallInputs(scriptAction.inputs, input),
 		});
+		return tracer === undefined ? run() : tracer.run("action", scriptAction.name, run);
+	};
 	return call;
 };
 
