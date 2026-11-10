@@ -238,7 +238,7 @@ export const selectString = (
 	whenFalse: GitHubStringValue,
 ): GitHubExpression<string> =>
 	expr(
-		`${booleanExpressionValue(condition, "&&")} && ${expressionValue(whenTrue)} || ${expressionValue(whenFalse)}`,
+		`${booleanExpressionValue(condition, "&&")} && ${booleanExpressionValue(whenTrue, "&&")} || ${expressionValue(whenFalse)}`,
 	);
 
 export function valueOr(
@@ -318,8 +318,10 @@ const needsBooleanGrouping = (body: string, operator: "!" | "&&" | "||"): boolea
 	return operator === "&&" && operators.has("||");
 };
 
-const topLevelLogicalOperators = (body: string): ReadonlySet<"&&" | "||"> => {
-	const operators = new Set<"&&" | "||">();
+// "comparison" is recorded too: `!` binds tighter than `==`/`!=`/`<`/`>`, so
+// negating a comparison needs parentheses (`!(a == b)`, not `!a == b`).
+const topLevelLogicalOperators = (body: string): ReadonlySet<"&&" | "||" | "comparison"> => {
+	const operators = new Set<"&&" | "||" | "comparison">();
 	let depth = 0;
 	let quoted = false;
 	for (let index = 0; index < body.length; index += 1) {
@@ -343,6 +345,9 @@ const topLevelLogicalOperators = (body: string): ReadonlySet<"&&" | "||"> => {
 			if (pair === "&&" || pair === "||") {
 				operators.add(pair);
 				index += 1;
+			} else if (pair === "==" || pair === "!=" || char === "<" || char === ">") {
+				operators.add("comparison");
+				if (body[index + 1] === "=") index += 1;
 			}
 		}
 	}
