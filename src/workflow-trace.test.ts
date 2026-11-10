@@ -1,3 +1,7 @@
+import { mkdtemp, readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { writeWorkflowTrace } from "./tracing";
 import { renderTraceHtml, renderTraceSummary, renderTraceText } from "./trace-report";
 import assert from "node:assert/strict";
 import { Octokit } from "@octokit/rest";
@@ -230,4 +234,24 @@ test("offline HTML keeps span names inert and recorded intervals proportional", 
 	assert.doesNotMatch(html, /<img src=x/);
 	assert.match(html, /&lt;\/script&gt;&lt;img/);
 	assert.match(html, /x="500.000"[^>]*width="500.000"/);
+});
+
+test("trace files include standard OTLP IDs and timestamps", async () => {
+	const report = await collectWorkflowTrace(options, client([job]));
+	const directory = await mkdtemp(join(tmpdir(), "hollywood-trace-"));
+	await writeWorkflowTrace(report, directory);
+	const json = JSON.parse(await readFile(join(directory, "trace.json"), "utf8"));
+	const spans = json.resourceSpans[0].scopeSpans[0].spans;
+	assert.equal(spans.length, 3);
+	assert.ok(spans.every((span: { traceId: string }) => /^[a-f0-9]{32}$/.test(span.traceId)));
+	assert.ok(
+		spans.every(
+			(span: { startTimeUnixNano: string }) =>
+				BigInt(span.startTimeUnixNano) === BigInt(Date.parse(start)) * 1_000_000n,
+		),
+	);
+	assert.match(
+		await readFile(join(directory, "trace.html"), "utf8"),
+		/<title>CI \/ Hollywood trace<\/title>/,
+	);
 });

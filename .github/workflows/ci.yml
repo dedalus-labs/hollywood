@@ -127,3 +127,47 @@ jobs:
         shell: bash
       - name: Test provider
         uses: ./.github/actions/test-container-provider
+  timings:
+    name: Workflow trace
+    timeout-minutes: 5
+    if: ${{ always() && github.repository == 'dedalus-labs/hollywood' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    needs:
+      - test
+      - actionlint
+      - container
+    permissions:
+      actions: read
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "24"
+      - name: Install dependencies
+        run: npm ci
+        shell: bash
+      - name: Build Hollywood
+        run: npm run build
+        shell: bash
+      - name: Build local actions
+        run: npm run actions
+        shell: bash
+      - env:
+          GITHUB_TOKEN: ${{ github.token }}
+        name: Report workflow trace
+        uses: ./.github/actions/hollywood-trace
+        with:
+          repository: ${{ github.repository }}
+          run-id: ${{ github.run_id }}
+          attempt: ${{ github.run_attempt }}
+          exclude-job-id: ${{ job.check_run_id }}
+      - name: Save trace explorer
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: hollywood-trace
+          path: .hollywood/trace
+          include-hidden-files: true
+          if-no-files-found: error

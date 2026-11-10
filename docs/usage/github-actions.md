@@ -312,3 +312,8 @@ created .github/actions/publish-container-image/action.yml
 updated .github/actions/publish-container-image/src/index.ts
 created .github/workflows/containers-release.yml
 ```
+
+## Workflow traces
+
+Use Hollywood's [workflow traces](tracing.md) to collect job and step spans,
+write a cascade to the job summary, and save an interactive trace explorer.
