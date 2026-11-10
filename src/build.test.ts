@@ -28,12 +28,12 @@ test("build strips in-source Vitest blocks", () => {
 	}
 });
 
-test("published package only includes built artifacts", async () => {
+test("published package includes only built artifacts and the agent skill", async () => {
 	const packageJson = JSON.parse(
 		await readFile(new URL("../package.json", import.meta.url), "utf8"),
 	) as { readonly files?: unknown };
 
-	assert.deepEqual(packageJson.files, ["dist", "README.md", "package.json"]);
+	assert.deepEqual(packageJson.files, ["dist", "skills", "README.md", "package.json"]);
 });
 
 test("package publish config does not choose the npm dist-tag", async () => {
