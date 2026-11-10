@@ -181,3 +181,40 @@ and work inside external binaries require their own instrumentation.
 
 Run `npm test -- src/action-trace.test.ts` for real command timing, parallel
 parentage, partial intervals, redaction, and export failure coverage.
+
+## Attach operation recordings
+
+`fileActionTrace(directory, identity)` supplies a `runAction` trace callback
+that writes one standard OTLP JSON file per action. Its identity contains
+`repository`, `runId`, `attempt`, `jobId`, and the resolved `stepName`.
+Files use exclusive span-ID names, so an existing recording is never replaced.
+
+Download each workload job's files into one flat directory with
+`actions/download-artifact` and `merge-multiple: true`. Pass the directory as
+`operations` to `reportWorkflowTrace` or `collectWorkflowTrace`. For the CLI,
+use `--operations DIRECTORY`. An explicitly supplied empty directory fails.
+
+The collector checks the repository, run, attempt, job ID, and exact step name
+before attaching a recording. Every traced step needs a unique name within
+its job. GitHub's jobs API exposes step names and numbers, but not workflow
+step IDs. Missing or ambiguous matches fail. Duplicate recordings for one
+step also fail.
+
+Operations appear beneath their GitHub step in the HTML explorer, summary,
+text cascade, and OTLP report. Original nanosecond intervals are preserved.
+Each imported span links to its original trace and span IDs. The report window
+includes native timings even when GitHub rounded a step boundary to a second.
+Partial durations are labeled explicitly.
+
+Select an action or group bar, then choose **Focus interval** to expand that
+interval across the timeline. The tree keeps its ancestors and descendants,
+and the ticks start at the selected interval's beginning. **Full workflow**
+restores every job. This makes millisecond commands readable within long jobs.
+
+The reader accepts Hollywood's recorded OTLP span trees. It rejects mixed
+trace IDs, duplicate span IDs, missing parents, disconnected cycles, and
+invalid intervals. This is a native action recording contract, not a general
+importer for every OpenTelemetry payload.
+
+Source: the [OpenTelemetry GitHub receiver](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/githubreceiver#traces---getting-started)
+documents the same step-name limitation.

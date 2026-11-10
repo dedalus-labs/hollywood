@@ -114,6 +114,16 @@ h1 {
 .bar.muted rect {
 	fill:#a8b2c4
 }
+.bar.action rect, .bar.group rect {
+	fill:#36a094
+}
+.focus-interval {
+	border:1px solid #c9d6e7; border-radius:6px; padding:7px 10px; background:#f5f8fc;
+	color:#304969; cursor:pointer; margin-top:12px; display:block; font:inherit
+}
+.plot .bar {
+	overflow:hidden
+}
 .explorer {
 	border:1px solid #dbe2ee; border-radius:12px; background:white; box-shadow:0 5px 25px #243b6410;
 	overflow:hidden
@@ -433,6 +443,8 @@ const search = document.querySelector('input[type=search]');
 const errors = document.getElementById('errors');
 const inspector = document.getElementById('inspector');
 const root = nodes[0];
+let focusNode = root;
+let selectedNode = root;
 const firstJob = root.querySelector(':scope > details');
 if (firstJob) firstJob.open = true;
 function filter() {
@@ -444,7 +456,8 @@ function filter() {
     if (node.dataset.name.includes(query) || matching.has(parent)) matching.add(node);
   }
   for (const node of [...nodes].reverse()) {
-    const matches = matching.has(node) && (!errorsOnly || node.dataset.failed === 'true');
+    const inWindow = focusNode.contains(node) || node.contains(focusNode);
+    const matches = inWindow && matching.has(node) && (!errorsOnly || node.dataset.failed === 'true');
     const childMatches = [...node.querySelectorAll(':scope > .node')].some(child => !child.hidden);
     node.hidden = !(matches || childMatches);
     if ((query || errorsOnly) && childMatches && node.tagName === 'DETAILS') node.open = true;
@@ -458,12 +471,38 @@ errors.addEventListener('click', () => { errors.setAttribute('aria-pressed', Str
 document.getElementById('expand').addEventListener('click', () => nodes.forEach(node => { if (node.tagName === 'DETAILS') node.open = true; }));
 document.getElementById('collapse').addEventListener('click', () => nodes.forEach(node => { if (node.tagName === 'DETAILS') node.open = node === root; }));
 document.getElementById('zoom').addEventListener('input', event => document.documentElement.style.setProperty('--timeline-width', 500 * Number(event.target.value) + 'px'));
+function focusInterval(node) {
+  focusNode = node;
+  const total = Math.max(Number(root.dataset.duration), 1);
+  const offset = Number(node.dataset.start) / total * 1000;
+  const width = Math.max(Number(node.dataset.duration), 0.001) / total * 1000;
+  document.querySelectorAll('.plot svg').forEach(svg => {
+    svg.setAttribute('viewBox', offset + ' 0 ' + width + ' 36');
+    const rect = svg.querySelector('rect');
+    rect.setAttribute('width', String(Math.max(Number(rect.dataset.width), width / 1000)));
+    rect.setAttribute('rx', String(width / 500));
+  });
+  document.querySelectorAll('.ticks span').forEach((tick, index) => {
+    const elapsed = Number(node.dataset.duration) * index / 4;
+    tick.textContent = elapsed < 1000 ? elapsed.toFixed(1) + ' ms' : (elapsed / 1000).toFixed(2) + ' s';
+  });
+  document.getElementById('reset-time').disabled = node === root;
+  document.getElementById('time-window').textContent = node === root ? 'Full workflow' : node.querySelector('.span-name').textContent;
+  node.querySelectorAll('details').forEach(child => { child.open = true; });
+  if (node.tagName === 'DETAILS') node.open = true;
+  filter();
+}
+document.getElementById('reset-time').addEventListener('click', () => focusInterval(root));
+inspector.addEventListener('click', event => {
+  if (event.target.closest('.focus-interval')) focusInterval(selectedNode);
+});
 document.querySelectorAll('.inspect').forEach(button => button.addEventListener('click', event => {
   event.preventDefault();
   event.stopPropagation();
   document.querySelector('.row.selected')?.classList.remove('selected');
   button.parentElement.classList.add('selected');
   const node = button.closest('.node');
+  selectedNode = node;
   inspector.replaceChildren(node.querySelector(':scope > template').content.cloneNode(true));
 }));
 `;

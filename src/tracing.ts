@@ -12,6 +12,8 @@ export type { WorkflowTrace, WorkflowTraceOptions } from "./workflow-trace";
 export { renderTraceHtml, renderTraceSummary, renderTraceText } from "./trace-report";
 export type { ActionTraceOptions } from "./action-trace";
 export { ActionTraceError } from "./action-trace";
+export { fileActionTrace } from "./operation-trace";
+export type { OperationIdentity } from "./operation-trace";
 
 /** Write an offline explorer, GitHub summary, text cascade, and standard OTLP JSON. */
 export const writeWorkflowTrace = async (
@@ -49,6 +51,7 @@ export const reportWorkflowTrace = action({
 			description: "Directory for trace artifacts.",
 			default: ".hollywood/trace",
 		}),
+		operations: pathInput({ description: "Downloaded native operation trace directory.", default: "" }),
 	},
 	outputs: {},
 	run: async ({ input, log }) => {
@@ -62,6 +65,7 @@ export const reportWorkflowTrace = action({
 			runId: input.runId,
 			attempt: input.attempt,
 			...(input.excludeJobId === 0 ? {} : { excludeJobId: input.excludeJobId }),
+			...(input.operations === "" ? {} : { operations: input.operations }),
 		});
 		await writeWorkflowTrace(report, input.output);
 		await appendFile(summary, renderTraceSummary(report));

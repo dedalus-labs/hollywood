@@ -1,4 +1,4 @@
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { writeWorkflowTrace } from "./tracing";
@@ -6,7 +6,11 @@ import { renderTraceHtml, renderTraceSummary, renderTraceText } from "./trace-re
 import assert from "node:assert/strict";
 import { Octokit } from "@octokit/rest";
 import { SpanStatusCode } from "@opentelemetry/api";
-import { test } from "vitest";
+import { onTestFinished, test } from "vitest";
+import type { ReadableSpan } from "@opentelemetry/sdk-trace";
+import { action, runAction } from "./script";
+import { nodeExec, nodeFs } from "./local";
+import { fileActionTrace, readOperationTraces, type OperationIdentity } from "./operation-trace";
 
 import { parseGitHubApiToken, parseGitHubRepository } from "./github-runner-api";
 import { collectWorkflowTrace, WorkflowTraceError } from "./workflow-trace";
@@ -44,6 +48,35 @@ const options = {
 	runId: 7,
 	attempt: 2,
 	token: parseGitHubApiToken("test-token"),
+};
+
+const nativeRecording = async (override: Partial<OperationIdentity> = {}) => {
+	const directory = await mkdtemp(join(tmpdir(), "hollywood-operations-"));
+	onTestFinished(() => rm(directory, { recursive: true, force: true }));
+	const recording = fileActionTrace(directory, {
+		repository: "acme/project", runId: 7, attempt: 2, jobId: 42, stepName: "Compile", ...override,
+	});
+	let spans: readonly ReadableSpan[] = [];
+	await runAction(action({
+		name: "Native build", description: "Recording fixture", inputs: {}, outputs: {},
+		run: async ({ log, exec, fs }) => {
+			await log.group("Compile phase", async () => {
+				await fs.readText("package.json");
+				await exec(process.execPath, ["--version"]);
+			});
+			return {};
+		},
+	}), {
+		with: {}, exec: nodeExec, fs: nodeFs, runner: { uidGid: "1001:1001" },
+		trace: { ...recording, onEnd: async (recorded) => { spans = recorded; await recording.onEnd(recorded); } },
+	});
+	const root = spans.at(-1);
+	assert.ok(root);
+	const timing = {
+		started_at: new Date(root.startTime[0] * 1000).toISOString(),
+		completed_at: new Date(root.endTime[0] * 1000).toISOString(),
+	};
+	return { directory, spans, job: { ...job, ...timing, steps: [{ ...step, ...timing }] } };
 };
 
 const client = (jobs: readonly unknown[], requests: string[] = []): Octokit =>
@@ -233,7 +266,7 @@ test("offline HTML keeps span names inert and recorded intervals proportional", 
 	const html = renderTraceHtml(report);
 	assert.doesNotMatch(html, /<img src=x/);
 	assert.match(html, /&lt;\/script&gt;&lt;img/);
-	assert.match(html, /x="500.000"[^>]*width="500.000"/);
+	assert.match(html, /x="500.000000"[^>]*width="500.000"/);
 });
 
 test("trace files include standard OTLP IDs and timestamps", async () => {
@@ -254,4 +287,86 @@ test("trace files include standard OTLP IDs and timestamps", async () => {
 		await readFile(join(directory, "trace.html"), "utf8"),
 		/<title>CI \/ Hollywood trace<\/title>/,
 	);
+});
+
+test("native operations attach to their exact step with nanosecond intervals", async () => {
+	const native = await nativeRecording();
+	const report = await collectWorkflowTrace({ ...options, operations: native.directory }, client([native.job]));
+	assert.equal(report.spans.length, 7);
+	assert.equal(new Set(report.spans.map((span) => span.spanContext().traceId)).size, 1);
+	for (const original of native.spans) {
+		const attached = report.spans.find((span) => span.links[0]?.context.spanId === original.spanContext().spanId);
+		assert.ok(attached);
+		assert.deepEqual(attached.startTime, original.startTime);
+		assert.deepEqual(attached.endTime, original.endTime);
+	}
+	const root = report.spans.find((span) => span.name === "Native build");
+	const parent = report.spans.find((span) => span.spanContext().spanId === root?.parentSpanContext?.spanId);
+	assert.equal(parent?.attributes["github.step.number"], 1);
+	assert.match(renderTraceText(report), /Compile phase/);
+	assert.match(renderTraceSummary(report), /Compile phase/);
+	assert.match(renderTraceHtml(report), /Compile phase/);
+});
+
+for (const mismatch of [{ attempt: 3 }, { runId: 8 }, { repository: "acme/another" }]) {
+	test(`operation identity rejects ${JSON.stringify(mismatch)}`, async () => {
+		const native = await nativeRecording(mismatch);
+		await assert.rejects(collectWorkflowTrace({ ...options, operations: native.directory }, client([native.job])),
+			/different repository, run, or attempt/);
+	});
+}
+
+test("operation attachment rejects absent or duplicate step names", async () => {
+	const native = await nativeRecording();
+	for (const steps of [[], [step, { ...step, number: 2 }]]) {
+		await assert.rejects(collectWorkflowTrace({ ...options, operations: native.directory }, client([{ ...job, steps }])),
+			/match exactly one/);
+	}
+	await assert.rejects(collectWorkflowTrace({ ...options, operations: native.directory }, client([{ ...job, id: 43 }])),
+		/match exactly one/);
+});
+
+test("duplicate operation recordings cannot attach to one step", async () => {
+	const native = await nativeRecording();
+	const [file] = await readdir(native.directory);
+	assert.ok(file);
+	await writeFile(join(native.directory, "duplicate.otlp.json"), await readFile(join(native.directory, file)));
+	await assert.rejects(collectWorkflowTrace({ ...options, operations: native.directory }, client([native.job])),
+		/Multiple operation traces/);
+});
+
+test("operation files reject missing parents, cycles, mixed IDs, duplicate IDs, and invalid times", async () => {
+	const native = await nativeRecording();
+	const [file] = await readdir(native.directory);
+	assert.ok(file);
+	const path = join(native.directory, file);
+	const original = await readFile(path, "utf8");
+	type WireSpan = { spanId: string; parentSpanId?: string; traceId: string; endTimeUnixNano: string };
+	const mutations: ((span: WireSpan) => void)[] = [
+		(span) => { span.parentSpanId = "f".repeat(16); },
+		(span) => { span.parentSpanId = span.spanId; },
+		(span) => { span.traceId = "f".repeat(32); },
+		(span) => { span.endTimeUnixNano = "1"; },
+	];
+	for (const mutate of mutations) {
+		const document: { resourceSpans: { scopeSpans: { spans: WireSpan[] }[] }[] } = JSON.parse(original);
+		const spans = document.resourceSpans[0]?.scopeSpans[0]?.spans;
+		const span = spans?.[0];
+		assert.ok(span);
+		mutate(span);
+		await writeFile(path, JSON.stringify(document));
+		await assert.rejects(readOperationTraces(native.directory));
+	}
+	const document: { resourceSpans: { scopeSpans: { spans: WireSpan[] }[] }[] } = JSON.parse(original);
+	const spans = document.resourceSpans[0]?.scopeSpans[0]?.spans;
+	assert.ok(spans?.[0]);
+	spans.push(spans[0]);
+	await writeFile(path, JSON.stringify(document));
+	await assert.rejects(readOperationTraces(native.directory), /unique span IDs/);
+});
+
+test("requesting operation files from an empty directory fails explicitly", async () => {
+	const directory = await mkdtemp(join(tmpdir(), "hollywood-empty-operations-"));
+	onTestFinished(() => rm(directory, { recursive: true, force: true }));
+	await assert.rejects(readOperationTraces(directory), /No operation traces/);
 });

@@ -12,6 +12,7 @@ export const createTraceCommand = (io: Readonly<{ writeOut: (value: string) => v
 		.option("--exclude-job <id>", "Exclude the still-running reporter job.")
 		.option("--output <directory>", "Trace artifact directory.", ".hollywood/trace")
 		.option("--summary <path>", "Append a GitHub summary to this file.")
+		.option("--operations <directory>", "Attach downloaded native action spans.")
 		.action(async (repository, runId, options) => {
 			const {
 				collectWorkflowTrace,
@@ -28,6 +29,7 @@ export const createTraceCommand = (io: Readonly<{ writeOut: (value: string) => v
 				runId: Number(runId),
 				attempt: Number(options.attempt),
 				...(options.excludeJob === undefined ? {} : { excludeJobId: Number(options.excludeJob) }),
+				...(options.operations === undefined ? {} : { operations: options.operations }),
 			});
 			await writeWorkflowTrace(report, options.output);
 			if (options.summary !== undefined)

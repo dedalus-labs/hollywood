@@ -18,6 +18,7 @@ import {
 import type { components } from "@octokit/openapi-types";
 
 import type { GitHubApiToken, GitHubRepository } from "./github-runner-api";
+import { readOperationTraces, replayOperations, type OperationTrace } from "./operation-trace";
 
 type WorkflowRun = components["schemas"]["workflow-run"];
 type WorkflowJob = components["schemas"]["job"];
@@ -37,6 +38,8 @@ export type WorkflowTraceOptions = Readonly<{
 	token: GitHubApiToken;
 	/** Exclude the reporting job while it is still running. */
 	excludeJobId?: number;
+	/** Directory containing downloaded native action OTLP files. */
+	operations?: string;
 }>;
 
 export class WorkflowTraceError extends Error {
@@ -84,13 +87,30 @@ export const collectWorkflowTrace = async (
 			`Jobs are still running: ${unfinished.map((job) => job.name).join(", ")}`,
 		);
 	}
-	return recordWorkflow(run, jobs, options.attempt);
+	const operations = options.operations === undefined ? [] : await readOperationTraces(options.operations);
+	const byStep = new Map<string, OperationTrace>();
+	for (const recording of operations) {
+		const identity = recording.identity;
+		if (identity.repository.toLowerCase() !== `${options.repository.owner}/${options.repository.name}`.toLowerCase() ||
+			identity.runId !== options.runId || identity.attempt !== options.attempt)
+			throw new WorkflowTraceError("Operation trace belongs to a different repository, run, or attempt.");
+		const job = jobs.find((job) => job.id === identity.jobId);
+		const matches = job?.steps?.filter((step) => step.name === identity.stepName) ?? [];
+		const step = matches[0];
+		if (matches.length !== 1 || step === undefined)
+			throw new WorkflowTraceError("Operation trace must match exactly one GitHub job and step name.");
+		const key = `${identity.jobId}/${step.number}`;
+		if (byStep.has(key)) throw new WorkflowTraceError("Multiple operation traces match the same step.");
+		byStep.set(key, recording);
+	}
+	return recordWorkflow(run, jobs, options.attempt, byStep);
 };
 
 const recordWorkflow = async (
 	run: WorkflowRun,
 	jobs: WorkflowJob[],
 	attempt: number,
+	operations: ReadonlyMap<string, OperationTrace>,
 ): Promise<WorkflowTrace> => {
 	const anchor = timestamp(run.created_at);
 	const timings = jobs.flatMap((job) => [
@@ -98,6 +118,11 @@ const recordWorkflow = async (
 		...(job.steps ?? []).map((step) => interval(step, anchor)),
 	]);
 	const measured = timings.filter((time) => time.available);
+	for (const { root } of operations.values()) measured.push({
+		start: Math.floor(Number(root.startTimeUnixNano / 1_000_000n)),
+		end: Number((root.endTimeUnixNano + 999_999n) / 1_000_000n),
+		available: true,
+	});
 	const start = measured.length === 0 ? anchor : Math.min(...measured.map((time) => time.start));
 	const end = measured.length === 0 ? start : Math.max(...measured.map((time) => time.end));
 	const exporter = new InMemorySpanExporter();
@@ -145,6 +170,9 @@ const recordWorkflow = async (
 					"github.step.number": step.number,
 					"cicd.pipeline.task.run.id": `${job.id}/${step.number}`,
 				});
+				const recording = operations.get(`${job.id}/${step.number}`);
+				if (recording !== undefined)
+					replayOperations(tracer, child, recording, `${jobUrl}#step:${step.number}:1`);
 				child.end(new Date(stepTime.end));
 			}
 			parent.end(new Date(time.end));
